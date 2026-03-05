@@ -44,7 +44,7 @@ class _HomePageState extends State<HomePage> {
   final List<Message> _messageHistory = [];
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: 'Hello! I\'m your AI assistant. How can I help you today?',
+      text: 'Здравствуйте! Я ваш ИИ-ассистент. Чем я могу вам помочь сегодня?',
       isUser: false,
     ),
   ];
