@@ -7,7 +7,7 @@ void main() {
     await tester.pumpWidget(const SpaceApp());
 
     // Проверяем заголовок
-    expect(find.text('TEST APP'), findsOneWidget);
+    expect(find.text('Sportsense'), findsOneWidget);
     expect(find.text('AI-Powered Assistant'), findsOneWidget);
   });
 

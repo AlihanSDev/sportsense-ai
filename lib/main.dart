@@ -17,7 +17,7 @@ class SpaceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TEST APP',
+      title: 'Sportsense',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -103,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ).createShader(bounds),
               child: const Text(
-                'TEST APP',
+                'Sportsense',
                 style: TextStyle(
                   fontSize: 42,
                   fontWeight: FontWeight.bold,
