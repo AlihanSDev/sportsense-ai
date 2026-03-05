@@ -1,17 +1,69 @@
-# sportsense
+# Sportsense AI
 
-A new Flutter project.
+Спортивное приложение с искусственным интеллектом, разработанное на Flutter.
 
-## Getting Started
+## 📱 О проекте
 
-This project is a starting point for a Flutter application.
+Sportsense AI — это современное мобильное приложение для отслеживания спортивных активностей с использованием AI-технологий.
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 Возможности
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Интеграция с AI-сервисами для анализа спортивных данных
+- Современный UI на базе Material Design
+- Поддержка платформ: Android, iOS, Web, Windows, Linux, macOS
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠 Технологии
+
+- **Flutter** — кроссплатформенная разработка
+- **Dart SDK** — ^3.11.0
+- **google_fonts** — кастомные шрифты
+- **http** — HTTP-запросы к API
+- **flutter_dotenv** — управление переменными окружения
+
+## 📦 Установка
+
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/AlihanSDev/sportsense-ai.git
+cd sportsense-ai
+```
+
+2. Установите зависимости:
+```bash
+flutter pub get
+```
+
+3. Настройте переменные окружения:
+```bash
+cp .env.example .env
+```
+
+4. Запустите приложение:
+```bash
+flutter run
+```
+
+## ⚙️ Настройка
+
+Создайте файл `.env` в корневой директории и добавьте необходимые переменные окружения (API ключи, эндпоинты и т.д.).
+
+## 🏗 Структура проекта
+
+```
+sportsense-ai/
+├── lib/              # Исходный код приложения
+├── android/          # Android-специфичные файлы
+├── ios/              # iOS-специфичные файлы
+├── web/              # Web-специфичные файлы
+├── windows/          # Windows-специфичные файлы
+├── linux/            # Linux-специфичные файлы
+├── macos/            # macOS-специфичные файлы
+├── test/             # Тесты
+└── .env.example      # Пример переменных окружения
+```
+
+## 🧪 Тестирование
+
+```bash
+flutter test
+```
