@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'services/huggingface_service.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   runApp(const SpaceApp());
 }
 
@@ -36,6 +40,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late final HuggingFaceService _hfService;
+  final List<Message> _messageHistory = [];
   final List<ChatMessage> _messages = [
     ChatMessage(
       text: 'Hello! I\'m your AI assistant. How can I help you today?',
@@ -44,24 +50,39 @@ class _HomePageState extends State<HomePage> {
   ];
   bool _isLoading = false;
 
-  void _sendMessage(String text) {
+  @override
+  void initState() {
+    super.initState();
+    _hfService = HuggingFaceService(apiKey: dotenv.env['HF_TOKEN'] ?? '');
+  }
+
+  Future<void> _sendMessage(String text) async {
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
+      _messageHistory.add(Message(role: 'user', content: text));
       _isLoading = true;
     });
 
-    // Имитация ответа AI (здесь будет интеграция с вашим сервисом)
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      final response = await _hfService.chatWithHistory(_messageHistory);
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(text: response, isUser: false));
+          _messageHistory.add(Message(role: 'assistant', content: response));
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
       if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
-            text: 'This is a demo response. Integrate your AI service to get real responses!',
+            text: 'Ошибка: $e',
             isUser: false,
           ));
           _isLoading = false;
         });
       }
-    });
+    }
   }
 
   @override
