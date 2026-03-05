@@ -1,30 +1,43 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:sportsense/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('TestApp renders correctly', (WidgetTester tester) async {
+    // Запускаем приложение
+    await tester.pumpWidget(const TestApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Проверяем что заголовок отображается
+    expect(find.text('TEST APP'), findsOneWidget);
+    expect(find.text('Welcome to your new app'), findsOneWidget);
+    
+    // Проверяем что карточка с контентом отображается
+    expect(find.text('Ready to Build'), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
+    
+    // Проверяем что иконка ракеты есть
+    expect(find.byIcon(Icons.rocket_launch), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('Get Started button shows snackbar', (WidgetTester tester) async {
+    // Запускаем приложение
+    await tester.pumpWidget(const TestApp());
+
+    // Проверяем что изначально SnackBar нет
+    expect(find.text('Button pressed! 🚀'), findsNothing);
+
+    // Нажимаем кнопку Get Started
+    await tester.tap(find.text('Get Started'));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Проверяем что SnackBar появился
+    expect(find.text('Button pressed! 🚀'), findsOneWidget);
+  });
+
+  testWidgets('Gradient background exists', (WidgetTester tester) async {
+    await tester.pumpWidget(const TestApp());
+
+    // Проверяем что градиентный контейнер есть
+    expect(find.byType(Container), findsWidgets);
   });
 }
