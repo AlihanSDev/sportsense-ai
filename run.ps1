@@ -3,11 +3,16 @@ Write-Host "  Запуск TEST APP на Small Phone" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/5] Запуск эмулятора Small Phone..." -ForegroundColor Yellow
-flutter emulators --launch Small_Phone
+Write-Host "[1/5] Запуск эмулятора Small Phone (cold boot)..." -ForegroundColor Yellow
+flutter emulators --launch Small_Phone --cold
 
-Write-Host "[2/5] Ожидание загрузки (30 сек)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 30
+Write-Host "[2/5] Ожидание и подключение устройства..." -ForegroundColor Yellow
+# подождать появления устройства в списке flutter devices
+for ($i=0; $i -lt 30; $i++) {
+    if (flutter devices | Select-String "Small Phone") { break }
+    Start-Sleep -Seconds 2
+}
+Start-Sleep -Seconds 15
 
 Write-Host "[3/5] Очистка кэша..." -ForegroundColor Yellow
 flutter clean

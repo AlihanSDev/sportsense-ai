@@ -3,11 +3,15 @@ Write-Host "  Запуск SportSense API на SportSense API 27" -ForegroundCol
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/5] Запуск эмулятора SportSense API 27..." -ForegroundColor Yellow
-flutter emulators --launch SportSense_API_27
+Write-Host "[1/5] Запуск эмулятора SportSense API 27 (cold boot)..." -ForegroundColor Yellow
+flutter emulators --launch SportSense_API_27 --cold
 
-Write-Host "[2/5] Ожидание загрузки (30 сек)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 30
+Write-Host "[2/5] Ожидание и подключение устройства..." -ForegroundColor Yellow
+for ($i=0; $i -lt 30; $i++) {
+    if (flutter devices | Select-String "SportSense_API_27") { break }
+    Start-Sleep -Seconds 2
+}
+Start-Sleep -Seconds 15
 
 Write-Host "[3/5] Очистка кэша..." -ForegroundColor Yellow
 flutter clean
