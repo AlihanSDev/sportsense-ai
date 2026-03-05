@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/huggingface_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   runApp(const TestApp());
 }
 
@@ -26,8 +30,55 @@ class TestApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late HuggingFaceService _aiService;
+  final TextEditingController _messageController = TextEditingController();
+  bool _isLoading = false;
+  String? _aiResponse;
+
+  @override
+  void initState() {
+    super.initState();
+    _aiService = HuggingFaceService(apiKey: dotenv.env['HF_TOKEN'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+      _aiResponse = null;
+    });
+
+    try {
+      final response = await _aiService.chat(message);
+      setState(() {
+        _aiResponse = response;
+      });
+    } catch (e) {
+      setState(() {
+        _aiResponse = 'Ошибка: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,13 +99,12 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 48),
-              // Header with beautiful text
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
                   colors: [Colors.white, Color(0xFFB3E5FC)],
                 ).createShader(bounds),
                 child: Text(
-                  'TEST APP',
+                  'AI SPORTSENSE',
                   style: GoogleFonts.pacifico(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
@@ -72,7 +122,7 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Welcome to your new app',
+                'AI-powered sports assistant',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: Colors.white70,
@@ -80,16 +130,15 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // Content card
               Container(
                 margin: const EdgeInsets.all(24),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.95),
+                  color: Colors.white.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -101,18 +150,18 @@ class HomePage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2196F3).withOpacity(0.1),
+                        color: const Color(0xFF2196F3).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.rocket_launch,
+                        Icons.smart_toy,
                         size: 48,
                         color: Color(0xFF2196F3),
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Ready to Build',
+                      'Ask AI Assistant',
                       style: GoogleFonts.poppins(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -120,31 +169,22 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      'This is your foundation for an amazing mobile experience.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        height: 1.5,
+                    TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your question...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.question_answer),
                       ),
+                      maxLines: null,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Button pressed! 🚀'),
-                              backgroundColor: const Color(0xFF2196F3),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: _isLoading ? null : _sendMessage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2196F3),
                           foregroundColor: Colors.white,
@@ -154,15 +194,71 @@ class HomePage extends StatelessWidget {
                           ),
                           elevation: 4,
                         ),
-                        child: Text(
-                          'Get Started',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Ask AI',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
+                    if (_aiResponse != null) ...[
+                      const SizedBox(height: 24),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2196F3).withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF2196F3).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.psychology,
+                                  size: 20,
+                                  color: Color(0xFF2196F3),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'AI Response',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF2196F3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _aiResponse!,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[700],
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
