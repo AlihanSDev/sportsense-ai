@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'trigger_constants.dart';
 import 'trigger_words_loader.dart';
 
-/// Сервис для работы с триггерными словами в векторной базе Qdrant.
-/// Использует локальную векторизацию и Qdrant для хранения.
+/// Сервис для работы с триггерными словами в локальном векторном хранилище.
+/// Работает полностью офлайн без Qdrant/Docker.
 /// Триггерные слова загружаются из assets/trigger_words.txt
 class TriggerWordsService {
   final TriggerWordsLoader _loader;
@@ -19,7 +19,6 @@ class TriggerWordsService {
   }) : _loader = loader ?? TriggerWordsLoader();
 
   /// Инициализация сервиса
-  /// Загружает триггеры из txt файла в Qdrant
   Future<bool> initialize() async {
     if (_isInitialized) return true;
     
@@ -28,8 +27,8 @@ class TriggerWordsService {
       _isInitialized = success;
       
       if (success) {
-        final count = await _loader.getTriggerCount();
-        debugPrint('✅ TriggerWordsService инициализирован: $count триггеров в Qdrant');
+        final count = _loader.getTriggerCount();
+        debugPrint('✅ TriggerWordsService инициализирован: $count триггеров (локально)');
       } else {
         debugPrint('⚠️ Ошибка инициализации TriggerWordsService');
       }
@@ -84,7 +83,7 @@ class TriggerWordsService {
   
   /// Получить количество триггеров
   Future<int> getTriggerCount() async {
-    return await _loader.getTriggerCount();
+    return _loader.getTriggerCount();
   }
   
   /// Перезагрузка триггеров

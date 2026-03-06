@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'uefa_search_indicator.dart';
 
 /// Сообщение чата
 class ChatMessage {
@@ -19,12 +20,16 @@ class ChatInterface extends StatefulWidget {
   final List<ChatMessage> messages;
   final Function(String) onSendMessage;
   final bool isLoading;
+  final bool showSearch;
+  final String? searchError;
 
   const ChatInterface({
     super.key,
     required this.messages,
     required this.onSendMessage,
     this.isLoading = false,
+    this.showSearch = false,
+    this.searchError,
   });
 
   @override
@@ -35,11 +40,41 @@ class _ChatInterfaceState extends State<ChatInterface> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  /// содержимое, отображаемое в пузырьках; для бот-сообщений может
+  /// заполняться постепенно, создавая эффект «набирается текст»
+  late List<String> _displayedTexts;
+
+  /// флаги для постепенного появления сообщения (для анимации opacity)
+  late List<bool> _fadedIn;
+
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// запускает анимацию печати для нового сообщения бота
+  Future<void> _startTyping(String fullText) async {
+    for (int i = 1; i <= fullText.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 30));
+      if (!mounted) return;
+      setState(() {
+        _displayedTexts[_displayedTexts.length - 1] = fullText.substring(0, i);
+      });
+      _scrollToBottom();
+    }
+  }
+
+  /// плавное появление пузырька после добавления в список
+  void _fadeIn(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _fadedIn[index] = true;
+        });
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -49,6 +84,43 @@ class _ChatInterfaceState extends State<ChatInterface> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // при старте все сообщения уже должны показываться полностью
+    _displayedTexts = widget.messages.map((m) => m.isUser ? m.text : m.text).toList();
+    _fadedIn = List<bool>.filled(widget.messages.length, true);
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatInterface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.messages.length > oldWidget.messages.length) {
+      // добавлено новое сообщение (скорее всего от ИИ)
+      final newMsg = widget.messages.last;
+      if (newMsg.isUser) {
+        _displayedTexts.add(newMsg.text);
+      } else {
+        _displayedTexts.add('');
+        _startTyping(newMsg.text);
+      }
+      _fadedIn.add(false);
+      _fadeIn(_fadedIn.length - 1);
+    } else if (widget.messages.length < oldWidget.messages.length) {
+      // сообщения удалены? просто синхронизируем списки
+      _displayedTexts = widget.messages.map((m) => m.text).toList();
+      _fadedIn = List<bool>.filled(widget.messages.length, true);
+    } else {
+      // изменение без изменения длины, синхронизируем тексты
+      for (var i = 0; i < widget.messages.length; i++) {
+        if (widget.messages[i].isUser) {
+          _displayedTexts[i] = widget.messages[i].text;
+        }
+      }
     }
   }
 
@@ -141,23 +213,44 @@ class _ChatInterfaceState extends State<ChatInterface> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      itemCount: widget.messages.length + (widget.isLoading ? 1 : 0),
+      // always reserve a slot for the search indicator to avoid list reflows
+      itemCount: widget.messages.length
+          + 1
+          + (widget.searchError != null ? 1 : 0)
+          + (widget.isLoading ? 1 : 0),
       itemBuilder: (context, index) {
-        if (widget.isLoading && index == widget.messages.length) {
+        final base = widget.messages.length;
+        if (index < base) {
+          return _buildMessageBubble(widget.messages[index], index);
+        }
+        if (index == base) {
+          // indicator slot
+          return _buildSearchIndicator(widget.showSearch);
+        }
+        int offset = 1;
+        if (widget.searchError != null) {
+          if (index == base + offset) {
+            return _buildSearchError(widget.searchError!);
+          }
+          offset++;
+        }
+        if (widget.isLoading && index == base + offset) {
           return _buildLoadingIndicator();
         }
-
-        final message = widget.messages[index];
-        return _buildMessageBubble(message);
+        // should not reach here normally
+        return const SizedBox.shrink();
       },
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
+  Widget _buildMessageBubble(ChatMessage message, int index) {
+    return AnimatedOpacity(
+      opacity: _fadedIn[index] ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 300),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisAlignment:
             message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
@@ -199,7 +292,8 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    message.text,
+                    // отображаем часть текста, если идет печать
+                    _displayedTexts.length > index ? _displayedTexts[index] : message.text,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       color: message.isUser
@@ -242,6 +336,60 @@ class _ChatInterfaceState extends State<ChatInterface> {
           ],
         ],
       ),
+    ),
+  );
+  }
+
+  Widget _buildSearchIndicator(bool visible) {
+    // keep the slot always there; animate size & opacity when shown/hidden
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: AnimatedOpacity(
+        opacity: visible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: visible
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF00D4FF),
+                            Color(0xFF7C4DFF),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.smart_toy_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: UefaSearchIndicator(
+                        message: 'Поиск информации...',
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _buildSearchError(String message) {
+    // error shown inline after the search indicator
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: UefaErrorIndicator(message: message),
     );
   }
 

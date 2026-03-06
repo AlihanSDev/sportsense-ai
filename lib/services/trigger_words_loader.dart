@@ -21,7 +21,6 @@ class TriggerWordsLoader {
   }) : _qdrant = qdrant ?? QdrantClient();
 
   /// Простая хэш-функция для векторизации текста
-  /// В будущем заменить на настоящую модель эмбеддингов
   List<double> _vectorize(String text) {
     final vector = List<double>.filled(_vectorSize, 0.0);
     final normalizedText = text.toLowerCase().trim();
@@ -34,7 +33,7 @@ class TriggerWordsLoader {
       final index1 = (charCode + i) % _vectorSize;
       vector[index1] += 0.5;
       
-      // Биграммы (если есть следующий символ)
+      // Биграммы
       if (i < normalizedText.length - 1) {
         final nextCode = normalizedText.codeUnitAt(i + 1);
         final bigram = charCode * 31 + nextCode;
@@ -43,7 +42,7 @@ class TriggerWordsLoader {
       }
     }
     
-    // Нормализация вектора (L2 норма)
+    // L2 нормализация
     final magnitude = sqrt(vector.fold<double>(
       0.0,
       (sum, val) => sum + val * val,
@@ -71,17 +70,16 @@ class TriggerWordsLoader {
         // Пропускаем комментарии и пустые строки
         if (line.isEmpty || line.startsWith('#')) continue;
         
-        // Пропускаем заголовки секций (начинаются с ##)
+        // Пропускаем заголовки секций
         if (line.startsWith('##')) continue;
         
         triggers.add(line);
       }
       
-      debugPrint('Загружено ${triggers.length} триггеров из $_assetPath');
+      debugPrint('📄 Загружено ${triggers.length} триггеров из $_assetPath');
       return triggers;
     } catch (e) {
-      debugPrint('Ошибка загрузки триггеров: $e');
-      // Возвращаем дефолтный список если файл не найден
+      debugPrint('❌ Ошибка загрузки триггеров: $e');
       return _getDefaultTriggers();
     }
   }
@@ -97,24 +95,28 @@ class TriggerWordsLoader {
     ];
   }
 
-  /// Инициализация коллекции и загрузка триггеров в Qdrant
+  /// Инициализация Qdrant и загрузка триггеров
   Future<bool> initialize() async {
+    // Попытка запуска локального Qdrant
+    final qdrantReady = await _qdrant.startLocal();
+    
+    if (!qdrantReady) {
+      debugPrint('⚠️ Qdrant недоступен. Загрузим триггеры позже.');
+      return false;
+    }
+
     // Загрузка триггеров из файла
     final triggers = await loadTriggerWords();
     
     if (triggers.isEmpty) {
-      debugPrint('Нет триггеров для загрузки');
+      debugPrint('❌ Нет триггеров для загрузки');
       return false;
     }
 
     // Проверка существования коллекции
     final exists = await _qdrant.collectionExists(_collectionName);
     
-    if (exists) {
-      // Коллекция существует - очищаем и перезаписываем
-      debugPrint('Коллекция существует, очищаем...');
-      await _qdrant.clearCollection(_collectionName);
-    } else {
+    if (!exists) {
       // Создаём новую коллекцию
       final created = await _qdrant.createCollection(
         collectionName: _collectionName,
@@ -123,9 +125,13 @@ class TriggerWordsLoader {
       );
       
       if (!created) {
-        debugPrint('Не удалось создать коллекцию');
+        debugPrint('❌ Не удалось создать коллекцию');
         return false;
       }
+    } else {
+      // Коллекция существует - очищаем и перезаписываем
+      debugPrint('🔄 Коллекция существует, очищаем...');
+      await _qdrant.clearCollection(_collectionName);
     }
 
     // Загрузка триггеров в Qdrant
@@ -171,9 +177,9 @@ class TriggerWordsLoader {
         );
         
         if (success) {
-          debugPrint('Загружен чанк ${i + 1}-${end} из ${triggers.length}');
+          debugPrint('📦 Загружен чанк ${i + 1}-${end} из ${triggers.length}');
         } else {
-          debugPrint('Ошибка загрузки чанка ${i + 1}-${end}');
+          debugPrint('❌ Ошибка загрузки чанка ${i + 1}-${end}');
         }
       }
       
@@ -192,7 +198,7 @@ class TriggerWordsLoader {
     return russianPattern.hasMatch(text) ? 'ru' : 'en';
   }
 
-  /// Поиск похожих триггеров
+  /// Поиск похожих триггеров в Qdrant
   Future<List<Map<String, dynamic>>> searchSimilar(
     String query, {
     int limit = 5,
@@ -204,15 +210,10 @@ class TriggerWordsLoader {
       collectionName: _collectionName,
       vector: queryVector,
       limit: limit,
+      threshold: threshold,
     );
     
-    // Фильтрация по порогу
-    return results
-        .where((result) {
-          final score = (result['score'] as num?)?.toDouble() ?? 0;
-          return score >= threshold;
-        })
-        .toList();
+    return results;
   }
 
   /// Проверка наличия триггера
@@ -224,17 +225,15 @@ class TriggerWordsLoader {
   /// Получить количество триггеров в коллекции
   Future<int> getTriggerCount() async {
     try {
-      // Qdrant не предоставляет прямой метод count, 
-      // поэтому делаем поиск с большим limit
-      final results = await _qdrant.searchPoints(
-        collectionName: _collectionName,
-        vector: List.filled(_vectorSize, 0.0),
-        limit: 10000,
-      );
-      return results.length;
+      final info = await _qdrant.getCollectionInfo(_collectionName);
+      if (info != null) {
+        final pointsCount = info['points_count'] as int?;
+        return pointsCount ?? 0;
+      }
     } catch (e) {
-      return 0;
+      // Игнорируем ошибки
     }
+    return 0;
   }
 
   /// Очистка коллекции
@@ -246,5 +245,10 @@ class TriggerWordsLoader {
   Future<bool> reload() async {
     await clear();
     return await initialize();
+  }
+
+  /// Остановка Qdrant
+  Future<void> dispose() async {
+    await _qdrant.dispose();
   }
 }

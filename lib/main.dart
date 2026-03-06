@@ -5,7 +5,6 @@ import 'services/huggingface_service.dart';
 import 'services/uefa_search_manager.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
-import 'widgets/uefa_search_indicator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,18 +75,13 @@ class _HomePageState extends State<HomePage> {
   Future<void> _sendMessage(String text) async {
     // Проверка на тестовую фразу BANANA-HEY для проверки анимации
     if (text.trim().toUpperCase() == 'BANANA-HEY') {
-      await _uefaSearchManager.interceptQuery('BANANA-HEY тестовый запрос');
-      // Ждём завершения поиска
+      // запрашиваем у менеджера именно ключевую фразу
+      await _uefaSearchManager.interceptQuery('BANANA-HEY');
+      // Ждём завершения поиска (анимация и индикатор ошибки/успеха показывается внутри)
       while (_uefaSearchManager.isSearching) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      // Показываем тестовый ответ
-      setState(() {
-        _messages.add(ChatMessage(
-          text: '✅ Тест анимации завершён! UEFA Search работает корректно.',
-          isUser: false,
-        ));
-      });
+      // для теста не добавляем никаких сообщений в чат – достаточно увидеть анимацию
       return;
     }
 
@@ -205,42 +199,14 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: Stack(
-                    children: [
-                      ChatInterface(
-                        messages: _messages,
-                        onSendMessage: _sendMessage,
-                        isLoading: _isLoading,
-                      ),
-                      
-                      // Индикатор UEFA Search (показывается поверх чата)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: IgnorePointer(
-                          child: AnimatedOpacity(
-                            opacity: _uefaSearchManager.isSearching ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 300),
-                            child: const UefaSearchIndicator(
-                              message: 'Поиск актуальной информации...',
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Индикатор ошибки
-                      if (_uefaSearchManager.hasError)
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: UefaErrorIndicator(
-                            message: _uefaSearchManager.errorMessage,
-                            onRetry: () => _uefaSearchManager.retry(),
-                          ),
-                        ),
-                    ],
+                  child: ChatInterface(
+                    messages: _messages,
+                    onSendMessage: _sendMessage,
+                    isLoading: _isLoading,
+                    showSearch: _uefaSearchManager.isSearching,
+                    searchError: _uefaSearchManager.hasError
+                        ? _uefaSearchManager.errorMessage
+                        : null,
                   ),
                 ),
               ),
