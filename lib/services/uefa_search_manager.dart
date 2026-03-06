@@ -67,7 +67,7 @@ class UefaSearchManager extends ChangeNotifier {
 
     // Специальная тестовая фраза BANANA-HEY (всегда срабатывает)
     if (query.trim().toUpperCase() == 'BANANA-HEY') {
-      await _startSearch();
+      await _startSearch(isTest: true);
       return true;
     }
 
@@ -76,7 +76,7 @@ class UefaSearchManager extends ChangeNotifier {
     
     if (hasTrigger) {
       // Запускаем процесс поиска ДО ответа LLM
-      await _startSearch();
+      await _startSearch(isTest: false);
     }
     
     return hasTrigger;
@@ -84,34 +84,50 @@ class UefaSearchManager extends ChangeNotifier {
 
   /// Начало поиска (показываем анимацию)
   /// Вызывается сразу после обнаружения триггера, ДО LLM
-  Future<void> _startSearch() async {
+  Future<void> _startSearch({bool isTest = false}) async {
     _status = UefaSearchStatus.searching;
     _errorMessage = '';
     notifyListeners();
 
-    // Имитация поиска данных (placeholder - без реального парсера)
-    // В будущем здесь будет вызов uefa_parser.dart
-    await _simulateSearch();
+    // Запуск поиска данных
+    await _performSearch(isTest: isTest);
   }
 
-  /// Имитация поиска данных (в будущем здесь будет вызов парсера)
-  /// Работает независимо от статуса HuggingFace API
-  Future<void> _simulateSearch() async {
+  /// Выполнение поиска данных
+  /// Для BANANA-HEY: 10 секунд ожидания, затем ошибка
+  /// Для реальных триггеров: будущее обращение к парсеру
+  Future<void> _performSearch({bool isTest = false}) async {
     try {
-      // Имитация задержки сети (2-3 секунды)
-      await Future.delayed(const Duration(milliseconds: 2500));
-      
-      // Placeholder: всегда успешно (потом заменить на реальный парсер)
-      _status = UefaSearchStatus.success;
-      notifyListeners();
-      
-      // Автоматический сброс через 500мс после успеха
-      // К этому моменту UI уже должен отправить запрос к LLM
-      _statusTimer?.cancel();
-      _statusTimer = Timer(const Duration(milliseconds: 500), () {
-        _status = UefaSearchStatus.idle;
+      if (isTest) {
+        // Тестовый режим: 10 секунд ожидания, затем ошибка
+        await Future.delayed(const Duration(seconds: 10));
+        
+        // Симуляция ошибки (нет подключения к сети)
+        _status = UefaSearchStatus.error;
+        _errorMessage = 'Нет подключения к интернету или сайт UEFA недоступен';
         notifyListeners();
-      });
+        
+        // Автоматический сброс через 5 секунд
+        _statusTimer?.cancel();
+        _statusTimer = Timer(const Duration(seconds: 5), () {
+          _status = UefaSearchStatus.idle;
+          notifyListeners();
+        });
+      } else {
+        // Реальный режим: имитация поиска (2-3 секунды)
+        await Future.delayed(const Duration(milliseconds: 2500));
+        
+        // Placeholder: всегда успешно (потом заменить на реальный парсер)
+        _status = UefaSearchStatus.success;
+        notifyListeners();
+        
+        // Автоматический сброс через 500мс после успеха
+        _statusTimer?.cancel();
+        _statusTimer = Timer(const Duration(milliseconds: 500), () {
+          _status = UefaSearchStatus.idle;
+          notifyListeners();
+        });
+      }
       
     } catch (e) {
       _status = UefaSearchStatus.error;
@@ -135,7 +151,7 @@ class UefaSearchManager extends ChangeNotifier {
   /// Повтор попытки после ошибки
   Future<void> retry() async {
     if (_status == UefaSearchStatus.error) {
-      await _startSearch();
+      await _startSearch(isTest: true);
     }
   }
 

@@ -16,75 +16,105 @@ class UefaSearchIndicator extends StatefulWidget {
 
 class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  
+  late AnimationController _dotsController;
+  int _currentDot = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    
+    _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
 
-    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    
+    _dotsController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    )..repeat();
+    
+    _dotsController.addListener(() {
+      setState(() {
+        _currentDot = (_dotsController.value * 3).floor() % 3;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pulseController.dispose();
+    _dotsController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+            Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            Theme.of(context).colorScheme.secondary.withOpacity(0.2),
           ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 1.5,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Анимированные точки
-          AnimatedDots(),
+          _buildAnimatedDots(),
           
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           
           // Текст
           Expanded(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Text(
-                  widget.message,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+            child: ScaleTransition(
+              scale: _pulseAnimation,
+              child: Text(
+                widget.message,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  letterSpacing: 0.5,
                 ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Спиннер
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -92,109 +122,33 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
       ),
     );
   }
-}
 
-/// Виджет с анимированными точками
-class AnimatedDots extends StatefulWidget {
-  const AnimatedDots({super.key});
-
-  @override
-  State<AnimatedDots> createState() => _AnimatedDotsState();
-}
-
-class _AnimatedDotsState extends State<AnimatedDots>
-    with TickerProviderStateMixin {
-  late AnimationController _dot1Controller;
-  late AnimationController _dot2Controller;
-  late AnimationController _dot3Controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _dot1Controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _dot2Controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _dot3Controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    // Задержка для каждой следующей точки
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _dot2Controller.repeat(reverse: true);
-    });
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) _dot3Controller.repeat(reverse: true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _dot1Controller.dispose();
-    _dot2Controller.dispose();
-    _dot3Controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildAnimatedDots() {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        DotAnimation(_dot1Controller),
-        const SizedBox(width: 4),
-        DotAnimation(_dot2Controller),
-        const SizedBox(width: 4),
-        DotAnimation(_dot3Controller),
-      ],
-    );
-  }
-}
-
-/// Анимация одной точки
-class DotAnimation extends StatefulWidget {
-  final AnimationController controller;
-
-  const DotAnimation(this.controller, {super.key});
-
-  @override
-  State<DotAnimation> createState() => _DotAnimationState();
-}
-
-class _DotAnimationState extends State<DotAnimation> {
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: widget.controller,
-      builder: (context, child) {
+      children: List.generate(3, (index) {
+        final isActive = index <= _currentDot;
         return Container(
-          width: 8,
-          height: 8,
+          width: 10,
+          height: 10,
+          margin: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                Theme.of(context).colorScheme.primary.withOpacity(0.4 + widget.controller.value * 0.6),
-                Theme.of(context).colorScheme.primary.withOpacity(0.2),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                blurRadius: 8 + widget.controller.value * 4,
-                spreadRadius: widget.controller.value * 2,
-              ),
-            ],
+            color: isActive 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : [],
           ),
         );
-      },
+      }),
     );
   }
 }
@@ -216,26 +170,41 @@ class UefaErrorIndicator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).colorScheme.errorContainer.withOpacity(0.4),
+            Theme.of(context).colorScheme.error.withOpacity(0.1),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).colorScheme.error.withOpacity(0.5),
-          width: 1.5,
+          color: Theme.of(context).colorScheme.error.withOpacity(0.6),
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ],
       ),
       child: Row(
         children: [
           Icon(
             Icons.error_outline,
             color: Theme.of(context).colorScheme.error,
-            size: 24,
+            size: 28,
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
               message,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
                 color: Theme.of(context).colorScheme.onErrorContainer,
               ),
             ),
@@ -243,12 +212,13 @@ class UefaErrorIndicator extends StatelessWidget {
           if (onRetry != null) ...[
             const SizedBox(width: 12),
             IconButton(
-              icon: const Icon(Icons.refresh, size: 20),
+              icon: const Icon(Icons.refresh, size: 22),
               onPressed: onRetry,
               tooltip: 'Повторить',
               style: IconButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.errorContainer,
                 foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+                padding: const EdgeInsets.all(10),
               ),
             ),
           ],
