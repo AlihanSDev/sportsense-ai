@@ -1,14 +1,52 @@
 import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'qdrant_client.dart';
+import 'trigger_constants.dart';
 
 /// Сервис для работы с триггерными словами в векторной базе Qdrant.
-/// Векторизует фразы и выполняет семантический поиск.
+/// Триггерные слова хранятся как константы в единой неизменной базе.
 class TriggerWordsService {
   final QdrantClient _qdrant;
-  final String _collectionName = 'uefa_triggers';
   
-  // Простая хэш-функция для демонстрации (в будущем заменить на эмбеддинги)
+  /// Название коллекции (единая база для всех триггеров)
+  final String _collectionName = UefaTriggerConstants.collectionName;
+  
+  /// Порог схожести
+  final double _threshold = UefaTriggerConstants.similarityThreshold;
+
+  /// Кэш векторов триггеров (чтобы не пересчитывать)
+  final Map<int, List<double>> _vectorCache = {};
+
+  TriggerWordsService({QdrantClient? qdrant})
+      : _qdrant = qdrant ??
+            QdrantClient(
+              url: dotenv.env['QDRANT_URL'] ?? 'http://localhost:6333',
+              apiKey: dotenv.env['QDRANT_API_KEY'],
+            );
+
+  /// Инициализация единой базы триггеров
+  /// Создаёт коллекцию и загружает константные триггеры (только один раз)
+  Future<bool> initialize() async {
+    // Проверка существования коллекции
+    final exists = await _qdrant.collectionExists(_collectionName);
+    
+    if (!exists) {
+      final created = await _qdrant.createCollection(
+        collectionName: _collectionName,
+        vectorSize: UefaTriggerConstants.vectorSize,
+        distance: 'Cosine',
+      );
+      if (!created) return false;
+      
+      // Загрузка константных триггеров в базу
+      await _loadConstantTriggers();
+    }
+    
+    return true;
+  }
+
+  /// Векторизация текста (простая хэш-функция для демонстрации)
+  /// В будущем заменить на настоящую модель эмбеддингов
   List<double> _vectorize(String text) {
     const vectorSize = 384;
     final vector = List<double>.filled(vectorSize, 0.0);
@@ -36,40 +74,15 @@ class TriggerWordsService {
     return vector;
   }
 
-  TriggerWordsService({QdrantClient? qdrant})
-      : _qdrant = qdrant ??
-            QdrantClient(
-              url: dotenv.env['QDRANT_URL'] ?? 'http://localhost:6333',
-              apiKey: dotenv.env['QDRANT_API_KEY'],
-            );
-
-  /// Инициализация коллекции с триггерными словами
-  Future<bool> initialize() async {
-    // Проверка существования коллекции
-    final exists = await _qdrant.collectionExists(_collectionName);
-    
-    if (!exists) {
-      final created = await _qdrant.createCollection(
-        collectionName: _collectionName,
-        vectorSize: 384,
-        distance: 'Cosine',
-      );
-      if (!created) return false;
-    }
-
-    // Загрузка триггерных слов
-    await _loadTriggerWords();
-    return true;
-  }
-
-  /// Загрузка триггерных слов в базу
-  Future<void> _loadTriggerWords() async {
-    final triggers = _getTriggerWords();
+  /// Загрузка константных триггеров в базу (вызывается один раз при создании)
+  Future<void> _loadConstantTriggers() async {
+    final triggers = UefaTriggerConstants.all;
     final points = <Map<String, dynamic>>[];
 
     for (var i = 0; i < triggers.length; i++) {
       final trigger = triggers[i];
       final vector = _vectorize(trigger);
+      _vectorCache[i] = vector; // Кэшируем вектор
       
       points.add({
         'id': i,
@@ -77,6 +90,7 @@ class TriggerWordsService {
         'payload': {
           'text': trigger,
           'language': _getLanguage(trigger),
+          'is_constant': true, // Метка что это константное значение
         },
       });
     }
@@ -89,34 +103,6 @@ class TriggerWordsService {
     }
   }
 
-  /// Получение списка триггерных слов
-  List<String> _getTriggerWords() {
-    return [
-      // English
-      'ranking',
-      'rankings',
-      'uefa ranking',
-      'uefa rankings',
-      'club ranking',
-      'club rankings',
-      'team ranking',
-      'team rankings',
-      'uefa table',
-      'uefa standings',
-      'coefficient ranking',
-      'uefa coefficient',
-      // Russian
-      'рейтинг',
-      'рейтинги',
-      'рейтинг клубов',
-      'рейтинг uefa',
-      'таблица uefa',
-      'коэффициент uefa',
-      'еврокубковый рейтинг',
-      'позиция в рейтинге',
-    ];
-  }
-
   /// Определение языка фразы
   String _getLanguage(String text) {
     final russianPattern = RegExp(r'[а-яА-ЯёЁ]');
@@ -124,8 +110,9 @@ class TriggerWordsService {
   }
 
   /// Поиск триггера в запросе пользователя
+  /// Возвращает найденные триггеры с оценкой схожести
   Future<List<Map<String, dynamic>>> findTriggers(String query,
-      {double threshold = 0.7}) async {
+      {double? threshold}) async {
     final queryVector = _vectorize(query);
     
     final results = await _qdrant.searchPoints(
@@ -135,26 +122,21 @@ class TriggerWordsService {
     );
 
     // Фильтрация по порогу схожести
+    final effectiveThreshold = threshold ?? _threshold;
     return results
-        .where((result) => (result['score'] as num?)?.toDouble() ?? 0 >= threshold)
+        .where((result) => (result['score'] as num?)?.toDouble() ?? 0 >= effectiveThreshold)
         .toList();
   }
 
   /// Проверка наличия триггера в запросе
-  Future<bool> hasTrigger(String query, {double threshold = 0.7}) async {
+  /// Возвращает true если найден хотя бы один триггер
+  Future<bool> hasTrigger(String query, {double? threshold}) async {
     final matches = await findTriggers(query, threshold: threshold);
     return matches.isNotEmpty;
   }
 
-  /// Очистка базы триггеров
-  Future<bool> clear() async {
-    return await _qdrant.clearCollection(_collectionName);
-  }
-
-  /// Перезагрузка триггерных слов
-  Future<bool> reload() async {
-    await clear();
-    await _loadTriggerWords();
-    return true;
+  /// Получение всех константных триггеров
+  List<String> getAllTriggers() {
+    return UefaTriggerConstants.all;
   }
 }
