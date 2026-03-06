@@ -65,6 +65,12 @@ class UefaSearchManager extends ChangeNotifier {
       await initialize();
     }
 
+    // Специальная тестовая фраза BANANA-HEY (всегда срабатывает)
+    if (query.trim().toUpperCase() == 'BANANA-HEY') {
+      await _startSearch();
+      return true;
+    }
+
     // Проверяем наличие триггера в векторной базе
     final hasTrigger = await _triggerService.hasTrigger(query);
     

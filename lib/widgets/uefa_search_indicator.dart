@@ -159,15 +159,20 @@ class _AnimatedDotsState extends State<AnimatedDots>
 }
 
 /// Анимация одной точки
-class DotAnimation extends AnimatedWidget {
+class DotAnimation extends StatefulWidget {
   final AnimationController controller;
 
   const DotAnimation(this.controller, {super.key});
 
   @override
+  State<DotAnimation> createState() => _DotAnimationState();
+}
+
+class _DotAnimationState extends State<DotAnimation> {
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: widget.controller,
       builder: (context, child) {
         return Container(
           width: 8,
@@ -176,15 +181,15 @@ class DotAnimation extends AnimatedWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                Theme.of(context).colorScheme.primary.withOpacity(0.4 + controller.value * 0.6),
+                Theme.of(context).colorScheme.primary.withOpacity(0.4 + widget.controller.value * 0.6),
                 Theme.of(context).colorScheme.primary.withOpacity(0.2),
               ],
             ),
             boxShadow: [
               BoxShadow(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                blurRadius: 8 + controller.value * 4,
-                spreadRadius: controller.value * 2,
+                blurRadius: 8 + widget.controller.value * 4,
+                spreadRadius: widget.controller.value * 2,
               ),
             ],
           ),

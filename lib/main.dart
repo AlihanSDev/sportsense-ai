@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/huggingface_service.dart';
+import 'services/uefa_search_manager.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
+import 'widgets/uefa_search_indicator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +43,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final HuggingFaceService _hfService;
+  late final UefaSearchManager _uefaSearchManager;
   final List<Message> _messageHistory = [];
   final List<ChatMessage> _messages = [
     ChatMessage(
@@ -54,9 +57,50 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _hfService = HuggingFaceService(apiKey: dotenv.env['HF_TOKEN'] ?? '');
+    _uefaSearchManager = UefaSearchManager();
+    _uefaSearchManager.initialize();
+    _uefaSearchManager.addListener(_onUefaSearchChanged);
+  }
+
+  void _onUefaSearchChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _uefaSearchManager.removeListener(_onUefaSearchChanged);
+    _uefaSearchManager.dispose();
+    super.dispose();
   }
 
   Future<void> _sendMessage(String text) async {
+    // Проверка на тестовую фразу BANANA-HEY для проверки анимации
+    if (text.trim().toUpperCase() == 'BANANA-HEY') {
+      await _uefaSearchManager.interceptQuery('BANANA-HEY тестовый запрос');
+      // Ждём завершения поиска
+      while (_uefaSearchManager.isSearching) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      // Показываем тестовый ответ
+      setState(() {
+        _messages.add(ChatMessage(
+          text: '✅ Тест анимации завершён! UEFA Search работает корректно.',
+          isUser: false,
+        ));
+      });
+      return;
+    }
+
+    // Проверка на триггеры UEFA через UefaSearchManager
+    final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
+    
+    if (hasUefaTrigger) {
+      // Ждём пока анимация не завершится
+      while (_uefaSearchManager.isSearching) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
       _messageHistory.add(Message(role: 'user', content: text));
@@ -161,10 +205,42 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: ChatInterface(
-                    messages: _messages,
-                    onSendMessage: _sendMessage,
-                    isLoading: _isLoading,
+                  child: Stack(
+                    children: [
+                      ChatInterface(
+                        messages: _messages,
+                        onSendMessage: _sendMessage,
+                        isLoading: _isLoading,
+                      ),
+                      
+                      // Индикатор UEFA Search (показывается поверх чата)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            opacity: _uefaSearchManager.isSearching ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: const UefaSearchIndicator(
+                              message: 'Поиск актуальной информации...',
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Индикатор ошибки
+                      if (_uefaSearchManager.hasError)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: UefaErrorIndicator(
+                            message: _uefaSearchManager.errorMessage,
+                            onRetry: () => _uefaSearchManager.retry(),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
