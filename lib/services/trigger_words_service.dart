@@ -1,108 +1,51 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'qdrant_client.dart';
 import 'trigger_constants.dart';
-import 'local_embedding.dart';
+import 'trigger_words_loader.dart';
 
 /// Сервис для работы с триггерными словами в векторной базе Qdrant.
-/// Использует локальный TF-IDF эмбеддинг для семантического поиска.
-/// Триггерные слова хранятся как константы в единой неизменной базе.
+/// Использует локальную векторизацию и Qdrant для хранения.
+/// Триггерные слова загружаются из assets/trigger_words.txt
 class TriggerWordsService {
-  final QdrantClient _qdrant;
-  final LocalEmbedding _embedding;
-  
-  /// Название коллекции (единая база для всех триггеров)
-  final String _collectionName = UefaTriggerConstants.collectionName;
+  final TriggerWordsLoader _loader;
   
   /// Порог схожести
   final double _threshold = UefaTriggerConstants.similarityThreshold;
-  
-  /// Кэш векторов триггеров
-  final Map<int, List<double>> _vectorCache = {};
   
   /// Инициализирован ли сервис
   bool _isInitialized = false;
 
   TriggerWordsService({
-    QdrantClient? qdrant,
-    LocalEmbedding? embedding,
-  })  : _qdrant = qdrant ?? QdrantClient(
-          url: dotenv.env['QDRANT_URL'] ?? 'http://localhost:6333',
-          apiKey: dotenv.env['QDRANT_API_KEY'],
-        ),
-        _embedding = embedding ?? LocalEmbedding();
+    TriggerWordsLoader? loader,
+  }) : _loader = loader ?? TriggerWordsLoader();
 
-  /// Инициализация единой базы триггеров
-  /// Обучает локальный эмбеддинг и загружает константные триггеры
+  /// Инициализация сервиса
+  /// Загружает триггеры из txt файла в Qdrant
   Future<bool> initialize() async {
     if (_isInitialized) return true;
     
-    // Обучение локального эмбеддинга на константных триггерах
-    final triggers = UefaTriggerConstants.all;
-    _embedding.train(triggers);
-    
-    debugPrint('LocalEmbedding обучен на ${triggers.length} триггерах, словарь: ${_embedding.vocabularySize} слов');
-    
-    // Проверка существования коллекции в Qdrant
-    final exists = await _qdrant.collectionExists(_collectionName);
-    
-    if (!exists) {
-      final created = await _qdrant.createCollection(
-        collectionName: _collectionName,
-        vectorSize: _embedding.vocabularySize,
-        distance: 'Cosine',
-      );
-      if (!created) return false;
+    try {
+      final success = await _loader.initialize();
+      _isInitialized = success;
       
-      // Загрузка константных триггеров в базу
-      await _loadConstantTriggers();
-    }
-    
-    _isInitialized = true;
-    return true;
-  }
-
-  /// Загрузка константных триггеров в базу (вызывается один раз при создании)
-  Future<void> _loadConstantTriggers() async {
-    final triggers = UefaTriggerConstants.all;
-    final points = <Map<String, dynamic>>[];
-
-    for (var i = 0; i < triggers.length; i++) {
-      final trigger = triggers[i];
-      final vector = _embedding.transform(trigger);
-      _vectorCache[i] = vector; // Кэшируем вектор
+      if (success) {
+        final count = await _loader.getTriggerCount();
+        debugPrint('✅ TriggerWordsService инициализирован: $count триггеров в Qdrant');
+      } else {
+        debugPrint('⚠️ Ошибка инициализации TriggerWordsService');
+      }
       
-      points.add({
-        'id': i,
-        'vector': vector,
-        'payload': {
-          'text': trigger,
-          'language': _getLanguage(trigger),
-          'is_constant': true, // Метка что это константное значение
-        },
-      });
-    }
-
-    if (points.isNotEmpty) {
-      await _qdrant.upsertPoints(
-        collectionName: _collectionName,
-        points: points,
-      );
-      debugPrint('Загружено ${points.length} триггеров в Qdrant');
+      return success;
+    } catch (e) {
+      debugPrint('❌ Ошибка инициализации: $e');
+      _isInitialized = false;
+      return false;
     }
   }
 
-  /// Определение языка фразы
-  String _getLanguage(String text) {
-    final russianPattern = RegExp(r'[а-яА-ЯёЁ]');
-    return russianPattern.hasMatch(text) ? 'ru' : 'en';
-  }
-
-  /// Поиск триггера в запросе пользователя с помощью локального эмбеддинга
-  /// Возвращает найденные триггеры с оценкой схожести
+  /// Поиск триггеров в запросе
   Future<List<Map<String, dynamic>>> findTriggers(String query, {
     double? threshold,
-    bool useLocalOnly = false,
+    int limit = 5,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -110,42 +53,46 @@ class TriggerWordsService {
 
     final effectiveThreshold = threshold ?? _threshold;
     
-    // Используем локальный TF-IDF для быстрого поиска
-    final localResults = _embedding.searchSimilar(query, limit: 5);
-    
-    debugPrint('LocalEmbedding нашёл ${localResults.length} похожих для "$query"');
-    for (var result in localResults) {
-      debugPrint('  - "${result['text']}": ${result['score'].toStringAsFixed(3)}');
+    try {
+      final results = await _loader.searchSimilar(
+        query,
+        limit: limit,
+        threshold: effectiveThreshold,
+      );
+      
+      if (kDebugMode) {
+        debugPrint('🔍 Найдено ${results.length} триггеров для "$query"');
+        for (var r in results) {
+          final text = r['payload']?['text'] ?? 'unknown';
+          final score = (r['score'] as num?)?.toDouble() ?? 0;
+          debugPrint('  - $text: ${score.toStringAsFixed(3)}');
+        }
+      }
+      
+      return results;
+    } catch (e) {
+      debugPrint('Ошибка поиска триггеров: $e');
+      return [];
     }
-    
-    // Фильтрация по порогу
-    final filtered = localResults
-        .where((result) => (result['score'] as num).toDouble() >= effectiveThreshold)
-        .toList();
-    
-    return filtered.map((result) => {
-      'id': result['index'],
-      'score': result['score'],
-      'payload': {
-        'text': result['text'],
-        'language': _getLanguage(result['text']),
-      },
-    }).toList();
   }
 
   /// Проверка наличия триггера в запросе
-  /// Возвращает true если найден хотя бы один триггер
   Future<bool> hasTrigger(String query, {double? threshold}) async {
     final matches = await findTriggers(query, threshold: threshold);
     return matches.isNotEmpty;
   }
-
-  /// Получение всех константных триггеров
-  List<String> getAllTriggers() {
-    return UefaTriggerConstants.all;
+  
+  /// Получить количество триггеров
+  Future<int> getTriggerCount() async {
+    return await _loader.getTriggerCount();
   }
   
-  /// Тестирование эмбеддинга на похожих запросах
+  /// Перезагрузка триггеров
+  Future<bool> reload() async {
+    return await _loader.reload();
+  }
+  
+  /// Тестирование на примерах
   void debugTestEmbedding() {
     final testQueries = [
       'ranking',
@@ -154,16 +101,20 @@ class TriggerWordsService {
       'рейтинг клубов',
       'table',
       'таблица',
+      'BANANA-HEY',
     ];
     
-    debugPrint('\n=== Тест LocalEmbedding ===');
+    debugPrint('\n=== Тест TriggerWordsService ===');
     for (var query in testQueries) {
-      final results = _embedding.searchSimilar(query, limit: 3);
-      debugPrint('Запрос: "$query"');
-      for (var r in results) {
-        debugPrint('  ${r['score'].toStringAsFixed(3)} - ${r['text']}');
-      }
+      _loader.searchSimilar(query, limit: 3).then((results) {
+        debugPrint('Запрос: "$query"');
+        for (var r in results) {
+          final text = r['payload']?['text'] ?? 'unknown';
+          final score = (r['score'] as num?)?.toDouble() ?? 0;
+          debugPrint('  ${score.toStringAsFixed(3)} - $text');
+        }
+      });
     }
-    debugPrint('========================\n');
+    debugPrint('================================\n');
   }
 }

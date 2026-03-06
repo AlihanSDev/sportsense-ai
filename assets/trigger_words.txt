@@ -1,0 +1,134 @@
+# UEFA Rankings Trigger Words
+# Все фразы связанные с рейтингами, таблицами, коэффициентами UEFA
+
+## English - Direct
+ranking
+rankings
+uefa ranking
+uefa rankings
+club ranking
+club rankings
+team ranking
+team rankings
+uefa table
+uefa standings
+coefficient ranking
+uefa coefficient
+uefa club coefficient
+national association ranking
+country ranking uefa
+european club rankings
+champions league ranking
+europa league ranking
+conference league ranking
+
+## English - Questions
+what is the uefa ranking
+show uefa rankings
+current uefa rankings
+latest uefa rankings
+uefa ranking table
+who is first in uefa rankings
+top uefa clubs ranking
+best clubs in uefa
+uefa coefficient table
+how are uefa rankings calculated
+what is my club's uefa ranking
+where is real madrid in rankings
+where is barcelona in rankings
+premier league uefa ranking
+la liga uefa ranking
+serie a uefa ranking
+bundesliga uefa ranking
+ligue 1 uefa ranking
+
+## English - Variations
+rankings update
+ranking list
+ranking table
+standings table
+coefficient standings
+european standings
+club coefficients
+team coefficients
+association coefficients
+uefa points table
+european coefficient
+football rankings
+soccer rankings
+uefa soccer rankings
+fifa uefa rankings
+top 10 uefa rankings
+top 50 uefa rankings
+
+## Russian - Direct
+рейтинг
+рейтинги
+рейтинг клубов
+рейтинг uefa
+таблица uefa
+коэффициент uefa
+еврокубковый рейтинг
+позиция в рейтинге
+клубный рейтинг
+рейтинг команд
+таблица коэффициентов
+рейтинг ассоциаций
+страновой рейтинг
+европейский рейтинг
+рейтинг лиг
+коэффициенты клубов
+
+## Russian - Questions
+какой рейтинг у клубов
+покажи рейтинг uefa
+текущий рейтинг уефа
+последний рейтинг uefa
+таблица рейтинга uefa
+кто первый в рейтинге
+топ клубов уефа
+лучшие клубы в рейтинге
+таблица коэффициентов уефа
+как считается рейтинг уефа
+какой рейтинг у реала
+какой рейтинг у барселоны
+какой рейтинг у ман сити
+какой рейтинг у байерна
+где посмотреть рейтинг
+обновление рейтинга
+рейтинг лиг европы
+
+## Russian - Variations
+обновление рейтинга
+список рейтинга
+таблица рейтинга
+коэффициенты команд
+еврокубковые коэффициенты
+очки uefa
+баллы uefa
+позиция в таблице
+место в рейтинге
+ранг клуба
+ранг команды
+европейская таблица
+континентальный рейтинг
+международный рейтинг
+футбольный рейтинг
+рейтинг футбольных клубов
+
+## Mixed/Short
+uefa
+coeff
+assoc
+ranking pls
+show ranking
+таблица
+коэф
+рейтинг уефа
+uefa rank
+club coeff
+team rank
+association rank
+eu ranking
+football ranking
+soccer ranking
