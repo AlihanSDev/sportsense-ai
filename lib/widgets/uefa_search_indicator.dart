@@ -15,7 +15,7 @@ class UefaSearchIndicator extends StatefulWidget {
 }
 
 class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   
