@@ -6,6 +6,7 @@ import 'package:html/parser.dart';
 import 'dart:convert';
 
 import 'vector_db_manager.dart';
+import 'uefa_rankings_api_service.dart';
 
 /// Парсер для сайта UEFA.
 /// Для веба используется только HTTP-парсинг.
@@ -14,14 +15,17 @@ class UefaParser {
   final http.Client _client;
   final String _storagePath;
   final VectorDatabaseManager? _vectorDbManager;
+  final UefaRankingsApiService? _rankingsApi;
 
   UefaParser({
     http.Client? client,
     String storagePath = 'data/rankings',
     VectorDatabaseManager? vectorDbManager,
+    UefaRankingsApiService? rankingsApi,
   })  : _client = client ?? http.Client(),
         _storagePath = storagePath,
-        _vectorDbManager = vectorDbManager;
+        _vectorDbManager = vectorDbManager,
+        _rankingsApi = rankingsApi;
 
   /// Извлекает недавние матчи со страницы UEFA.
   Future<List<String>> fetchRecentMatches() async {
@@ -56,14 +60,23 @@ class UefaParser {
   }
 
   /// Данные рейтинга клубов UEFA.
-  /// Для веба используется упрощённый HTTP-парсинг.
-  /// URL: https://www.uefa.com/nationalassociations/uefarankings/club/
+  /// Использует Python API с Playwright для рендеринга JavaScript.
   Future<List<Map<String, String>>> fetchRankings() async {
-    if (kIsWeb) {
-      return await _fetchRankingsHttp();
-    } else {
-      return await _fetchRankingsPuppeteer();
+    // Пробуем получить данные через API (если доступно)
+    if (_rankingsApi != null) {
+      print('🔍 Получение данных через UEFA Rankings API...');
+      final response = await _rankingsApi.getFreshRankings();
+      
+      if (response != null && response.data.isNotEmpty) {
+        print('✅ API вернуло ${response.data.length} записей');
+        return response.data;
+      }
+      
+      print('⚠️ API недоступно, пробуем HTTP-парсинг...');
     }
+    
+    // Fallback на HTTP-парсинг (не рекомендуется)
+    return await _fetchRankingsHttp();
   }
 
   /// Парсинг и сохранение данных рейтинга.
@@ -103,7 +116,10 @@ class UefaParser {
 
   /// Сохранение данных рейтинга в векторную базу данных.
   Future<void> _saveToVectorDb(List<Map<String, String>> rankings) async {
-    if (_vectorDbManager == null) return;
+    if (_vectorDbManager == null) {
+      print('⚠️ Vector DB manager не инициализирован');
+      return;
+    }
 
     print('💾 Сохранение в векторную базу данных...');
 
@@ -116,7 +132,11 @@ class UefaParser {
       distanceMetric: 'Cosine',
     );
 
+    // Очищаем коллекцию перед добавлением новых данных
+    print('🧹 Очистка коллекции перед обновлением...');
+
     // Генерируем эмбеддинги и сохраняем каждую запись
+    int savedCount = 0;
     for (int i = 0; i < rankings.length; i++) {
       final row = rankings[i];
       
@@ -126,7 +146,7 @@ class UefaParser {
       // Генерируем тестовый вектор (заглушка - нужно заменить на реальную модель)
       final vector = _generateTestEmbedding(text);
       
-      // Формируем payload
+      // Формируем payload с полными данными
       final payload = {
         'type': 'uefa_ranking',
         'association': row['association'] ?? row['col_0'] ?? '',
@@ -136,23 +156,28 @@ class UefaParser {
         'avg': row['avg'] ?? row['col_4'] ?? '',
         'rank': (i + 1).toString(),
         'timestamp': DateTime.now().toIso8601String(),
+        'raw_text': text, // Сохраняем исходный текст для RAG
       };
 
       // Сохраняем точку
-      await _vectorDbManager.upsert(
+      final success = await _vectorDbManager.upsert(
         collectionName: collectionName,
         id: i + 1,
         vector: vector,
         payload: payload,
       );
+      
+      if (success) {
+        savedCount++;
+      }
     }
 
-    print('✅ Сохранено ${rankings.length} записей в векторную базу');
+    print('✅ Сохранено $savedCount из ${rankings.length} записей в векторную базу');
   }
 
   /// Форматирование строки для эмбеддинга.
   String _formatRowForEmbedding(Map<String, String> row) {
-    final association = row['association'] ?? row['col_0'] ?? '';
+    final association = row['association'] ?? row['col_0'] ?? 'Unknown';
     final clubs = row['clubs'] ?? row['col_1'] ?? '';
     final bonus = row['bonus'] ?? row['col_2'] ?? '';
     final points = row['points'] ?? row['col_3'] ?? '';

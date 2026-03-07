@@ -5,6 +5,8 @@ import 'package:sportsense/services/vector_db_manager.dart';
 import 'package:sportsense/services/user_query_vectorizer.dart';
 import 'package:sportsense/services/uefa_parser.dart';
 import 'package:sportsense/services/qwen_api_service.dart';
+import 'package:sportsense/services/rankings_vector_search.dart';
+import 'package:sportsense/services/uefa_rankings_api_service.dart';
 
 void main() {
   testWidgets('SpaceApp renders correctly', (WidgetTester tester) async {
@@ -12,12 +14,15 @@ void main() {
     final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
     
     await tester.pumpWidget(SpaceApp(
       vectorDbManager: vectorDbManager,
       queryVectorizer: queryVectorizer,
       uefaParser: uefaParser,
       qwenApi: qwenApi,
+      rankingsSearch: rankingsSearch,
+      rankingsApiAvailable: false,
       qwenAvailable: false,
     ));
 
@@ -31,12 +36,15 @@ void main() {
     final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
     
     await tester.pumpWidget(SpaceApp(
       vectorDbManager: vectorDbManager,
       queryVectorizer: queryVectorizer,
       uefaParser: uefaParser,
       qwenApi: qwenApi,
+      rankingsSearch: rankingsSearch,
+      rankingsApiAvailable: false,
       qwenAvailable: false,
     ));
 
@@ -49,12 +57,15 @@ void main() {
     final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
     
     await tester.pumpWidget(SpaceApp(
       vectorDbManager: vectorDbManager,
       queryVectorizer: queryVectorizer,
       uefaParser: uefaParser,
       qwenApi: qwenApi,
+      rankingsSearch: rankingsSearch,
+      rankingsApiAvailable: false,
       qwenAvailable: false,
     ));
 

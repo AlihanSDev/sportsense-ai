@@ -17,7 +17,7 @@ class QwenApiService {
       final response = await _client.get(
         Uri.parse('$baseUrl/health'),
       ).timeout(const Duration(seconds: 5));
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         return data['loaded'] == true;
@@ -28,35 +28,59 @@ class QwenApiService {
     }
   }
 
-  /// Отправка запроса к чат-боту.
+  /// Отправка запроса к чат-боту с контекстом (RAG).
   Future<QwenChatResponse?> chat(String message, {
-    int maxTokens = 512,
+    int maxTokens = 1024,
     double temperature = 0.7,
+    String? context, // Контекст из векторной базы для RAG
   }) async {
     try {
+      // Формируем промпт с контекстом для RAG
+      final String prompt;
+      if (context != null && context.isNotEmpty) {
+        // RAG промпт: контекст + инструкция + вопрос
+        prompt = '''$context
+
+You are a helpful sports assistant specializing in UEFA football data.
+Use the ranking data above to answer the user's question accurately.
+If the data contains relevant information, reference it in your answer.
+If the data doesn't contain what the user is asking, say so honestly.
+
+User question: $message
+''';
+        print('📝 RAG Prompt length: ${prompt.length} chars');
+      } else {
+        prompt = message;
+      }
+
+      print('🤖 Sending request to Qwen API...');
+      
       final response = await _client.post(
         Uri.parse('$baseUrl/chat'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'message': message,
+          'message': prompt,
           'max_tokens': maxTokens,
           'temperature': temperature,
         }),
-      ).timeout(const Duration(seconds: 60));
+      ).timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        return QwenChatResponse(
+        final result = QwenChatResponse(
           response: data['response'] as String,
           model: data['model'] as String,
           tokensUsed: data['tokens_used'] as int,
         );
+        print('✅ Qwen response received (${result.tokensUsed} tokens)');
+        return result;
       } else {
-        print('❌ Ошибка API: ${response.statusCode}');
+        print('❌ API error: ${response.statusCode}');
+        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('❌ Ошибка запроса: $e');
+      print('❌ Request error: $e');
       return null;
     }
   }
