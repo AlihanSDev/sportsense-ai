@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:math' show sqrt;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart';
+import 'dart:convert';
+
+import 'vector_db_manager.dart';
 
 /// Парсер для сайта UEFA.
 /// Для веба используется только HTTP-парсинг.
@@ -9,12 +13,15 @@ import 'package:html/parser.dart';
 class UefaParser {
   final http.Client _client;
   final String _storagePath;
+  final VectorDatabaseManager? _vectorDbManager;
 
   UefaParser({
     http.Client? client,
     String storagePath = 'data/rankings',
+    VectorDatabaseManager? vectorDbManager,
   })  : _client = client ?? http.Client(),
-        _storagePath = storagePath;
+        _storagePath = storagePath,
+        _vectorDbManager = vectorDbManager;
 
   /// Извлекает недавние матчи со страницы UEFA.
   Future<List<String>> fetchRecentMatches() async {
@@ -75,6 +82,11 @@ class UefaParser {
 
       print('📊 Найдено ${rankings.length} записей');
 
+      // Сохранение в векторную базу данных
+      if (_vectorDbManager != null) {
+        await _saveToVectorDb(rankings);
+      }
+
       // Формирование содержимого файла
       final content = _formatRankingsToTxt(rankings);
 
@@ -87,6 +99,97 @@ class UefaParser {
       print('❌ Ошибка парсинга: $e');
       return null;
     }
+  }
+
+  /// Сохранение данных рейтинга в векторную базу данных.
+  Future<void> _saveToVectorDb(List<Map<String, String>> rankings) async {
+    if (_vectorDbManager == null) return;
+
+    print('💾 Сохранение в векторную базу данных...');
+
+    final collectionName = 'uefa_rankings_embeddings';
+    
+    // Создаём коллекцию если не существует
+    await _vectorDbManager.createCollection(
+      name: collectionName,
+      vectorSize: 768, // granite-embedding-278m-multilingual
+      distanceMetric: 'Cosine',
+    );
+
+    // Генерируем эмбеддинги и сохраняем каждую запись
+    for (int i = 0; i < rankings.length; i++) {
+      final row = rankings[i];
+      
+      // Формируем текст для эмбеддинга
+      final text = _formatRowForEmbedding(row);
+      
+      // Генерируем тестовый вектор (заглушка - нужно заменить на реальную модель)
+      final vector = _generateTestEmbedding(text);
+      
+      // Формируем payload
+      final payload = {
+        'type': 'uefa_ranking',
+        'association': row['association'] ?? row['col_0'] ?? '',
+        'clubs': row['clubs'] ?? row['col_1'] ?? '',
+        'bonus': row['bonus'] ?? row['col_2'] ?? '',
+        'points': row['points'] ?? row['col_3'] ?? '',
+        'avg': row['avg'] ?? row['col_4'] ?? '',
+        'rank': (i + 1).toString(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Сохраняем точку
+      await _vectorDbManager.upsert(
+        collectionName: collectionName,
+        id: i + 1,
+        vector: vector,
+        payload: payload,
+      );
+    }
+
+    print('✅ Сохранено ${rankings.length} записей в векторную базу');
+  }
+
+  /// Форматирование строки для эмбеддинга.
+  String _formatRowForEmbedding(Map<String, String> row) {
+    final association = row['association'] ?? row['col_0'] ?? '';
+    final clubs = row['clubs'] ?? row['col_1'] ?? '';
+    final bonus = row['bonus'] ?? row['col_2'] ?? '';
+    final points = row['points'] ?? row['col_3'] ?? '';
+    final avg = row['avg'] ?? row['col_4'] ?? '';
+    
+    return 'UEFA ranking: $association clubs: $clubs bonus: $bonus points: $points average: $avg';
+  }
+
+  /// Генерация тестового эмбеддинга (заглушка).
+  /// TODO: Заменить на реальную модель (granite-embedding-278m-multilingual)
+  List<double> _generateTestEmbedding(String text) {
+    final hash = utf8.encode(text);
+    final vector = List<double>.filled(768, 0.0);
+
+    for (int i = 0; i < 768; i++) {
+      final seed = hash[i % hash.length] ^ (i * 17);
+      vector[i] = ((seed % 1000) / 1000.0 - 0.5) * 2;
+    }
+
+    // Нормализация для косинусной схожести
+    final norm = _vectorNorm(vector);
+    if (norm > 0) {
+      for (int i = 0; i < vector.length; i++) {
+        vector[i] /= norm;
+      }
+    }
+
+    return vector;
+  }
+
+  /// Норма вектора.
+  double _vectorNorm(List<double> vector) {
+    double sum = 0.0;
+    for (final v in vector) {
+      sum += v * v;
+    }
+    return sqrt(sum);
   }
 
   /// Упрощённый парсинг через HTTP (для веба).

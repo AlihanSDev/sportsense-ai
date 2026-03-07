@@ -19,20 +19,26 @@ void main() async {
   final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
   await queryVectorizer.initialize();
 
+  // Инициализация парсера UEFA с векторной базой
+  final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
+
   runApp(SpaceApp(
     vectorDbManager: vectorDbManager,
     queryVectorizer: queryVectorizer,
+    uefaParser: uefaParser,
   ));
 }
 
 class SpaceApp extends StatelessWidget {
   final VectorDatabaseManager vectorDbManager;
   final UserQueryVectorizerService queryVectorizer;
+  final UefaParser uefaParser;
 
   const SpaceApp({
     super.key,
     required this.vectorDbManager,
     required this.queryVectorizer,
+    required this.uefaParser,
   });
 
   @override
@@ -51,6 +57,7 @@ class SpaceApp extends StatelessWidget {
       home: HomePage(
         vectorDbManager: vectorDbManager,
         queryVectorizer: queryVectorizer,
+        uefaParser: uefaParser,
       ),
     );
   }
@@ -59,11 +66,13 @@ class SpaceApp extends StatelessWidget {
 class HomePage extends StatefulWidget {
   final VectorDatabaseManager vectorDbManager;
   final UserQueryVectorizerService queryVectorizer;
+  final UefaParser uefaParser;
 
   const HomePage({
     super.key,
     required this.vectorDbManager,
     required this.queryVectorizer,
+    required this.uefaParser,
   });
 
   @override
@@ -73,6 +82,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final UefaSearchManager _uefaSearchManager;
   late final UserQueryVectorizerService _queryVectorizer;
+  late final UefaParser _uefaParser;
   final List<ChatMessage> _messages = [
     ChatMessage(
       text: 'Здравствуйте! Я ваш ИИ-ассистент. Чем я могу вам помочь сегодня?',
@@ -88,6 +98,7 @@ class _HomePageState extends State<HomePage> {
     _uefaSearchManager.initialize();
     _uefaSearchManager.addListener(_onUefaSearchChanged);
     _queryVectorizer = widget.queryVectorizer;
+    _uefaParser = widget.uefaParser;
   }
 
   void _onUefaSearchChanged() {
@@ -129,7 +140,7 @@ class _HomePageState extends State<HomePage> {
     if (relevance >= 2.0) {
       parsingStatus = '🔄 Парсинг UEFA Rankings...';
       // Запускаем парсинг без ожидания (асинхронно)
-      UefaParser.parseIfRelevant(text);
+      _uefaParser.parseAndSaveRankings();
     }
 
     // Формируем ответ с векторами
