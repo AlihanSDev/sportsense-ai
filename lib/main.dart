@@ -4,7 +4,7 @@ import 'services/uefa_search_manager.dart';
 import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
-import 'services/rankings_data_parser.dart';
+import 'services/uefa_parser.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
     if (relevance >= 2.0) {
       parsingStatus = '🔄 Парсинг UEFA Rankings...';
       // Запускаем парсинг без ожидания (асинхронно)
-      RankingsDataParser.parseIfRelevant(text);
+      UefaParser.parseIfRelevant(text);
     }
 
     // Формируем ответ с векторами

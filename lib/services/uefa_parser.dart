@@ -8,8 +8,13 @@ import 'package:html/parser.dart';
 /// Для не-веба может использовать headless-браузер.
 class UefaParser {
   final http.Client _client;
+  final String _storagePath;
 
-  UefaParser({http.Client? client}) : _client = client ?? http.Client();
+  UefaParser({
+    http.Client? client,
+    String storagePath = 'data/rankings',
+  })  : _client = client ?? http.Client(),
+        _storagePath = storagePath;
 
   /// Извлекает недавние матчи со страницы UEFA.
   Future<List<String>> fetchRecentMatches() async {
@@ -54,7 +59,38 @@ class UefaParser {
     }
   }
 
+  /// Парсинг и сохранение данных рейтинга.
+  /// Возвращает путь к сохранённому файлу или null при ошибке.
+  Future<String?> parseAndSaveRankings() async {
+    try {
+      print('🚀 Начало парсинга UEFA Rankings...');
+
+      // Парсинг данных
+      final rankings = await fetchRankings();
+
+      if (rankings.isEmpty) {
+        print('⚠️ Данные не найдены');
+        return null;
+      }
+
+      print('📊 Найдено ${rankings.length} записей');
+
+      // Формирование содержимого файла
+      final content = _formatRankingsToTxt(rankings);
+
+      // Сохранение
+      final filePath = await _saveToFile(content);
+
+      print('✅ Данные сохранены: $filePath');
+      return filePath;
+    } catch (e) {
+      print('❌ Ошибка парсинга: $e');
+      return null;
+    }
+  }
+
   /// Упрощённый парсинг через HTTP (для веба).
+  /// Ищет данные в JSON внутри страницы.
   Future<List<Map<String, String>>> _fetchRankingsHttp() async {
     try {
       final uri = Uri.parse('https://www.uefa.com/nationalassociations/uefarankings/club/');
@@ -65,37 +101,111 @@ class UefaParser {
         return [];
       }
 
-      final document = parse(resp.body);
+      final html = resp.body;
+      final document = parse(html);
       final rankings = <Map<String, String>>[];
 
-      // Поиск таблиц с рейтингом
-      for (var table in document.querySelectorAll('table')) {
-        final rows = table.querySelectorAll('tr');
-        for (var row in rows) {
-          final cells = row.querySelectorAll('td, th');
-          if (cells.length >= 2) {
-            final rowMap = <String, String>{};
-            for (int i = 0; i < cells.length; i++) {
-              rowMap['col_$i'] = cells[i].text.trim();
+      print('🔍 Размер HTML: ${html.length} байт');
+
+      // 1. Поиск JSON данных в script тегах
+      final scripts = document.querySelectorAll('script');
+      print('🔍 Найдено script тегов: ${scripts.length}');
+
+      for (var script in scripts) {
+        final scriptContent = script.text;
+        if (scriptContent.isEmpty) continue;
+
+        // Поиск JSON с данными рейтинга
+        if (scriptContent.contains('rankings') || scriptContent.contains('associations')) {
+          print('📄 Найден script с данными (${scriptContent.length} символов)');
+          
+          // Извлекаем возможные JSON объекты
+          final jsonMatches = RegExp(r'\{[^{}]*"rank"[^{}]*\}').allMatches(scriptContent);
+          for (var match in jsonMatches) {
+            print('   JSON фрагмент: ${match.group(0)?.substring(0, 100)}...');
+          }
+        }
+
+        // Поиск данных в формате JSON-LD или встроенных данных
+        if (scriptContent.contains('"__NEXT_DATA__"') || scriptContent.contains('"pageProps"')) {
+          print('📄 Найден Next.js data блок');
+        }
+      }
+
+      // 2. Поиск data-атрибутов с данными (используем правильный CSS селектор)
+      final dataElements = document.querySelectorAll('[data-association], [data-rank], [data-id]');
+      print('🔍 Найдено элементов с data-атрибутами: ${dataElements.length}');
+
+      // 3. Поиск строк AG-Grid таблицы по role="row"
+      final rows = document.querySelectorAll('div[role="row"]');
+      print('🔍 Найдено строк с role="row": ${rows.length}');
+
+      // Альтернативный поиск через ag-center-cols-container
+      final gridContainer = document.querySelector('div.ag-center-cols-container');
+      if (gridContainer != null) {
+        print('🔍 Найден ag-center-cols-container');
+        final containerRows = gridContainer.querySelectorAll('div[role="row"]');
+        print('   Найдено строк в контейнере: ${containerRows.length}');
+        
+        for (var row in containerRows) {
+          final rowMap = <String, String>{};
+          
+          // Извлекаем ячейки с col-id
+          final cells = row.querySelectorAll('div[role="gridcell"]');
+          
+          for (var cell in cells) {
+            final colId = cell.attributes['col-id'];
+            if (colId == null) continue;
+
+            // Ищем значение в span.ag-cell-value
+            final valueSpan = cell.querySelector('span.ag-cell-value');
+            final value = valueSpan?.text.trim() ?? cell.text.trim();
+
+            if (value.isNotEmpty) {
+              rowMap[colId] = value;
             }
-            if (rowMap.isNotEmpty) {
-              rankings.add(rowMap);
-            }
+          }
+
+          if (rowMap.isNotEmpty && rowMap.length >= 2) {
+            rankings.add(rowMap);
           }
         }
       }
 
-      // Поиск элементов с данными клубов
+      // Если не нашли в контейнере, пробуем общий поиск
       if (rankings.isEmpty) {
-        for (var element in document.querySelectorAll('[class*="club"], [class*="team"], [class*="rank"]')) {
-          final text = element.text.trim();
-          if (text.isNotEmpty && text.length > 3) {
-            rankings.add({'club': text});
+        for (var row in rows) {
+          final rowMap = <String, String>{};
+          
+          // Извлекаем ячейки с col-id
+          final cells = row.querySelectorAll('div[role="gridcell"]');
+          
+          for (var cell in cells) {
+            final colId = cell.attributes['col-id'];
+            if (colId == null) continue;
+
+            // Ищем значение в span.ag-cell-value
+            final valueSpan = cell.querySelector('span.ag-cell-value');
+            final value = valueSpan?.text.trim() ?? cell.text.trim();
+
+            if (value.isNotEmpty) {
+              rowMap[colId] = value;
+            }
+          }
+
+          if (rowMap.isNotEmpty && rowMap.length >= 2) {
+            rankings.add(rowMap);
           }
         }
       }
 
       print('📊 Найдено ${rankings.length} записей (HTTP парсинг)');
+      
+      // Вывод первых записей для отладки
+      for (int i = 0; i < rankings.length && i < 3; i++) {
+        print('   Запись $i: ${rankings[i]}');
+      }
+      
       return rankings;
     } catch (e) {
       print('⚠️ Ошибка HTTP парсинга: $e');
@@ -108,6 +218,98 @@ class UefaParser {
     // TODO: Реализовать через puppeteer для desktop/mobile
     // Пока используем HTTP парсинг как fallback
     return await _fetchRankingsHttp();
+  }
+
+  /// Форматирование данных в TXT формат.
+  String _formatRankingsToTxt(List<Map<String, String>> rankings) {
+    final buffer = StringBuffer();
+
+    buffer.writeln('=' * 80);
+    buffer.writeln('UEFA CLUB RANKINGS');
+    buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
+    buffer.writeln('=' * 80);
+    buffer.writeln();
+
+    // Заголовки столбцов
+    if (rankings.isNotEmpty) {
+      final headers = rankings.first.keys.toList();
+      buffer.writeln(headers.join(' | '));
+      buffer.writeln('-' * 80);
+    }
+
+    // Данные
+    for (final row in rankings) {
+      final values = row.values.toList();
+      buffer.writeln(values.join(' | '));
+    }
+
+    buffer.writeln();
+    buffer.writeln('=' * 80);
+    buffer.writeln('Total: ${rankings.length} clubs');
+    buffer.writeln('=' * 80);
+
+    return buffer.toString();
+  }
+
+  /// Сохранение содержимого в файл.
+  Future<String> _saveToFile(String content) async {
+    final timestamp = DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+    final filename = 'rankings_$timestamp.txt';
+
+    if (kIsWeb) {
+      // Для веба: только сообщение о том, что данные получены
+      // Реальное сохранение требует JavaScript интероп
+      print('💾 Web: данные готовы к сохранению ($filename)');
+      return 'web: $filename';
+    } else {
+      // Для не-web платформ (Android, iOS, Desktop)
+      // Примечание: требует dart:io
+      throw UnsupportedError('File save not implemented for this platform');
+    }
+  }
+
+  /// Быстрая проверка релевантности и парсинг.
+  static Future<String?> parseIfRelevant(String query, {UefaParser? parser}) async {
+    final relevance = _checkRelevance(query);
+    
+    if (relevance >= 1.0) {
+      print('🎯 Обнаружена релевантность к Rankings: $relevance');
+      final instance = parser ?? UefaParser();
+      return await instance.parseAndSaveRankings();
+    }
+    
+    return null;
+  }
+
+  /// Простая проверка релевантности запроса.
+  static double _checkRelevance(String query) {
+    final lowerQuery = query.toLowerCase();
+    
+    final triggers = [
+      'ranking', 'rankings', 'рейтинг', 'рейтинги',
+      'uefa ranking', 'uefa table', 'таблица uefa',
+      'клубный рейтинг', 'рейтинг клубов',
+      'coefficient', 'коэффициент',
+    ];
+    
+    for (final trigger in triggers) {
+      if (lowerQuery.contains(trigger)) {
+        return 2.0;
+      }
+    }
+    
+    final mediumTriggers = [
+      'table', 'таблица', 'uefa', 'уефа',
+      'club', 'клуб', 'euro', 'евро',
+    ];
+    
+    for (final trigger in mediumTriggers) {
+      if (lowerQuery.contains(trigger)) {
+        return 1.0;
+      }
+    }
+    
+    return 0.0;
   }
 
   bool _looksLikeMatch(String text) {
