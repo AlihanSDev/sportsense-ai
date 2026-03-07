@@ -1,0 +1,778 @@
+# Sportsense AI - Trigger Words for Rankings & Football Context
+# Generated for: Sportsense AI Project (UEFA Football Analytics)
+# Purpose: Context matching for AI chat queries about football rankings
+
+# =============================================================================
+# UEFA COMPETITIONS
+# =============================================================================
+uefa
+uefa competitions
+uefa tournaments
+champions league
+uefa champions league
+ucl
+champions league
+european cup
+europa league
+uefa europa league
+uel
+conference league
+uefa conference league
+uecl
+european competitions
+euro tournaments
+club competitions
+uefa club competitions
+continental competitions
+european football
+uefa tournaments
+
+# =============================================================================
+# RANKINGS - GENERAL
+# =============================================================================
+ranking
+rankings
+rank
+table
+standings
+leaderboard
+rating
+ratings
+coefficient
+coefficients
+uefa ranking
+uefa rankings
+uefa rank
+uefa table
+uefa standings
+uefa leaderboard
+uefa rating
+uefa ratings
+uefa coefficient
+uefa coefficients
+club ranking
+club rankings
+club rank
+club table
+club standings
+club leaderboard
+club rating
+club ratings
+club coefficient
+club coefficients
+team ranking
+team rankings
+team rank
+team table
+team standings
+team leaderboard
+team rating
+team ratings
+team coefficient
+team coefficients
+association ranking
+association rankings
+association coefficient
+country ranking
+country rankings
+country coefficient
+national association ranking
+national association coefficient
+five-year ranking
+ten-year ranking
+season ranking
+european ranking
+european rankings
+continental ranking
+continental rankings
+
+# =============================================================================
+# CLUBS & TEAMS
+# =============================================================================
+club
+clubs
+team
+teams
+football club
+football clubs
+soccer club
+soccer clubs
+european clubs
+uefa clubs
+top clubs
+best clubs
+strongest clubs
+premier league clubs
+la liga clubs
+serie a clubs
+bundesliga clubs
+ligue 1 clubs
+eredivisie clubs
+primeira liga clubs
+championship clubs
+super lig clubs
+rpl clubs
+premier liga clubs
+
+# =============================================================================
+# COUNTRIES & ASSOCIATIONS
+# =============================================================================
+country
+countries
+association
+associations
+national association
+national associations
+uefa associations
+european associations
+football associations
+spain
+england
+italy
+germany
+france
+netherlands
+portugal
+belgium
+turkey
+scotland
+austria
+greece
+czech republic
+switzerland
+denmark
+norway
+sweden
+ukraine
+russia
+serbia
+croatia
+poland
+romania
+bulgaria
+cyprus
+israel
+kazakhstan
+azerbaijan
+georgia
+armenia
+belarus
+slovenia
+slovakia
+hungary
+finland
+ireland
+northern ireland
+wales
+iceland
+faroe islands
+luxembourg
+malta
+montenegro
+bosnia
+albania
+north macedonia
+kosovo
+moldova
+lithuania
+latvia
+estonia
+gibraltar
+andorra
+san marino
+liechtenstein
+
+# =============================================================================
+# POINTS & SCORES
+# =============================================================================
+points
+point
+score
+scores
+total points
+season points
+coefficient points
+ranking points
+uefa points
+european points
+match points
+bonus points
+win points
+draw points
+loss points
+qualification points
+playoff points
+group stage points
+knockout points
+
+# =============================================================================
+# MATCHES & GAMES
+# =============================================================================
+match
+matches
+game
+games
+fixture
+fixtures
+result
+results
+score
+scores
+goal
+goals
+win
+wins
+draw
+draws
+loss
+losses
+victory
+victories
+defeat
+defeats
+tie
+ties
+head to head
+h2h
+recent matches
+last matches
+upcoming matches
+scheduled matches
+played matches
+finished matches
+live matches
+match day
+matchday
+round
+rounds
+leg
+legs
+first leg
+second leg
+aggregate
+extra time
+penalty
+penalties
+penalty shootout
+away goals
+home goals
+clean sheet
+clean sheets
+
+# =============================================================================
+# TOURNAMENT STAGES
+# =============================================================================
+group stage
+groups
+group
+knockout stage
+knockout
+round of 16
+quarter-finals
+quarterfinals
+semi-finals
+semifinals
+final
+finals
+third place
+playoffs
+play-off
+play off
+qualifying
+qualification
+preliminary round
+first qualifying round
+second qualifying round
+third qualifying round
+playoff round
+champions path
+league path
+main path
+
+# =============================================================================
+# SEASONS & YEARS
+# =============================================================================
+season
+seasons
+2025-26
+2025/26
+2025-2026
+2025/2026
+2024-25
+2024/25
+2024-2025
+2024/2025
+2023-24
+2023/24
+2023-2024
+2023/2024
+2022-23
+2022/23
+2022-2023
+2022/2023
+2021-22
+2021/22
+2021-2022
+2021/2022
+current season
+last season
+previous season
+next season
+this season
+all-time
+historical
+history
+
+# =============================================================================
+# POSITIONS & PLACES
+# =============================================================================
+position
+positions
+place
+places
+first
+second
+third
+fourth
+fifth
+top
+bottom
+middle
+highest
+lowest
+best
+worst
+leading
+trailing
+ahead
+behind
+ranked
+unranked
+top 10
+top 20
+top 50
+top 100
+bottom 10
+bottom 20
+
+# =============================================================================
+# PERFORMANCE & STATISTICS
+# =============================================================================
+performance
+performances
+form
+statistics
+stats
+record
+records
+achievement
+achievements
+success
+successes
+title
+titles
+trophy
+trophies
+champion
+champions
+winner
+winners
+runner-up
+runners-up
+finalist
+finalists
+semi-finalist
+quarter-finalist
+participant
+participants
+qualification spot
+european spot
+continental spot
+relegation
+promotion
+dominated
+dominance
+strongest
+weakest
+powerhouse
+underdog
+dark horse
+favorite
+favourite
+contender
+pretender
+
+# =============================================================================
+# FOOTBALL GENERAL TERMS
+# =============================================================================
+football
+soccer
+european football
+club football
+professional football
+elite football
+top flight
+first division
+second division
+third division
+league
+leagues
+domestic league
+international
+continental
+transfers
+transfer window
+squad
+squads
+roster
+rosters
+lineup
+lineups
+formation
+tactics
+tactical
+coach
+manager
+coach
+manager
+captain
+player
+players
+star player
+key player
+top scorer
+goal scorer
+assist
+assists
+goalkeeper
+defender
+midfielder
+forward
+striker
+winger
+playmaker
+
+# =============================================================================
+# UEFA SPECIFIC TERMS
+# =============================================================================
+uefa coefficient system
+uefa ranking system
+uefa club coefficient
+uefa country coefficient
+uefa association coefficient
+uefa member associations
+uefa member countries
+uefa competitions ranking
+uefa competition spots
+uefa qualification spots
+champions league spots
+europa league spots
+conference league spots
+direct qualification
+playoff qualification
+preliminary qualification
+uefa access list
+uefa competition regulations
+uefa statutes
+uefa congress
+uefa executive committee
+uefa president
+uefa general secretary
+uefa headquarters
+uefa nyon
+uefa headquarters nyon
+
+# =============================================================================
+# RUSSIAN TRANSLATIONS - RANKINGS
+# =============================================================================
+рейтинг
+рейтинги
+ранг
+ранги
+таблица
+таблицы
+позиция
+позиции
+место
+места
+коэффициент
+коэффициенты
+очки
+очко
+баллы
+балл
+счет
+счета
+результат
+результаты
+матч
+матчи
+игра
+игры
+победа
+победы
+ничья
+ничьи
+поражение
+поражения
+гол
+голы
+забитые
+пропущенные
+сухой матч
+еврокубки
+еврокубковый рейтинг
+клубный рейтинг
+страновой рейтинг
+ассоциации
+федерации
+национальные ассоциации
+национальные федерации
+уефа
+уефа рейтинг
+уефа коэффициенты
+лига чемпионов
+лига европы
+лига конференций
+европейские кубки
+континентальные турниры
+сезон
+сезоны
+текущий сезон
+прошлый сезон
+следующий сезон
+групповой этап
+плей-офф
+раунд
+квалификация
+отборочный тур
+финал
+полуфинал
+четвертьфинал
+восемьфинал
+шестнадцатьфинал
+чемпион
+чемпионы
+победитель
+победители
+финалист
+финалисты
+участник
+участники
+квалифицировался
+вылетел
+выбыл
+прошел
+превосходит
+лидирует
+отстает
+топ
+лучшие
+худшие
+сильнейшие
+слабейшие
+лидер
+лидеры
+преследователь
+претендент
+фаворит
+аутсайдер
+темная лошадка
+сенсация
+неожиданность
+статистика
+стат
+форма
+форма команды
+серия
+серия побед
+серия поражений
+без поражений
+домашний матч
+гостевой матч
+нейтральное поле
+стадион
+арена
+вместимость
+посещаемость
+трансфер
+трансферы
+состав
+команда
+тренер
+главный тренер
+капитан
+игрок
+игроки
+звезда
+лидер команды
+бомбардир
+лучший бомбардир
+ассист
+ассистенты
+вратарь
+защитник
+полузащитник
+нападающий
+форвард
+вингер
+плеймейкер
+опорник
+центральный защитник
+крайний защитник
+фланг
+центр
+атака
+оборона
+полузащита
+тактика
+схема
+формация
+расстановка
+замени
+замена
+красная карточка
+желтая карточка
+предупреждение
+удаление
+пенальти
+штрафной
+угловой
+офсайд
+положение вне игры
+вар
+видеоповтор
+гол с игры
+гол с пенальти
+автогол
+дубль
+хет-трик
+покер
+сухой матч
+сухие ворота
+камбэк
+отыгрался
+вырвал победу
+упустил победу
+свел вничью
+разгром
+сенсационная победа
+неожиданный результат
+турнирная таблица
+турнирное положение
+очковый баланс
+разница мячей
+забитые мячи
+пропущенные мячи
+средний балл
+сумма коэффициентов
+пятилетний рейтинг
+десятилетний рейтинг
+исторический рейтинг
+текущий рейтинг
+обновленный рейтинг
+актуальный рейтинг
+официальный рейтинг
+предварительный рейтинг
+итоговый рейтинг
+конечный рейтинг
+
+# =============================================================================
+# QUERIES & QUESTIONS PATTERNS
+# =============================================================================
+what is the ranking
+what are the rankings
+show me the rankings
+display rankings
+current rankings
+latest rankings
+updated rankings
+new rankings
+fresh rankings
+who is ranked
+which team is ranked
+which club is ranked
+top ranked teams
+top ranked clubs
+highest ranked
+lowest ranked
+best ranked
+worst ranked
+how are rankings calculated
+how is coefficient calculated
+ranking system
+ranking methodology
+coefficient system
+points system
+ranking formula
+explain rankings
+tell me about rankings
+give me rankings
+get rankings
+fetch rankings
+retrieve rankings
+update rankings
+check rankings
+view rankings
+see rankings
+find rankings
+search rankings
+compare rankings
+analyze rankings
+ranking history
+historical rankings
+past rankings
+previous rankings
+old rankings
+archive rankings
+ranking changes
+ranking movement
+risers
+fallers
+biggest gainers
+biggest losers
+most improved
+biggest drop
+new entries
+relegated
+promoted
+overtaken
+surpassed
+exceeded
+matched
+tied
+equal
+same ranking
+close rankings
+tight race
+battle for position
+fight for ranking
+competing for spot
+race for top
+chase for leadership
+defending champion
+defending title
+title defense
+retain ranking
+maintain ranking
+improve ranking
+boost ranking
+climb rankings
+rise in rankings
+fall in rankings
+drop in rankings
+slip in rankings
+gain positions
+lose positions
+move up
+move down
+stay same
+unchanged
+stable ranking
+consistent ranking
+volatile ranking
+fluctuating ranking
+
+# =============================================================================
+# END OF TRIGGER WORDS
+# =============================================================================
