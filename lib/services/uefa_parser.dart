@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart';
-import 'package:puppeteer/puppeteer.dart';
 
-/// Парсер для сайта UEFA с использованием headless-браузера.
-/// Извлекает данные из AG-Grid таблиц через рендеринг JavaScript.
+/// Парсер для сайта UEFA.
+/// Для веба используется только HTTP-парсинг.
+/// Для не-веба может использовать headless-браузер.
 class UefaParser {
   final http.Client _client;
 
@@ -43,78 +44,70 @@ class UefaParser {
   }
 
   /// Данные рейтинга клубов UEFA.
-  /// Извлекает данные из AG-Grid таблицы через headless-браузер.
+  /// Для веба используется упрощённый HTTP-парсинг.
   /// URL: https://www.uefa.com/nationalassociations/uefarankings/club/
   Future<List<Map<String, String>>> fetchRankings() async {
-    Browser? browser;
+    if (kIsWeb) {
+      return await _fetchRankingsHttp();
+    } else {
+      return await _fetchRankingsPuppeteer();
+    }
+  }
+
+  /// Упрощённый парсинг через HTTP (для веба).
+  Future<List<Map<String, String>>> _fetchRankingsHttp() async {
     try {
-      browser = await puppeteer.launch(
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      );
-      final page = await browser.newPage();
+      final uri = Uri.parse('https://www.uefa.com/nationalassociations/uefarankings/club/');
+      final resp = await _client.get(uri);
       
-      // Переходим на страницу рейтинга клубов UEFA
-      final rankingsUrl = 'https://www.uefa.com/nationalassociations/uefarankings/club/';
-      
-      await page.goto(
-        rankingsUrl,
-        wait: Until.domContentLoaded,
-        timeout: Duration(seconds: 30),
-      );
-      
-      // Ждём загрузки AG-Grid таблицы
-      await page.waitForSelector(
-        'div.ag-center-cols-container, div.ag-root-wrapper, [role="rowgroup"]',
-        timeout: Duration(seconds: 20),
-      );
-      
-      // Дополнительная задержка для рендеринга данных
-      await Future.delayed(Duration(seconds: 5));
-
-      final content = await page.content;
-      final document = parse(content);
-
-      final rankings = <Map<String, String>>[];
-      
-      // Ищем контейнер AG-Grid и строки внутри
-      final gridContainers = document.querySelectorAll(
-        'div.ag-center-cols-container, div.ag-root-wrapper, [role="rowgroup"]'
-      );
-      
-      if (gridContainers.isEmpty) {
-        return rankings;
+      if (resp.statusCode != 200) {
+        print('⚠️ HTTP статус: ${resp.statusCode}');
+        return [];
       }
 
-      // Извлекаем все строки таблицы из первого найденного контейнера
-      for (var gridContainer in gridContainers) {
-        for (var row in gridContainer.querySelectorAll('div[role="row"]')) {
-          final rowMap = <String, String>{};
-          
-          // Извлекаем ячейки из строки
-          for (var cell in row.querySelectorAll('div.ag-cell')) {
-            final colId = cell.attributes['col-id'];
-            if (colId == null) continue;
-            
-            // Ищем span с классом ag-cell-value внутри ячейки
-            final valueSpan = cell.querySelector('span.ag-cell-value');
-            final value = valueSpan?.text.trim() ?? cell.text.trim();
-            
-            if (value.isNotEmpty) {
-              rowMap[colId] = value;
+      final document = parse(resp.body);
+      final rankings = <Map<String, String>>[];
+
+      // Поиск таблиц с рейтингом
+      for (var table in document.querySelectorAll('table')) {
+        final rows = table.querySelectorAll('tr');
+        for (var row in rows) {
+          final cells = row.querySelectorAll('td, th');
+          if (cells.length >= 2) {
+            final rowMap = <String, String>{};
+            for (int i = 0; i < cells.length; i++) {
+              rowMap['col_$i'] = cells[i].text.trim();
             }
-          }
-          
-          if (rowMap.isNotEmpty) {
-            rankings.add(rowMap);
+            if (rowMap.isNotEmpty) {
+              rankings.add(rowMap);
+            }
           }
         }
       }
-      
+
+      // Поиск элементов с данными клубов
+      if (rankings.isEmpty) {
+        for (var element in document.querySelectorAll('[class*="club"], [class*="team"], [class*="rank"]')) {
+          final text = element.text.trim();
+          if (text.isNotEmpty && text.length > 3) {
+            rankings.add({'club': text});
+          }
+        }
+      }
+
+      print('📊 Найдено ${rankings.length} записей (HTTP парсинг)');
       return rankings;
-    } finally {
-      await browser?.close();
+    } catch (e) {
+      print('⚠️ Ошибка HTTP парсинга: $e');
+      return [];
     }
+  }
+
+  /// Парсинг через headless-браузер (для не-веба).
+  Future<List<Map<String, String>>> _fetchRankingsPuppeteer() async {
+    // TODO: Реализовать через puppeteer для desktop/mobile
+    // Пока используем HTTP парсинг как fallback
+    return await _fetchRankingsHttp();
   }
 
   bool _looksLikeMatch(String text) {

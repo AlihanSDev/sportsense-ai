@@ -4,6 +4,7 @@ import 'services/uefa_search_manager.dart';
 import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
+import 'services/rankings_data_parser.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
@@ -123,8 +124,16 @@ class _HomePageState extends State<HomePage> {
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
 
+    // Если высокая релевантность к Rankings — запускаем парсинг
+    String? parsingStatus;
+    if (relevance >= 2.0) {
+      parsingStatus = '🔄 Парсинг UEFA Rankings...';
+      // Запускаем парсинг без ожидания (асинхронно)
+      RankingsDataParser.parseIfRelevant(text);
+    }
+
     // Формируем ответ с векторами
-    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}, relevance: ${RankingsRelevanceService.getRelevanceLabel(relevance)}):\n\n'
+    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}, relevance: ${RankingsRelevanceService.getRelevanceLabel(relevance)})$parsingStatus\n\n'
         '[${vectorizationResult.vector.take(10).map((v) => v.toStringAsFixed(4)).join(', ')}, ...]';
 
     await Future.delayed(const Duration(milliseconds: 500));
