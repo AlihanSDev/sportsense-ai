@@ -5,6 +5,7 @@ import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
 import 'services/uefa_parser.dart';
+import 'services/qwen_api_service.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
@@ -22,10 +23,17 @@ void main() async {
   // Инициализация парсера UEFA с векторной базой
   final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
 
+  // Инициализация Qwen API
+  final qwenApi = QwenApiService();
+  final qwenAvailable = await qwenApi.isAvailable();
+  print(qwenAvailable ? '✅ Qwen API доступен' : '⚠️ Qwen API недоступен (запустите python scripts/qwen_api.py)');
+
   runApp(SpaceApp(
     vectorDbManager: vectorDbManager,
     queryVectorizer: queryVectorizer,
     uefaParser: uefaParser,
+    qwenApi: qwenApi,
+    qwenAvailable: qwenAvailable,
   ));
 }
 
@@ -33,12 +41,16 @@ class SpaceApp extends StatelessWidget {
   final VectorDatabaseManager vectorDbManager;
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
+  final QwenApiService qwenApi;
+  final bool qwenAvailable;
 
   const SpaceApp({
     super.key,
     required this.vectorDbManager,
     required this.queryVectorizer,
     required this.uefaParser,
+    required this.qwenApi,
+    required this.qwenAvailable,
   });
 
   @override
@@ -58,6 +70,8 @@ class SpaceApp extends StatelessWidget {
         vectorDbManager: vectorDbManager,
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
+        qwenApi: qwenApi,
+        qwenAvailable: qwenAvailable,
       ),
     );
   }
@@ -67,12 +81,16 @@ class HomePage extends StatefulWidget {
   final VectorDatabaseManager vectorDbManager;
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
+  final QwenApiService qwenApi;
+  final bool qwenAvailable;
 
   const HomePage({
     super.key,
     required this.vectorDbManager,
     required this.queryVectorizer,
     required this.uefaParser,
+    required this.qwenApi,
+    required this.qwenAvailable,
   });
 
   @override
@@ -83,9 +101,10 @@ class _HomePageState extends State<HomePage> {
   late final UefaSearchManager _uefaSearchManager;
   late final UserQueryVectorizerService _queryVectorizer;
   late final UefaParser _uefaParser;
+  late final QwenApiService _qwenApi;
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: 'Здравствуйте! Я ваш ИИ-ассистент. Чем я могу вам помочь сегодня?',
+      text: 'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
       isUser: false,
     ),
   ];
@@ -99,6 +118,16 @@ class _HomePageState extends State<HomePage> {
     _uefaSearchManager.addListener(_onUefaSearchChanged);
     _queryVectorizer = widget.queryVectorizer;
     _uefaParser = widget.uefaParser;
+    _qwenApi = widget.qwenApi;
+    
+    // Добавляем сообщение о статусе Qwen
+    if (!widget.qwenAvailable) {
+      _messages.add(ChatMessage(
+        text: '⚠️ Qwen API недоступен. Запустите:\npython scripts/qwen_api.py\n\nПока используется тестовый режим.',
+        isUser: false,
+        textColor: Colors.orange,
+      ));
+    }
   }
 
   void _onUefaSearchChanged() {
@@ -128,7 +157,7 @@ class _HomePageState extends State<HomePage> {
       _isLoading = true;
     });
 
-    // Векторизация запроса и получение векторов
+    // Векторизация запроса (для тестов)
     final vectorizationResult = await _queryVectorizer.vectorizeQuery(text);
 
     // Проверка релевантности запроса к Rankings
@@ -143,16 +172,32 @@ class _HomePageState extends State<HomePage> {
       _uefaParser.parseAndSaveRankings();
     }
 
-    // Формируем ответ с векторами
-    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}, relevance: ${RankingsRelevanceService.getRelevanceLabel(relevance)})$parsingStatus\n\n'
-        '[${vectorizationResult.vector.take(10).map((v) => v.toStringAsFixed(4)).join(', ')}, ...]';
+    // Запрос к Qwen API
+    String botResponse;
+    if (widget.qwenAvailable) {
+      // Запрос к реальной модели
+      final qwenResponse = await _qwenApi.chat(text);
+      if (qwenResponse != null) {
+        botResponse = qwenResponse.response;
+      } else {
+        botResponse = '❌ Ошибка при получении ответа от Qwen.';
+      }
+    } else {
+      // Тестовый режим (заглушка)
+      botResponse = '🤖 Тестовый ответ (Qwen недоступен).\n\nЗапрос: "$text"\nРелевантность: ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\nДля реальных ответов запустите:\npython scripts/qwen_api.py';
+    }
+
+    // Формируем полный ответ
+    final fullResponse = parsingStatus != null 
+        ? '$parsingStatus\n\n$botResponse'
+        : botResponse;
 
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (mounted) {
       setState(() {
         _messages.add(ChatMessage(
-          text: vectorResponse,
+          text: fullResponse,
           isUser: false,
           textColor: textColor,
         ));

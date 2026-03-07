@@ -1,1 +1,11 @@
+# Для парсинга UEFA (Playwright)
 playwright>=1.40.0
+
+# Для Qwen API сервера
+llama-cpp-python>=0.2.50
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Для embeddings (опционально)
+sentence-transformers>=2.2.0
+numpy>=1.24.0
