@@ -1,16 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/uefa_search_manager.dart';
+import 'services/vector_db_manager.dart';
+import 'services/user_query_vectorizer.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SpaceApp());
+  
+  // Инициализация векторной базы данных
+  final vectorDbManager = VectorDatabaseManager();
+  await vectorDbManager.initialize();
+  
+  // Инициализация сервиса векторизации запросов
+  final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
+  await queryVectorizer.initialize();
+  
+  runApp(SpaceApp(
+    vectorDbManager: vectorDbManager,
+    queryVectorizer: queryVectorizer,
+  ));
 }
 
 class SpaceApp extends StatelessWidget {
-  const SpaceApp({super.key});
+  final VectorDatabaseManager vectorDbManager;
+  final UserQueryVectorizerService queryVectorizer;
+
+  const SpaceApp({
+    super.key,
+    required this.vectorDbManager,
+    required this.queryVectorizer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +46,23 @@ class SpaceApp extends StatelessWidget {
         textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: HomePage(
+        vectorDbManager: vectorDbManager,
+        queryVectorizer: queryVectorizer,
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final VectorDatabaseManager vectorDbManager;
+  final UserQueryVectorizerService queryVectorizer;
+
+  const HomePage({
+    super.key,
+    required this.vectorDbManager,
+    required this.queryVectorizer,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -39,6 +70,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final UefaSearchManager _uefaSearchManager;
+  late final UserQueryVectorizerService _queryVectorizer;
   final List<ChatMessage> _messages = [
     ChatMessage(
       text: 'Здравствуйте! Я ваш ИИ-ассистент. Чем я могу вам помочь сегодня?',
@@ -53,6 +85,7 @@ class _HomePageState extends State<HomePage> {
     _uefaSearchManager = UefaSearchManager();
     _uefaSearchManager.initialize();
     _uefaSearchManager.addListener(_onUefaSearchChanged);
+    _queryVectorizer = widget.queryVectorizer;
   }
 
   void _onUefaSearchChanged() {
@@ -82,13 +115,19 @@ class _HomePageState extends State<HomePage> {
       _isLoading = true;
     });
 
-    // Имитация ответа (замените на реальный API вызов)
-    await Future.delayed(const Duration(seconds: 1));
+    // Векторизация запроса и получение векторов
+    final vectorizationResult = await _queryVectorizer.vectorizeQuery(text);
     
+    // Формируем ответ с векторами
+    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}):\n\n'
+        '[${vectorizationResult.vector.take(10).map((v) => v.toStringAsFixed(4)).join(', ')}, ...]';
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
     if (mounted) {
       setState(() {
         _messages.add(ChatMessage(
-          text: 'Это тестовый ответ. Настройте API для реальных ответов.',
+          text: vectorResponse,
           isUser: false,
         ));
         _isLoading = false;
