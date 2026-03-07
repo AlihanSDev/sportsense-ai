@@ -7,11 +7,13 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
+  final Color? textColor; // Цвет текста для бота (зелёный/оранжевый для rankings)
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
+    this.textColor, // По умолчанию null (используется стандартный цвет)
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
@@ -290,7 +292,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       fontSize: 15,
                       color: message.isUser
                           ? Colors.white
-                          : Colors.grey[200],
+                          : (message.textColor ?? Colors.grey[200]),
                       height: 1.5,
                     ),
                   ),

@@ -3,20 +3,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/uefa_search_manager.dart';
 import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
+import 'services/rankings_relevance_service.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Инициализация векторной базы данных
   final vectorDbManager = VectorDatabaseManager();
   await vectorDbManager.initialize();
-  
+
   // Инициализация сервиса векторизации запросов
   final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
   await queryVectorizer.initialize();
-  
+
   runApp(SpaceApp(
     vectorDbManager: vectorDbManager,
     queryVectorizer: queryVectorizer,
@@ -117,9 +118,13 @@ class _HomePageState extends State<HomePage> {
 
     // Векторизация запроса и получение векторов
     final vectorizationResult = await _queryVectorizer.vectorizeQuery(text);
-    
+
+    // Проверка релевантности запроса к Rankings
+    final relevance = RankingsRelevanceService.checkRelevance(text);
+    final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
+
     // Формируем ответ с векторами
-    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}):\n\n'
+    final vectorResponse = '📊 Ваши векторы (${vectorizationResult.vector.length} dim, mode: ${vectorizationResult.mode}, relevance: ${RankingsRelevanceService.getRelevanceLabel(relevance)}):\n\n'
         '[${vectorizationResult.vector.take(10).map((v) => v.toStringAsFixed(4)).join(', ')}, ...]';
 
     await Future.delayed(const Duration(milliseconds: 500));
@@ -129,6 +134,7 @@ class _HomePageState extends State<HomePage> {
         _messages.add(ChatMessage(
           text: vectorResponse,
           isUser: false,
+          textColor: textColor,
         ));
         _isLoading = false;
       });
