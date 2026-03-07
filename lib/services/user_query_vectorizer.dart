@@ -34,9 +34,13 @@ class UserQueryVectorizerService {
   }
 
   /// Векторизация пользовательского запроса.
-  /// 
+  ///
   /// Возвращает векторы и сохраняет запрос во временную базу.
+  /// Перед каждым новым запросом очищает базу от предыдущих векторов.
   Future<QueryVectorizationResult> vectorizeQuery(String query) async {
+    // Очищаем базу от предыдущих запросов перед новым
+    await _clearCollection();
+
     // Генерируем эмбеддинги (пока заглушка - случайные векторы)
     // TODO: Интегрировать с Python-скриптом или ONNX моделью
     final vector = _generateTestEmbeddings(query);
@@ -82,6 +86,17 @@ class UserQueryVectorizerService {
       timestamp: timestamp,
       mode: _dbManager.currentMode,
       success: success,
+    );
+  }
+
+  /// Очистка коллекции запросов.
+  Future<void> _clearCollection() async {
+    _recentQueries.clear();
+    // Пересоздаём коллекцию для полной очистки
+    await _dbManager.createCollection(
+      name: _collectionName,
+      vectorSize: 768,
+      distanceMetric: 'Cosine',
     );
   }
 
