@@ -102,12 +102,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
     if (widget.messages.length > oldWidget.messages.length) {
       // добавлено новое сообщение (скорее всего от ИИ)
       final newMsg = widget.messages.last;
-      if (newMsg.isUser) {
-        _displayedTexts.add(newMsg.text);
-      } else {
-        _displayedTexts.add('');
-        _startTyping(newMsg.text);
-      }
+      _displayedTexts.add(newMsg.text);
       _fadedIn.add(false);
       _fadeIn(_fadedIn.length - 1);
     } else if (widget.messages.length < oldWidget.messages.length) {
@@ -115,12 +110,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
       _displayedTexts = widget.messages.map((m) => m.text).toList();
       _fadedIn = List<bool>.filled(widget.messages.length, true);
     } else {
-      // изменение без изменения длины, синхронизируем тексты
-      for (var i = 0; i < widget.messages.length; i++) {
-        if (widget.messages[i].isUser) {
-          _displayedTexts[i] = widget.messages[i].text;
-        }
-      }
+      // изменение без изменения длины, синхронизируем всё
+      _displayedTexts = widget.messages.map((m) => m.text).toList();
+      _fadedIn = List<bool>.filled(widget.messages.length, true);
     }
   }
 

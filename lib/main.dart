@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'services/huggingface_service.dart';
 import 'services/uefa_search_manager.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
   runApp(const SpaceApp());
 }
 
@@ -41,9 +38,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final HuggingFaceService _hfService;
   late final UefaSearchManager _uefaSearchManager;
-  final List<Message> _messageHistory = [];
   final List<ChatMessage> _messages = [
     ChatMessage(
       text: 'Здравствуйте! Я ваш ИИ-ассистент. Чем я могу вам помочь сегодня?',
@@ -55,7 +50,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _hfService = HuggingFaceService(apiKey: dotenv.env['HF_TOKEN'] ?? '');
     _uefaSearchManager = UefaSearchManager();
     _uefaSearchManager.initialize();
     _uefaSearchManager.addListener(_onUefaSearchChanged);
@@ -73,21 +67,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage(String text) async {
-    // Проверка на тестовую фразу BANANA-HEY для проверки анимации
-    if (text.trim().toUpperCase() == 'BANANA-HEY') {
-      // запрашиваем у менеджера именно ключевую фразу
-      await _uefaSearchManager.interceptQuery('BANANA-HEY');
-      // Ждём завершения поиска (анимация и индикатор ошибки/успеха показывается внутри)
-      while (_uefaSearchManager.isSearching) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-      // для теста не добавляем никаких сообщений в чат – достаточно увидеть анимацию
-      return;
-    }
-
-    // Проверка на триггеры UEFA через UefaSearchManager
+    // Проверка на триггеры UEFA
     final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
-    
+
     if (hasUefaTrigger) {
       // Ждём пока анимация не завершится
       while (_uefaSearchManager.isSearching) {
@@ -97,29 +79,20 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
-      _messageHistory.add(Message(role: 'user', content: text));
       _isLoading = true;
     });
 
-    try {
-      final response = await _hfService.chatWithHistory(_messageHistory);
-      if (mounted) {
-        setState(() {
-          _messages.add(ChatMessage(text: response, isUser: false));
-          _messageHistory.add(Message(role: 'assistant', content: response));
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _messages.add(ChatMessage(
-            text: 'Ошибка: $e',
-            isUser: false,
-          ));
-          _isLoading = false;
-        });
-      }
+    // Имитация ответа (замените на реальный API вызов)
+    await Future.delayed(const Duration(seconds: 1));
+    
+    if (mounted) {
+      setState(() {
+        _messages.add(ChatMessage(
+          text: 'Это тестовый ответ. Настройте API для реальных ответов.',
+          isUser: false,
+        ));
+        _isLoading = false;
+      });
     }
   }
 
