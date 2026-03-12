@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'services/qwen_api_service.dart';
+import 'services/query_datetime_parser.dart';
 import 'services/rankings_relevance_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_parser.dart';
@@ -221,6 +222,7 @@ class _HomePageState extends State<HomePage> {
 
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
+    final temporalContext = QueryDateTimeParser.parse(text);
 
     String? parsingStatus;
     String ragContext = '';
@@ -252,6 +254,7 @@ class _HomePageState extends State<HomePage> {
       final qwenResponse = await _qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
+        temporalContext: temporalContext.toPromptContext(),
         maxTokens: 1024,
       );
 
@@ -271,6 +274,11 @@ class _HomePageState extends State<HomePage> {
         botResponse += '```\n$ragContext\n```\n\n';
       } else {
         botResponse += '⚠️ Данные в векторной базе не найдены.\n\n';
+      }
+
+      if (temporalContext.hasAnyTemporalReference) {
+        botResponse += '🕒 **Распознанный временной контекст:**\n';
+        botResponse += '```\n${temporalContext.toPromptContext()}\n```\n\n';
       }
 
       botResponse += '📝 **Ваш запрос:** "$text"\n';

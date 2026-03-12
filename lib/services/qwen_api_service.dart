@@ -52,6 +52,7 @@ class QwenApiService {
     int maxTokens = 1024,
     double temperature = 0.7,
     String? context,
+    String? temporalContext,
   }) async {
     if (apiKey.isEmpty) {
       print('HF_TOKEN is empty. Skipping chat request.');
@@ -59,7 +60,13 @@ class QwenApiService {
     }
 
     try {
-      final systemPrompt = context != null && context.isNotEmpty
+      final mergedContext = [
+        if (context != null && context.isNotEmpty) context,
+        if (temporalContext != null && temporalContext.isNotEmpty)
+          temporalContext,
+      ].join('\n\n');
+
+      final systemPrompt = mergedContext.isNotEmpty
           ? '''You are a helpful sports assistant specializing in UEFA football data.
 Use the ranking data below to answer the user's question accurately.
 If the data contains relevant information, reference it in your answer.
@@ -68,7 +75,7 @@ Treat exact association matches and explicit ranking numbers as higher-priority 
 Do not invent standings that are not present in the retrieved context.
 
 Context:
-$context'''
+$mergedContext'''
           : 'You are a helpful sports assistant specializing in UEFA football data.';
 
       print('Sending request to Hugging Face API...');
