@@ -9,3 +9,4 @@ flask-cors>=4.0.0
 # Для embeddings (опционально)
 sentence-transformers>=2.2.0
 numpy>=1.24.0
+huggingface_hub>=0.33.0

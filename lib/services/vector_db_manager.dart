@@ -2,11 +2,11 @@ import 'qdrant_service.dart';
 import 'local_vector_db.dart';
 
 /// Менеджер векторных баз данных с автоматическим fallback.
-/// 
+///
 /// Приоритет:
 /// 1. Qdrant (основная база)
 /// 2. LocalVectorDatabase (резервная локальная база)
-/// 
+///
 /// Автоматически переключается на локальную базу при:
 /// - Отсутствии подключения к Qdrant
 /// - Ошибках доступа к Qdrant
@@ -23,8 +23,8 @@ class VectorDatabaseManager {
     QdrantService? qdrantService,
     LocalVectorDatabase? localDb,
     this.useLocalOnly = false,
-  })  : _qdrantService = qdrantService,
-        _localDb = localDb ?? LocalVectorDatabase();
+  }) : _qdrantService = qdrantService,
+       _localDb = localDb ?? LocalVectorDatabase();
 
   /// Инициализация менеджера.
   Future<void> initialize() async {
@@ -84,6 +84,36 @@ class VectorDatabaseManager {
     }
 
     return success;
+  }
+
+  Future<bool> resetCollection({
+    required String name,
+    required int vectorSize,
+    String distanceMetric = 'Cosine',
+  }) async {
+    if (!_initialized) {
+      await initialize();
+    }
+
+    if (_useQdrant && _qdrantService != null) {
+      final exists = await _qdrantService.collectionExists(name);
+      if (exists) {
+        await _qdrantService.deleteCollection(name);
+      }
+      await _qdrantService.createCollection(
+        collectionName: name,
+        vectorSize: vectorSize,
+        distance: distanceMetric,
+      );
+    }
+
+    _localDb.resetCollection(
+      name: name,
+      vectorSize: vectorSize,
+      distanceMetric: distanceMetric,
+    );
+
+    return true;
   }
 
   /// Добавление точки.
@@ -168,7 +198,8 @@ class VectorDatabaseManager {
   }
 
   /// Использовать ли Qdrant.
-  bool get _useQdrant => !useLocalOnly && _isQdrantAvailable && _qdrantService != null;
+  bool get _useQdrant =>
+      !useLocalOnly && _isQdrantAvailable && _qdrantService != null;
 
   /// Статистика.
   Map<String, dynamic> get stats {

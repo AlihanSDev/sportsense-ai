@@ -18,10 +18,10 @@ class LocalVectorPoint {
   }) : payload = payload ?? {};
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'vector': vector,
-        'payload': payload,
-      };
+    'id': id,
+    'vector': vector,
+    'payload': payload,
+  };
 
   factory LocalVectorPoint.fromJson(Map<String, dynamic> json) {
     return LocalVectorPoint(
@@ -66,10 +66,7 @@ class LocalVectorCollection {
   }
 
   /// Поиск ближайших соседей.
-  List<_ScoredPoint> search(
-    List<double> vector, {
-    int limit = 10,
-  }) {
+  List<_ScoredPoint> search(List<double> vector, {int limit = 10}) {
     if (vector.length != vectorSize) {
       throw ArgumentError(
         'Vector size ${vector.length} does not match collection size $vectorSize',
@@ -151,11 +148,11 @@ class LocalVectorCollection {
 
   /// Сериализация в JSON.
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'vectorSize': vectorSize,
-        'distanceMetric': distanceMetric,
-        'points': _points.values.map((p) => p.toJson()).toList(),
-      };
+    'name': name,
+    'vectorSize': vectorSize,
+    'distanceMetric': distanceMetric,
+    'points': _points.values.map((p) => p.toJson()).toList(),
+  };
 
   /// Десериализация из JSON.
   factory LocalVectorCollection.fromJson(Map<String, dynamic> json) {
@@ -180,14 +177,11 @@ class _ScoredPoint {
 
   _ScoredPoint({required this.point, required this.score});
 
-  Map<String, dynamic> toJson() => {
-        'point': point.toJson(),
-        'score': score,
-      };
+  Map<String, dynamic> toJson() => {'point': point.toJson(), 'score': score};
 }
 
 /// Локальная векторная база данных (Plan B fallback).
-/// 
+///
 /// Хранит данные в памяти с возможностью сохранения на диск.
 /// Используется как запасной вариант при отсутствии Qdrant.
 class LocalVectorDatabase {
@@ -196,9 +190,9 @@ class LocalVectorDatabase {
   int _nextId;
 
   LocalVectorDatabase({String? storagePath})
-      : _storagePath = storagePath ?? 'data/vector_db',
-        _collections = {},
-        _nextId = 1;
+    : _storagePath = storagePath ?? 'data/vector_db',
+      _collections = {},
+      _nextId = 1;
 
   /// Инициализация базы данных.
   Future<void> initialize() async {
@@ -239,6 +233,19 @@ class LocalVectorDatabase {
     return _collections.remove(name) != null;
   }
 
+  void resetCollection({
+    required String name,
+    required int vectorSize,
+    String distanceMetric = 'Cosine',
+  }) {
+    _collections.remove(name);
+    _collections[name] = LocalVectorCollection(
+      name: name,
+      vectorSize: vectorSize,
+      distanceMetric: distanceMetric,
+    );
+  }
+
   /// Список всех коллекций.
   List<String> get collectionNames => _collections.keys.toList();
 
@@ -273,11 +280,13 @@ class LocalVectorDatabase {
 
     final results = collection.search(vector, limit: limit);
     return results
-        .map((r) => {
-              'id': r.point.id,
-              'score': r.score,
-              'payload': r.point.payload,
-            })
+        .map(
+          (r) => {
+            'id': r.point.id,
+            'score': r.score,
+            'payload': r.point.payload,
+          },
+        )
         .toList();
   }
 
@@ -295,7 +304,9 @@ class LocalVectorDatabase {
 
     // Для не-web платформ (Android, iOS, Desktop)
     // Примечание: требует dart:io который не работает в вебе
-    throw UnsupportedError('saveToDisk not supported on web. Use localStorage instead.');
+    throw UnsupportedError(
+      'saveToDisk not supported on web. Use localStorage instead.',
+    );
   }
 
   /// Загрузка с диска.
@@ -311,7 +322,9 @@ class LocalVectorDatabase {
 
         final collections = data['collections'] as List? ?? [];
         for (final c in collections) {
-          final collection = LocalVectorCollection.fromJson(c as Map<String, dynamic>);
+          final collection = LocalVectorCollection.fromJson(
+            c as Map<String, dynamic>,
+          );
           _collections[collection.name] = collection;
         }
       } catch (e) {
@@ -321,7 +334,9 @@ class LocalVectorDatabase {
     }
 
     // Для не-web платформ
-    throw UnsupportedError('_loadFromDisk not supported on web. Use localStorage instead.');
+    throw UnsupportedError(
+      '_loadFromDisk not supported on web. Use localStorage instead.',
+    );
   }
 
   /// Очистка всех данных.
@@ -332,16 +347,12 @@ class LocalVectorDatabase {
 
   /// Статистика базы данных.
   Map<String, dynamic> get stats => {
-        'collections': collectionNames.length,
-        'totalPoints': _collections.values.fold<int>(
-          0,
-          (sum, c) => sum + c.count,
-        ),
-        'collectionDetails': {
-          for (final entry in _collections.entries)
-            entry.key: entry.value.count,
-        },
-      };
+    'collections': collectionNames.length,
+    'totalPoints': _collections.values.fold<int>(0, (sum, c) => sum + c.count),
+    'collectionDetails': {
+      for (final entry in _collections.entries) entry.key: entry.value.count,
+    },
+  };
 
   @override
   String toString() {

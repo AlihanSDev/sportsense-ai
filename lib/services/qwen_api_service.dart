@@ -64,6 +64,8 @@ class QwenApiService {
 Use the ranking data below to answer the user's question accurately.
 If the data contains relevant information, reference it in your answer.
 If the data doesn't contain what the user is asking, say so honestly.
+Treat exact association matches and explicit ranking numbers as higher-priority than generic semantic matches.
+Do not invent standings that are not present in the retrieved context.
 
 Context:
 $context'''

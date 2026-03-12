@@ -1,58 +1,47 @@
 import 'dart:convert';
-import 'dart:math' show sqrt;
 
+import 'hf_embedding_service.dart';
 import 'vector_db_manager.dart';
 
-/// Сервис для обработки и векторизации пользовательских запросов.
-/// 
-/// Временное хранение запросов в отдельной коллекции для тестирования.
 class UserQueryVectorizerService {
   final VectorDatabaseManager _dbManager;
+  final HfEmbeddingService _embeddingService;
   final String _collectionName;
-  
-  // Кэш для хранения последних запросов в памяти
   final Map<int, _QueryData> _recentQueries;
   int _nextQueryId;
 
   UserQueryVectorizerService({
     required VectorDatabaseManager dbManager,
+    HfEmbeddingService? embeddingService,
     String collectionName = 'user_queries_temp',
-  })  : _dbManager = dbManager,
-        _collectionName = collectionName,
-        _recentQueries = {},
-        _nextQueryId = 1;
+  }) : _dbManager = dbManager,
+       _embeddingService = embeddingService ?? HfEmbeddingService(),
+       _collectionName = collectionName,
+       _recentQueries = {},
+       _nextQueryId = 1;
 
-  /// Инициализация сервиса.
   Future<void> initialize() async {
-    // Создаём коллекцию для временных запросов
-    await _dbManager.createCollection(
+    await _dbManager.resetCollection(
       name: _collectionName,
-      vectorSize: 768, // granite-embedding-278m-multilingual
+      vectorSize: HfEmbeddingService.vectorSize,
       distanceMetric: 'Cosine',
     );
-    print('✓ Коллекция для запросов создана: $_collectionName');
+    print('Query collection initialized: $_collectionName');
   }
 
-  /// Векторизация пользовательского запроса.
-  ///
-  /// Возвращает векторы и сохраняет запрос во временную базу.
-  /// Перед каждым новым запросом очищает базу от предыдущих векторов.
   Future<QueryVectorizationResult> vectorizeQuery(String query) async {
-    // Очищаем базу от предыдущих запросов перед новым
     await _clearCollection();
+    final vector = await _embeddingService.embed(query);
 
-    // Генерируем эмбеддинги (пока заглушка - случайные векторы)
-    // TODO: Интегрировать с Python-скриптом или ONNX моделью
-    final vector = _generateTestEmbeddings(query);
-
-    // Сохраняем во временную базу
     final queryId = _nextQueryId++;
     final timestamp = DateTime.now();
-
     final payload = {
       'query': query,
       'timestamp': timestamp.toIso8601String(),
-      'wordCount': query.split(' ').length,
+      'wordCount': query
+          .split(RegExp(r'\s+'))
+          .where((part) => part.isNotEmpty)
+          .length,
       'charCount': query.length,
     };
 
@@ -64,7 +53,6 @@ class UserQueryVectorizerService {
     );
 
     if (success) {
-      // Сохраняем в кэш
       _recentQueries[queryId] = _QueryData(
         id: queryId,
         query: query,
@@ -72,7 +60,6 @@ class UserQueryVectorizerService {
         timestamp: timestamp,
       );
 
-      // Очищаем старые запросы (храним последние 100)
       if (_recentQueries.length > 100) {
         final oldestId = _recentQueries.keys.first;
         _recentQueries.remove(oldestId);
@@ -89,72 +76,35 @@ class UserQueryVectorizerService {
     );
   }
 
-  /// Очистка коллекции запросов.
   Future<void> _clearCollection() async {
     _recentQueries.clear();
-    // Пересоздаём коллекцию для полной очистки
-    await _dbManager.createCollection(
+    await _dbManager.resetCollection(
       name: _collectionName,
-      vectorSize: 768,
+      vectorSize: HfEmbeddingService.vectorSize,
       distanceMetric: 'Cosine',
     );
   }
 
-  /// Генерация тестовых эмбеддингов (заглушка).
-  /// 
-  /// TODO: Заменить на реальную модель эмбеддингов.
-  List<double> _generateTestEmbeddings(String query) {
-    // Генерируем псевдо-случайный вектор на основе хэша запроса
-    final hash = utf8.encode(query);
-    final vector = List<double>.filled(768, 0.0);
-
-    for (int i = 0; i < 768; i++) {
-      // Детерминированная генерация на основе хэша
-      final seed = hash[i % hash.length] ^ (i * 17);
-      vector[i] = ((seed % 1000) / 1000.0 - 0.5) * 2; // от -1 до 1
-    }
-
-    // Нормализация (для косинусной схожести)
-    final norm = _vectorNorm(vector);
-    if (norm > 0) {
-      for (int i = 0; i < vector.length; i++) {
-        vector[i] /= norm;
-      }
-    }
-
-    return vector;
-  }
-
-  /// Норма вектора.
-  double _vectorNorm(List<double> vector) {
-    double sum = 0.0;
-    for (final v in vector) {
-      sum += v * v;
-    }
-    return sqrt(sum);
-  }
-
-  /// Поиск похожих запросов.
   Future<List<Map<String, dynamic>>?> findSimilarQueries({
     required String query,
     int limit = 5,
   }) async {
-    final vector = _generateTestEmbeddings(query);
-    
-    return await _dbManager.search(
+    final vector = await _embeddingService.embed(query);
+
+    return _dbManager.search(
       collectionName: _collectionName,
       vector: vector,
       limit: limit,
     );
   }
 
-  /// Получение последнего запроса.
   _QueryData? getLastQuery() {
-    if (_recentQueries.isEmpty) return null;
+    if (_recentQueries.isEmpty) {
+      return null;
+    }
     return _recentQueries.values.last;
   }
 
-  /// Статистика.
   Map<String, dynamic> get stats {
     return {
       'collectionName': _collectionName,
@@ -163,15 +113,13 @@ class UserQueryVectorizerService {
     };
   }
 
-  /// Очистка временных данных.
   Future<void> clearTempData() async {
     _recentQueries.clear();
-    // TODO: Удалить коллекцию и создать заново
-    print('✓ Временные данные очищены');
+    await _clearCollection();
+    print('Temporary query vectors cleared');
   }
 }
 
-/// Результат векторизации запроса.
 class QueryVectorizationResult {
   final int queryId;
   final String query;
@@ -189,12 +137,19 @@ class QueryVectorizationResult {
     required this.success,
   });
 
-  /// Форматированный вывод векторов (первые N и последние M).
   String formatVectors({int showFirst = 5, int showLast = 5}) {
-    if (vector.isEmpty) return '[]';
+    if (vector.isEmpty) {
+      return '[]';
+    }
 
-    final first = vector.take(showFirst).map((v) => v.toStringAsFixed(3)).join(', ');
-    final last = vector.skip(vector.length - showLast).map((v) => v.toStringAsFixed(3)).join(', ');
+    final first = vector
+        .take(showFirst)
+        .map((v) => v.toStringAsFixed(3))
+        .join(', ');
+    final last = vector
+        .skip(vector.length - showLast)
+        .map((v) => v.toStringAsFixed(3))
+        .join(', ');
 
     if (vector.length <= showFirst + showLast) {
       return '[${vector.map((v) => v.toStringAsFixed(3)).join(', ')}]';
@@ -203,7 +158,6 @@ class QueryVectorizationResult {
     return '[$first, ..., $last]';
   }
 
-  /// Полный вектор как JSON строка.
   String toJsonString() {
     return json.encode(vector);
   }
@@ -214,7 +168,6 @@ class QueryVectorizationResult {
   }
 }
 
-/// Данные запроса для кэша.
 class _QueryData {
   final int id;
   final String query;

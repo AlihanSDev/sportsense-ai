@@ -8,6 +8,7 @@ import 'services/rankings_vector_search.dart';
 import 'services/uefa_parser.dart';
 import 'services/uefa_rankings_api_service.dart';
 import 'services/uefa_search_manager.dart';
+import 'services/hf_embedding_service.dart';
 import 'services/user_query_vectorizer.dart';
 import 'services/vector_db_manager.dart';
 import 'widgets/chat_interface.dart';
@@ -20,8 +21,17 @@ void main() async {
   final vectorDbManager = VectorDatabaseManager();
   await vectorDbManager.initialize();
 
+  final embeddingService = HfEmbeddingService();
+  final embeddingAvailable = await embeddingService.isAvailable();
+  print(
+    embeddingAvailable
+        ? 'Hugging Face embedding API available'
+        : 'Hugging Face embedding API unavailable. Run python scripts/hf_embeddings_api.py',
+  );
+
   final queryVectorizer = UserQueryVectorizerService(
     dbManager: vectorDbManager,
+    embeddingService: embeddingService,
   );
   await queryVectorizer.initialize();
 
@@ -36,9 +46,13 @@ void main() async {
   final uefaParser = UefaParser(
     vectorDbManager: vectorDbManager,
     rankingsApi: rankingsApi,
+    embeddingService: embeddingService,
   );
 
-  final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
+  final rankingsSearch = RankingsVectorSearch(
+    dbManager: vectorDbManager,
+    embeddingService: embeddingService,
+  );
 
   final qwenApi = QwenApiService();
   final qwenAvailable = await qwenApi.isAvailable();
@@ -210,6 +224,7 @@ class _HomePageState extends State<HomePage> {
 
     String? parsingStatus;
     String ragContext = '';
+    await _queryVectorizer.vectorizeQuery(text);
 
     if (relevance >= 2.0) {
       parsingStatus = '🔄 RAG: парсинг UEFA Rankings...';
