@@ -47,20 +47,20 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Theme.of(context).colorScheme.primary.withOpacity(0.2),
-            Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+            const Color(0xFFE8F0FF).withOpacity(0.8),
+            const Color(0xFFD6E6FF).withOpacity(0.6),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          color: const Color(0xFF4A90E2).withOpacity(0.4),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: const Color(0xFF4A90E2).withOpacity(0.2),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -79,9 +79,7 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
+                    color: const Color(0xFF333333)
                         .withOpacity(_pulseAnimation.value),
                     letterSpacing: 0.5,
                   ),

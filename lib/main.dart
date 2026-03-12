@@ -81,10 +81,11 @@ class SpaceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C4DFF),
-          brightness: Brightness.dark,
+          seedColor: const Color(0xFF4A90E2), // Синий цвет для молочной темы
+          brightness: Brightness.light, // Светлая тема
+          background: const Color(0xFFF8F9FA), // Молочный фон
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
         useMaterial3: true,
       ),
       home: HomePage(
