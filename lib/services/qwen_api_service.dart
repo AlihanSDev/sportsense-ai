@@ -1,117 +1,144 @@
 import 'dart:convert';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-/// Сервис для взаимодействия с локальным Qwen API.
+/// Service for interacting with Hugging Face Router API.
 class QwenApiService {
   final String baseUrl;
+  final String apiKey;
+  final String model;
   final http.Client _client;
 
   QwenApiService({
-    this.baseUrl = 'http://127.0.0.1:5000',
+    String? baseUrl,
+    String? apiKey,
+    String? model,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : baseUrl =
+           baseUrl ??
+           dotenv.env['HF_BASE_URL'] ??
+           'https://router.huggingface.co/v1',
+       apiKey = apiKey ?? dotenv.env['HF_TOKEN'] ?? '',
+       model =
+           model ??
+           dotenv.env['HF_CHAT_MODEL'] ??
+           'meta-llama/Llama-3.1-8B-Instruct:sambanova',
+       _client = client ?? http.Client();
 
-  /// Проверка доступности API.
   Future<bool> isAvailable() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        return data['loaded'] == true;
-      }
+    if (apiKey.isEmpty) {
+      print('HF_TOKEN is empty. Hugging Face API is disabled.');
       return false;
+    }
+
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('https://huggingface.co/api/whoami-v2'),
+            headers: {'Authorization': 'Bearer $apiKey'},
+          )
+          .timeout(const Duration(seconds: 5));
+
+      return response.statusCode == 200;
     } catch (e) {
+      print('HF availability check failed: $e');
       return false;
     }
   }
 
-  /// Отправка запроса к чат-боту с контекстом (RAG).
-  Future<QwenChatResponse?> chat(String message, {
+  Future<QwenChatResponse?> chat(
+    String message, {
     int maxTokens = 1024,
     double temperature = 0.7,
-    String? context, // Контекст из векторной базы для RAG
+    String? context,
   }) async {
-    try {
-      // Формируем промпт с контекстом для RAG
-      final String prompt;
-      if (context != null && context.isNotEmpty) {
-        // RAG промпт: контекст + инструкция + вопрос
-        prompt = '''$context
+    if (apiKey.isEmpty) {
+      print('HF_TOKEN is empty. Skipping chat request.');
+      return null;
+    }
 
-You are a helpful sports assistant specializing in UEFA football data.
-Use the ranking data above to answer the user's question accurately.
+    try {
+      final systemPrompt = context != null && context.isNotEmpty
+          ? '''You are a helpful sports assistant specializing in UEFA football data.
+Use the ranking data below to answer the user's question accurately.
 If the data contains relevant information, reference it in your answer.
 If the data doesn't contain what the user is asking, say so honestly.
 
-User question: $message
-''';
-        print('📝 RAG Prompt length: ${prompt.length} chars');
-      } else {
-        prompt = message;
-      }
+Context:
+$context'''
+          : 'You are a helpful sports assistant specializing in UEFA football data.';
 
-      print('🤖 Sending request to Qwen API...');
-      
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'message': prompt,
-          'max_tokens': maxTokens,
-          'temperature': temperature,
-        }),
-      ).timeout(const Duration(seconds: 120));
+      print('Sending request to Hugging Face API...');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        final result = QwenChatResponse(
-          response: data['response'] as String,
-          model: data['model'] as String,
-          tokensUsed: data['tokens_used'] as int,
-        );
-        print('✅ Qwen response received (${result.tokensUsed} tokens)');
-        return result;
-      } else {
-        print('❌ API error: ${response.statusCode}');
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/chat/completions'),
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              'model': model,
+              'messages': [
+                {'role': 'system', 'content': systemPrompt},
+                {'role': 'user', 'content': message},
+              ],
+              'max_tokens': maxTokens,
+              'temperature': temperature,
+            }),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      if (response.statusCode != 200) {
+        print('HF API error: ${response.statusCode}');
         print('Response body: ${response.body}');
         return null;
       }
+
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final choices = data['choices'] as List<dynamic>? ?? const [];
+      if (choices.isEmpty) {
+        print('HF API returned no choices');
+        return null;
+      }
+
+      final messageData =
+          choices.first['message'] as Map<String, dynamic>? ?? const {};
+      final usage = data['usage'] as Map<String, dynamic>? ?? const {};
+
+      final result = QwenChatResponse(
+        response: (messageData['content'] as String?)?.trim() ?? '',
+        model: data['model'] as String? ?? model,
+        tokensUsed: (usage['total_tokens'] as num?)?.toInt() ?? 0,
+      );
+
+      print('HF response received (${result.tokensUsed} tokens)');
+      return result;
     } catch (e) {
-      print('❌ Request error: $e');
+      print('HF request error: $e');
       return null;
     }
   }
 
-  /// Генерация текста (без системного промпта).
-  Future<QwenGenerateResponse?> generate(String prompt, {
+  Future<QwenGenerateResponse?> generate(
+    String prompt, {
     int maxTokens = 512,
   }) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/generate'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'prompt': prompt,
-          'max_tokens': maxTokens,
-        }),
-      ).timeout(const Duration(seconds: 60));
+    final chatResponse = await chat(
+      prompt,
+      maxTokens: maxTokens,
+      temperature: 0.7,
+    );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        return QwenGenerateResponse(
-          text: data['text'] as String,
-          tokens: data['tokens'] as int,
-        );
-      } else {
-        return null;
-      }
-    } catch (e) {
-      print('❌ Ошибка запроса: $e');
+    if (chatResponse == null) {
       return null;
     }
+
+    return QwenGenerateResponse(
+      text: chatResponse.response,
+      tokens: chatResponse.tokensUsed,
+    );
   }
 
   void dispose() {
@@ -119,7 +146,6 @@ User question: $message
   }
 }
 
-/// Ответ от Qwen API на запрос чата.
 class QwenChatResponse {
   final String response;
   final String model;
@@ -133,17 +159,15 @@ class QwenChatResponse {
 
   @override
   String toString() {
-    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
+    final previewLength = response.length < 50 ? response.length : 50;
+    final preview = response.substring(0, previewLength);
+    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, response: "$preview...")';
   }
 }
 
-/// Ответ от Qwen API на запрос генерации.
 class QwenGenerateResponse {
   final String text;
   final int tokens;
 
-  QwenGenerateResponse({
-    required this.text,
-    required this.tokens,
-  });
+  QwenGenerateResponse({required this.text, required this.tokens});
 }

@@ -1,57 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'services/uefa_search_manager.dart';
-import 'services/vector_db_manager.dart';
-import 'services/user_query_vectorizer.dart';
-import 'services/rankings_relevance_service.dart';
-import 'services/uefa_parser.dart';
+
 import 'services/qwen_api_service.dart';
+import 'services/rankings_relevance_service.dart';
 import 'services/rankings_vector_search.dart';
+import 'services/uefa_parser.dart';
 import 'services/uefa_rankings_api_service.dart';
-import 'widgets/space_background.dart';
+import 'services/uefa_search_manager.dart';
+import 'services/user_query_vectorizer.dart';
+import 'services/vector_db_manager.dart';
 import 'widgets/chat_interface.dart';
+import 'widgets/space_background.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
 
-  // Инициализация векторной базы данных
   final vectorDbManager = VectorDatabaseManager();
   await vectorDbManager.initialize();
 
-  // Инициализация сервиса векторизации запросов
-  final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
+  final queryVectorizer = UserQueryVectorizerService(
+    dbManager: vectorDbManager,
+  );
   await queryVectorizer.initialize();
 
-  // Инициализация UEFA Rankings API
   final rankingsApi = UefaRankingsApiService();
   final rankingsApiAvailable = await rankingsApi.isAvailable();
-  print(rankingsApiAvailable 
-    ? '✅ UEFA Rankings API доступен (Python + Playwright)' 
-    : '⚠️ UEFA Rankings API недоступен (запустите python scripts/uefa_parser_api.py)');
+  print(
+    rankingsApiAvailable
+        ? 'UEFA Rankings API available (Python + Playwright)'
+        : 'UEFA Rankings API unavailable (run python scripts/uefa_parser_api.py)',
+  );
 
-  // Инициализация парсера UEFA с API и векторной базой
   final uefaParser = UefaParser(
     vectorDbManager: vectorDbManager,
     rankingsApi: rankingsApi,
   );
 
-  // Инициализация поиска по векторной базе рейтингов
   final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
 
-  // Инициализация Qwen API
   final qwenApi = QwenApiService();
   final qwenAvailable = await qwenApi.isAvailable();
-  print(qwenAvailable ? '✅ Qwen API доступен' : '⚠️ Qwen API недоступен (запустите python scripts/qwen_api.py)');
+  print(
+    qwenAvailable
+        ? 'Hugging Face Llama API available'
+        : 'Hugging Face Llama API unavailable. Set HF_TOKEN in .env',
+  );
 
-  runApp(SpaceApp(
-    vectorDbManager: vectorDbManager,
-    queryVectorizer: queryVectorizer,
-    uefaParser: uefaParser,
-    qwenApi: qwenApi,
-    rankingsSearch: rankingsSearch,
-    rankingsApiAvailable: rankingsApiAvailable,
-    qwenAvailable: qwenAvailable,
-  ));
+  runApp(
+    SpaceApp(
+      vectorDbManager: vectorDbManager,
+      queryVectorizer: queryVectorizer,
+      uefaParser: uefaParser,
+      qwenApi: qwenApi,
+      rankingsSearch: rankingsSearch,
+      rankingsApiAvailable: rankingsApiAvailable,
+      qwenAvailable: qwenAvailable,
+    ),
+  );
 }
 
 class SpaceApp extends StatelessWidget {
@@ -132,7 +139,8 @@ class _HomePageState extends State<HomePage> {
   late final RankingsVectorSearch _rankingsSearch;
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: 'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
+      text:
+          'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
       isUser: false,
     ),
   ];
@@ -148,22 +156,27 @@ class _HomePageState extends State<HomePage> {
     _uefaParser = widget.uefaParser;
     _qwenApi = widget.qwenApi;
     _rankingsSearch = widget.rankingsSearch;
-    
-    // Добавляем сообщения о статусе сервисов
+
     if (!widget.rankingsApiAvailable) {
-      _messages.add(ChatMessage(
-        text: '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
-        isUser: false,
-        textColor: Colors.orange,
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
+          isUser: false,
+          textColor: Colors.orange,
+        ),
+      );
     }
-    
+
     if (!widget.qwenAvailable) {
-      _messages.add(ChatMessage(
-        text: '⚠️ Qwen API недоступен.\nЗапустите:\n```\npython scripts/qwen_api.py\n```\n\nПока используется тестовый режим.',
-        isUser: false,
-        textColor: Colors.orange,
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              '⚠️ Hugging Face Llama API недоступен.\nУкажите `HF_TOKEN` в `.env`.\n\nПока используется тестовый режим.',
+          isUser: false,
+          textColor: Colors.orange,
+        ),
+      );
     }
   }
 
@@ -179,11 +192,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage(String text) async {
-    // Проверка на триггеры UEFA
     final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
 
     if (hasUefaTrigger) {
-      // Ждём пока анимация не завершится
       while (_uefaSearchManager.isSearching) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
@@ -194,82 +205,73 @@ class _HomePageState extends State<HomePage> {
       _isLoading = true;
     });
 
-    // Проверка релевантности запроса к Rankings
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
 
-    // RAG пайплайн: Парсинг → Векторная база → Поиск → Qwen с контекстом
     String? parsingStatus;
     String ragContext = '';
 
-    // Шаг 1: Если высокая релевантность — парсим и сохраняем в векторную базу
     if (relevance >= 2.0) {
-      parsingStatus = '🔄 RAG: Парсинг UEFA Rankings...';
-      print('🔍 RAG: Запрос релевантен Rankings, начинаем парсинг...');
-      
-      // Парсим и сохраняем в векторную базу
+      parsingStatus = '🔄 RAG: парсинг UEFA Rankings...';
+      print('RAG: relevant rankings query detected, starting parsing...');
+
       await _uefaParser.parseAndSaveRankings();
-      
-      // Небольшая задержка чтобы данные успели сохраниться
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    // Шаг 2: Поиск релевантных данных в векторной базе
     if (relevance >= 1.0) {
-      print('🔍 RAG: Поиск данных в векторной базе...');
+      print('RAG: searching vector database...');
       ragContext = await _rankingsSearch.getRagContext(text, limit: 10);
-      
+
       if (ragContext.isEmpty) {
-        print('⚠️ RAG: Данные не найдены в векторной базе');
+        print('RAG: no data found in vector database');
       } else {
-        print('✅ RAG: Контекст получен (${ragContext.length} символов)');
+        print('RAG: context received (${ragContext.length} chars)');
       }
     }
 
-    // Шаг 3: Запрос к Qwen API с RAG контекстом
     String botResponse;
     if (widget.qwenAvailable) {
-      print('🤖 RAG: Отправка запроса к Qwen с контекстом...');
-      
-      // Запрос к реальной модели с контекстом
+      print('RAG: sending request to Hugging Face with context...');
+
       final qwenResponse = await _qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
-        maxTokens: 1024, // Увеличиваем для подробных ответов
+        maxTokens: 1024,
       );
-      
+
       if (qwenResponse != null) {
         botResponse = qwenResponse.response;
-        print('✅ RAG: Ответ получен (${qwenResponse.tokensUsed} токенов)');
+        print('RAG: response received (${qwenResponse.tokensUsed} tokens)');
       } else {
-        botResponse = '❌ Ошибка при получении ответа от Qwen.';
-        print('❌ RAG: Ошибка получения ответа');
+        botResponse = 'Ошибка при получении ответа от Hugging Face Llama API.';
+        print('RAG: failed to get Hugging Face response');
       }
     } else {
-      // Тестовый режим с RAG контекстом
-      botResponse = '🤖 **Тестовый режим** (Qwen API недоступен)\n\n';
-      
+      botResponse =
+          '🤖 **Тестовый режим** (Hugging Face Llama API недоступен)\n\n';
+
       if (ragContext.isNotEmpty) {
         botResponse += '📊 **Найдено в векторной базе:**\n';
         botResponse += '```\n$ragContext\n```\n\n';
       } else {
         botResponse += '⚠️ Данные в векторной базе не найдены.\n\n';
       }
-      
+
       botResponse += '📝 **Ваш запрос:** "$text"\n';
-      botResponse += '🎯 **Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
+      botResponse +=
+          '🎯 **Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
       botResponse += '💡 **Для реальных ответов:**\n';
-      botResponse += '```bash\npython scripts/qwen_api.py\n```\n';
+      botResponse += 'Укажите `HF_TOKEN` в `.env`.\n';
     }
 
-    // Формируем полный ответ
     String fullResponse;
     if (parsingStatus != null && ragContext.isNotEmpty) {
       fullResponse = '$parsingStatus\n\n$botResponse';
     } else if (parsingStatus != null) {
       fullResponse = '$parsingStatus\n\n$botResponse';
     } else if (ragContext.isNotEmpty && widget.qwenAvailable) {
-      fullResponse = '📊 **RAG: Данные из векторной базы**\n\n$botResponse';
+      fullResponse = '📊 **RAG: данные из векторной базы**\n\n$botResponse';
     } else {
       fullResponse = botResponse;
     }
@@ -278,11 +280,9 @@ class _HomePageState extends State<HomePage> {
 
     if (mounted) {
       setState(() {
-        _messages.add(ChatMessage(
-          text: fullResponse,
-          isUser: false,
-          textColor: textColor,
-        ));
+        _messages.add(
+          ChatMessage(text: fullResponse, isUser: false, textColor: textColor),
+        );
         _isLoading = false;
       });
     }
@@ -295,8 +295,6 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-
-            // Заголовок с эффектом свечения
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [
@@ -327,10 +325,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 8),
-
-            // Подзаголовок
             Text(
               'AI-Powered Assistant',
               style: GoogleFonts.poppins(
@@ -340,10 +335,7 @@ class _HomePageState extends State<HomePage> {
                 fontWeight: FontWeight.w300,
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Чат
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(16),
