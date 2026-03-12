@@ -1,6 +1,213 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
 import 'uefa_search_indicator.dart';
+
+/// Анимированный сгусток с эффектом лавовой лампы
+class AnimatedLavaLamp extends StatefulWidget {
+  final bool isTyping;
+  final double size;
+
+  const AnimatedLavaLamp({
+    super.key,
+    required this.isTyping,
+    this.size = 40.0,
+  });
+
+  @override
+  State<AnimatedLavaLamp> createState() => _AnimatedLavaLampState();
+}
+
+class _AnimatedLavaLampState extends State<AnimatedLavaLamp> with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _morphController;
+  late AnimationController _lightningController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _morphAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+
+    _morphController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    )..repeat();
+
+    _lightningController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _morphAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _morphController, curve: Curves.linear),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedLavaLamp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Если состояние печати изменилось, перезапускаем анимацию молнии
+    if (widget.isTyping != oldWidget.isTyping) {
+      if (widget.isTyping) {
+        // Запускаем анимацию молнии
+        _lightningController.forward(from: 0.0);
+      } else {
+        // Останавливаем анимацию молнии
+        _lightningController.reset();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _morphController.dispose();
+    _lightningController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pulseController, _morphController, _lightningController]),
+      builder: (context, child) {
+        return CustomPaint(
+          size: Size(widget.size, widget.size),
+          painter: LavaLampPainter(
+            pulseValue: _pulseAnimation.value,
+            morphValue: _morphAnimation.value,
+            isTyping: widget.isTyping,
+            lightningValue: _lightningController.value,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class LavaLampPainter extends CustomPainter {
+  final double pulseValue;
+  final double morphValue;
+  final bool isTyping;
+  final double lightningValue;
+
+  LavaLampPainter({
+    required this.pulseValue,
+    required this.morphValue,
+    required this.isTyping,
+    required this.lightningValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Основной градиент сгустка
+    final gradient = RadialGradient(
+      center: Alignment.center,
+      radius: 0.8,
+      colors: [
+        const Color(0xFF7C4DFF).withOpacity(0.8), // Фиолетовый
+        const Color(0xFF00D4FF).withOpacity(0.6), // Голубой
+        const Color(0xFF4A90E2).withOpacity(0.4), // Синий
+        Colors.white.withOpacity(0.2),            // Белый
+      ],
+    );
+
+    // Эффект пульсации
+    final pulseRadius = radius * pulseValue;
+
+    // Эффект морфинга (лавовой лампы)
+    final path = Path();
+    final points = 8;
+    final baseRadius = pulseRadius;
+    
+    for (int i = 0; i < points; i++) {
+      final angle = (i / points) * 2 * math.pi;
+      // Случайные волны для эффекта лавовой лампы
+      final wave = math.sin(morphValue * 4 + angle * 3) * 10;
+      final noise = math.sin(morphValue * 6 + angle * 5) * 5;
+      final r = baseRadius + wave + noise;
+      
+      final x = center.dx + r * math.cos(angle);
+      final y = center.dy + r * math.sin(angle);
+      
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+
+    // Рисуем основной сгусток
+    final paint = Paint()
+      ..shader = gradient.createShader(Rect.fromCircle(center: center, radius: pulseRadius))
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, paint);
+
+    // Добавляем внутреннее свечение
+    final innerPaint = Paint()
+      ..color = const Color(0xFFFFFFFF).withOpacity(0.3)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
+
+    canvas.drawCircle(center, pulseRadius * 0.6, innerPaint);
+
+    // Анимация молнии при печати
+    if (isTyping && lightningValue > 0) {
+      final lightningPath = Path();
+      final lightningStart = Offset(center.dx - 10, center.dy - 15);
+      final lightningEnd = Offset(center.dx + 10, center.dy + 15);
+      
+      // Основная линия молнии
+      lightningPath.moveTo(lightningStart.dx, lightningStart.dy);
+      lightningPath.lineTo(center.dx, center.dy - 5);
+      lightningPath.lineTo(center.dx + 5, center.dy + 5);
+      lightningPath.lineTo(lightningEnd.dx, lightningEnd.dy);
+      
+      // Ветвь молнии
+      lightningPath.moveTo(center.dx, center.dy - 5);
+      lightningPath.lineTo(center.dx - 8, center.dy + 2);
+
+      final lightningPaint = Paint()
+        ..color = Colors.white.withOpacity(lightningValue)
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawPath(lightningPath, lightningPaint);
+
+      // Эффект вспышки
+      final flashPaint = Paint()
+        ..color = Colors.white.withOpacity(lightningValue * 0.5)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 15);
+
+      canvas.drawCircle(center, pulseRadius * 0.8, flashPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LavaLampPainter oldDelegate) {
+    return oldDelegate.pulseValue != pulseValue ||
+           oldDelegate.morphValue != morphValue ||
+           oldDelegate.isTyping != isTyping ||
+           oldDelegate.lightningValue != lightningValue;
+  }
+}
 
 /// Сообщение чата
 class ChatMessage {
@@ -49,6 +256,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
   /// флаги для постепенного появления сообщения (для анимации opacity)
   late List<bool> _fadedIn;
 
+  /// флаги для анимации молнии при печати
+  late List<bool> _isTyping;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -58,6 +268,14 @@ class _ChatInterfaceState extends State<ChatInterface> {
 
   /// запускает анимацию печати для нового сообщения бота
   Future<void> _startTyping(String fullText) async {
+    // Включаем анимацию молнии для последнего сообщения
+    if (_isTyping.isNotEmpty) {
+      _isTyping[_isTyping.length - 1] = true;
+    }
+    
+    // Запускаем анимацию молнии
+    _triggerLightningAnimation();
+    
     for (int i = 1; i <= fullText.length; i++) {
       await Future.delayed(const Duration(milliseconds: 30));
       if (!mounted) return;
@@ -65,6 +283,24 @@ class _ChatInterfaceState extends State<ChatInterface> {
         _displayedTexts[_displayedTexts.length - 1] = fullText.substring(0, i);
       });
       _scrollToBottom();
+    }
+    
+    // Выключаем анимацию молнии после завершения печати
+    if (_isTyping.isNotEmpty) {
+      _isTyping[_isTyping.length - 1] = false;
+    }
+  }
+
+  /// запускает анимацию молнии
+  void _triggerLightningAnimation() {
+    if (_isTyping.isNotEmpty) {
+      // Запускаем анимацию молнии для всех сгустков
+      for (int i = 0; i < _isTyping.length; i++) {
+        if (_isTyping[i]) {
+          // Перезапускаем анимацию молнии
+          // Это будет вызвано автоматически при изменении isTyping
+        }
+      }
     }
   }
 
@@ -95,6 +331,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
     // при старте все сообщения уже должны показываться полностью
     _displayedTexts = widget.messages.map((m) => m.isUser ? m.text : m.text).toList();
     _fadedIn = List<bool>.filled(widget.messages.length, true);
+    _isTyping = List<bool>.filled(widget.messages.length, false);
   }
 
   @override
@@ -106,15 +343,23 @@ class _ChatInterfaceState extends State<ChatInterface> {
       final newMsg = widget.messages.last;
       _displayedTexts.add(newMsg.text);
       _fadedIn.add(false);
+      _isTyping.add(false);
       _fadeIn(_fadedIn.length - 1);
+      
+      // Если это сообщение бота, запускаем анимацию печати
+      if (!newMsg.isUser) {
+        _startTyping(newMsg.text);
+      }
     } else if (widget.messages.length < oldWidget.messages.length) {
       // сообщения удалены? просто синхронизируем списки
       _displayedTexts = widget.messages.map((m) => m.text).toList();
       _fadedIn = List<bool>.filled(widget.messages.length, true);
+      _isTyping = List<bool>.filled(widget.messages.length, false);
     } else {
       // изменение без изменения длины, синхронизируем всё
       _displayedTexts = widget.messages.map((m) => m.text).toList();
       _fadedIn = List<bool>.filled(widget.messages.length, true);
+      _isTyping = List<bool>.filled(widget.messages.length, false);
     }
   }
 
@@ -160,29 +405,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF4A90E2),
-                  Color(0xFFA7C7FF),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF4A90E2).withOpacity(0.3),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.smart_toy_outlined,
-              color: Colors.white,
-              size: 24,
-            ),
+          AnimatedLavaLamp(
+            isTyping: false,
+            size: 48.0,
           ),
           const SizedBox(width: 12),
           Column(
@@ -255,22 +480,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
             message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF00D4FF),
-                    Color(0xFF7C4DFF),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.smart_toy_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
+            AnimatedLavaLamp(
+              isTyping: index < _isTyping.length ? _isTyping[index] : false,
+              size: 40.0,
             ),
             const SizedBox(width: 12),
           ],
@@ -362,22 +574,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF00D4FF),
-                            Color(0xFF7C4DFF),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.smart_toy_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                    AnimatedLavaLamp(
+                      isTyping: false,
+                      size: 40.0,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -407,22 +606,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF00D4FF),
-                  Color(0xFF7C4DFF),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.smart_toy_outlined,
-              color: Colors.white,
-              size: 20,
-            ),
+          AnimatedLavaLamp(
+            isTyping: false,
+            size: 40.0,
           ),
           const SizedBox(width: 12),
           Container(

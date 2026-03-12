@@ -180,6 +180,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage(String text) async {
+    // специальная команда для демонстрации эффекта генерации текста
+    if (text == 'TEXT-IDLE') {
+      // добавляем пользовательский запрос, затем демонстрационный ответ
+      setState(() {
+        _messages.add(ChatMessage(text: text, isUser: true));
+        _isLoading = true;
+      });
+      // небольшой таймаут, чтобы визуально успела появиться точка загрузки
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(
+              text: 'Это пример генерируемого текста. Он будет появляться постепенно, ' 
+                    'словно AI печатает его прямо сейчас.',
+              isUser: false));
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
     // Проверка на триггеры UEFA
     final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
 
