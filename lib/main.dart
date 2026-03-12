@@ -331,18 +331,17 @@ class _HomePageState extends State<HomePage> {
                 end: Alignment.bottomRight,
               ).createShader(bounds),
               child: Text(
-                'Sportsense',
-                style: GoogleFonts.roboto(
-                  fontSize: 34, // чуть меньше
-                  fontWeight: FontWeight.w900, // более строгий жирный
-                  color: Colors.white,
-                  letterSpacing: 1.5,
+                'SPORTSENSE',
+                style: GoogleFonts.orbitron(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white.withOpacity(0.6), // полупрозрачный
+                  letterSpacing: 2,
                   shadows: [
-                    // легкие блики, минимально
                     Shadow(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withOpacity(0.1),
                       offset: Offset(0, 0),
-                      blurRadius: 8,
+                      blurRadius: 6,
                     ),
                   ],
                 ),
@@ -351,17 +350,7 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 8),
 
-            // Подзаголовок
-            Text(
-              'AI-Powered Assistant',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: const Color(0xFFB39DDB),
-                letterSpacing: 2,
-                fontWeight: FontWeight.w300,
-              ),
-            ),
-
+            // подпись удалена для минимализма
             const SizedBox(height: 16),
 
             // Чат
