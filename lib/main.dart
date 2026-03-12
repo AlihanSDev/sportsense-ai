@@ -318,32 +318,31 @@ class _HomePageState extends State<HomePage> {
           children: [
             const SizedBox(height: 16),
 
-            // Заголовок с эффектом свечения
+            // Минималистичный заголовок с более строгим жирным шрифтом и градиентом
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [
-                  Color(0xFF00D4FF),
                   Color(0xFF7C4DFF),
-                  Color(0xFFE040FB),
+                  Color(0xFF00D4FF),
+                  Color(0xFF4A90E2),
+                  Colors.white,
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ).createShader(bounds),
-              child: const Text(
+              child: Text(
                 'Sportsense',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.roboto(
+                  fontSize: 34, // чуть меньше
+                  fontWeight: FontWeight.w900, // более строгий жирный
                   color: Colors.white,
-                  letterSpacing: 3,
+                  letterSpacing: 1.5,
                   shadows: [
+                    // легкие блики, минимально
                     Shadow(
-                      color: Color(0xFF7C4DFF),
+                      color: Colors.white.withOpacity(0.2),
                       offset: Offset(0, 0),
-                      blurRadius: 30,
-                    ),
-                    Shadow(
-                      color: Color(0xFF00D4FF),
-                      offset: Offset(0, 0),
-                      blurRadius: 50,
+                      blurRadius: 8,
                     ),
                   ],
                 ),
