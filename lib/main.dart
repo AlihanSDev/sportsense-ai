@@ -359,11 +359,47 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return SpaceBackground(
-      child: SafeArea(
-        child: Column(
+    return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            const SizedBox(height: 16),
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Color(0xFF4A90E2),
+              ),
+              child: Text(
+                'История чата',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+            ..._messages.map((m) => ListTile(
+                  title: Text(
+                    m.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+          ],
+        ),
+      ),
+      body: SpaceBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              // меню-ссылка
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white),
+                    onPressed: () {
+                      Scaffold.of(context).openDrawer();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
 
             // Минималистичный заголовок с более строгим жирным шрифтом и градиентом
             ShaderMask(
@@ -410,7 +446,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: Colors.white.withOpacity(0.1),
-                    width: 1,
+                    width: 0.5, // слегка уже рамка
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -437,6 +473,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
