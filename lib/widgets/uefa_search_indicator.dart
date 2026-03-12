@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Виджет отображения состояния "Поиск актуальной информации..."
-/// с красивой анимацией загрузки.
+/// Виджет отображения состояния "Поиск информации..."
+/// с мягкой анимацией загрузки.
 class UefaSearchIndicator extends StatefulWidget {
   final String message;
   
   const UefaSearchIndicator({
     super.key,
-    this.message = 'Поиск актуальной информации...',
+    this.message = 'Поиск информации...',
   });
 
   @override
@@ -24,11 +24,11 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
     super.initState();
     
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1600),
       vsync: this,
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 0.9).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -42,34 +42,35 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary.withOpacity(0.2),
-            Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
-          width: 2,
+          color: Colors.white.withOpacity(0.08),
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Текст с плавной изменяющейся яркостью
+          // Индикатор загрузки (три мягкие точки)
+          SizedBox(
+            width: 40,
+            height: 16,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildDot(0),
+                _buildDot(1),
+                _buildDot(2),
+              ],
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Текст с плавной пульсацией
           Expanded(
             child: AnimatedBuilder(
               animation: _pulseAnimation,
@@ -77,96 +78,127 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
                 return Text(
                   widget.message,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(_pulseAnimation.value),
-                    letterSpacing: 0.5,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withOpacity(_pulseAnimation.value),
+                    letterSpacing: 0.2,
+                    height: 1.4,
                   ),
                 );
               },
             ),
           ),
-          
-          const SizedBox(width: 16),
         ],
       ),
     );
   }
 
+  Widget _buildDot(int index) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 800 + index * 200),
+      tween: Tween<double>(begin: 0.4, end: 1.0),
+      builder: (context, value, child) {
+        return Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(value * 0.4),
+            shape: BoxShape.circle,
+          ),
+        );
+      },
+      onEnd: () {},
+    );
+  }
 }
 
-/// Виджет ошибки при отсутствии доступа к интернету или сайту
+/// Виджет ошибки при отсутствии доступа
 class UefaErrorIndicator extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
   const UefaErrorIndicator({
     super.key,
-    this.message = 'Нет доступа к данным UEFA',
+    this.message = 'Не удалось загрузить данные',
     this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.errorContainer.withOpacity(0.4),
-            Theme.of(context).colorScheme.error.withOpacity(0.1),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF2A1F1F).withOpacity(0.6),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).colorScheme.error.withOpacity(0.6),
-          width: 2,
+          color: const Color(0xFF8B4B4B).withOpacity(0.3),
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.error.withOpacity(0.2),
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.error_outline,
-            color: Theme.of(context).colorScheme.error,
-            size: 28,
+            Icons.info_outline_rounded,
+            color: const Color(0xFFB37B7B),
+            size: 20,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFFE0C0C0),
+                    height: 1.5,
+                  ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: onRetry,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.white.withOpacity(0.7),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Повторить',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (onRetry != null) ...[
-            const SizedBox(width: 12),
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 22),
-              onPressed: onRetry,
-              tooltip: 'Повторить',
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-                padding: const EdgeInsets.all(10),
-              ),
-            ),
-          ],
         ],
       ),
     );

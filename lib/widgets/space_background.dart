@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Космический фон с анимированными звёздами и туманностями
+/// Спокойный фон с мягкими облаками и мерцающими звёздами
 class SpaceBackground extends StatefulWidget {
   final Widget child;
 
@@ -14,18 +14,18 @@ class SpaceBackground extends StatefulWidget {
 class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderStateMixin {
   late AnimationController _starController;
   late AnimationController _cloudController;
-  final List<Star> _stars = List.generate(100, (_) => Star());
+  final List<Star> _stars = List.generate(80, (_) => Star()); // меньше звёзд
 
   @override
   void initState() {
     super.initState();
     _starController = AnimationController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 4),
       vsync: this,
     )..repeat(reverse: true);
 
     _cloudController = AnimationController(
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 30), // медленнее
       vsync: this,
     )..repeat();
   }
@@ -41,22 +41,22 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Чёрный фон
+        // Мягкий градиент фона
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF000000),
-                Color(0xFF0A0A0F),
-                Color(0xFF0F0F1A),
+                Color(0xFF0B0B12), // глубокий тёмно-синий
+                Color(0xFF14141F), // мягкий фиолетово-серый
+                Color(0xFF1A1A26), // тёплый тёмно-серый
               ],
             ),
           ),
         ),
 
-        // Анимированные звёзды
+        // Мерцающие звёзды
         AnimatedBuilder(
           animation: _starController,
           builder: (context, child) {
@@ -70,12 +70,12 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
           },
         ),
 
-        // Анимированные облака/туманности
+        // Мягкие облака
         AnimatedBuilder(
           animation: _cloudController,
           builder: (context, child) {
             return CustomPaint(
-              painter: NebulaPainter(
+              painter: CloudPainter(
                 animation: _cloudController.value,
               ),
               size: Size.infinite,
@@ -102,9 +102,9 @@ class Star {
   Star()
       : x = math.Random().nextDouble(),
         y = math.Random().nextDouble(),
-        size = math.Random().nextDouble() * 2 + 0.5,
-        opacity = math.Random().nextDouble() * 0.5 + 0.3,
-        twinkleSpeed = math.Random().nextDouble() * 2 + 1,
+        size = math.Random().nextDouble() * 1.5 + 0.3, // меньше
+        opacity = math.Random().nextDouble() * 0.4 + 0.2, // мягче
+        twinkleSpeed = math.Random().nextDouble() * 1.5 + 0.5,
         phase = math.Random().nextDouble() * 2 * math.pi;
 }
 
@@ -119,15 +119,30 @@ class StarFieldPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (final star in stars) {
       final twinkle = (math.sin(animation * star.twinkleSpeed * 2 * math.pi + star.phase) + 1) / 2;
+      
+      // Мягкое свечение
       final paint = Paint()
-        ..color = Colors.white.withOpacity(star.opacity * (0.5 + twinkle * 0.5))
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
+        ..color = Colors.white.withOpacity(star.opacity * (0.3 + twinkle * 0.3))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.0);
 
       canvas.drawCircle(
         Offset(star.x * size.width, star.y * size.height),
         star.size,
         paint,
       );
+
+      // Добавляем лёгкое гало для крупных звёзд
+      if (star.size > 1.0) {
+        final glowPaint = Paint()
+          ..color = Colors.white.withOpacity(star.opacity * 0.1 * twinkle)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
+
+        canvas.drawCircle(
+          Offset(star.x * size.width, star.y * size.height),
+          star.size * 2,
+          glowPaint,
+        );
+      }
     }
   }
 
@@ -135,73 +150,89 @@ class StarFieldPainter extends CustomPainter {
   bool shouldRepaint(covariant StarFieldPainter oldDelegate) => true;
 }
 
-/// Рисовальщик туманностей/облаков
-class NebulaPainter extends CustomPainter {
+/// Рисовальщик мягких облаков
+class CloudPainter extends CustomPainter {
   final double animation;
 
-  NebulaPainter({required this.animation});
+  CloudPainter({required this.animation});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
+    final paint = Paint()
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
 
-    // Фиолетовое облако
+    // Мягкое фиолетовое облако (слева)
     final purpleGradient = RadialGradient(
       center: Alignment(
-        math.sin(animation * 0.5) * 0.3,
-        math.cos(animation * 0.3) * 0.3 - 0.3,
+        -0.3 + math.sin(animation * 0.2) * 0.1,
+        -0.2 + math.cos(animation * 0.15) * 0.1,
+      ),
+      radius: 0.9,
+      colors: [
+        const Color(0xFF8B7DD8).withOpacity(0.08),
+        Colors.transparent,
+      ],
+    );
+
+    // Мягкое синее облако (справа)
+    final blueGradient = RadialGradient(
+      center: Alignment(
+        0.4 + math.cos(animation * 0.18) * 0.15,
+        0.3 + math.sin(animation * 0.12) * 0.1,
       ),
       radius: 0.8,
       colors: [
-        const Color(0xFF7C4DFF).withOpacity(0.15),
+        const Color(0xFF7A9BCB).withOpacity(0.07),
         Colors.transparent,
       ],
     );
 
-    // Голубое облако
-    final blueGradient = RadialGradient(
+    // Тёплое облако (снизу)
+    final warmGradient = RadialGradient(
       center: Alignment(
-        math.cos(animation * 0.4) * 0.4 + 0.2,
-        math.sin(animation * 0.5) * 0.2 + 0.2,
+        -0.1 + math.sin(animation * 0.1) * 0.2,
+        0.5 + math.cos(animation * 0.1) * 0.2,
+      ),
+      radius: 1.0,
+      colors: [
+        const Color(0xFFB89E97).withOpacity(0.05),
+        Colors.transparent,
+      ],
+    );
+
+    // Лёгкое серое облако (центр)
+    final grayGradient = RadialGradient(
+      center: Alignment(
+        math.cos(animation * 0.25) * 0.2,
+        math.sin(animation * 0.2) * 0.2,
       ),
       radius: 0.7,
       colors: [
-        const Color(0xFF00D4FF).withOpacity(0.1),
+        const Color(0xFFA0A0B0).withOpacity(0.04),
         Colors.transparent,
       ],
     );
 
-    // Розовое облако
-    final pinkGradient = RadialGradient(
-      center: Alignment(
-        math.sin(animation * 0.6) * 0.2 - 0.2,
-        math.cos(animation * 0.4) * 0.3 + 0.1,
-      ),
-      radius: 0.6,
-      colors: [
-        const Color(0xFFE040FB).withOpacity(0.08),
-        Colors.transparent,
-      ],
-    );
-
-    final purpleRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final blueRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final pinkRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
     canvas.drawRect(
-      purpleRect,
-      Paint()..shader = purpleGradient.createShader(purpleRect),
+      rect,
+      Paint()..shader = purpleGradient.createShader(rect),
     );
     canvas.drawRect(
-      blueRect,
-      Paint()..shader = blueGradient.createShader(blueRect),
+      rect,
+      Paint()..shader = blueGradient.createShader(rect),
     );
     canvas.drawRect(
-      pinkRect,
-      Paint()..shader = pinkGradient.createShader(pinkRect),
+      rect,
+      Paint()..shader = warmGradient.createShader(rect),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()..shader = grayGradient.createShader(rect),
     );
   }
 
   @override
-  bool shouldRepaint(covariant NebulaPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CloudPainter oldDelegate) => true;
 }

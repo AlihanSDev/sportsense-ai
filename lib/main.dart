@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+// Импорты сервисов
 import 'services/uefa_search_manager.dart';
 import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
@@ -8,6 +10,8 @@ import 'services/uefa_parser.dart';
 import 'services/qwen_api_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_rankings_api_service.dart';
+
+// Импорты виджетов
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
@@ -80,11 +84,19 @@ class SpaceApp extends StatelessWidget {
       title: 'Sportsense',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C4DFF),
-          brightness: Brightness.dark,
+        colorScheme: ColorScheme.dark(
+          primary: Colors.white.withOpacity(0.9),
+          secondary: Colors.white.withOpacity(0.7),
+          surface: Colors.white.withOpacity(0.05),
+          background: Colors.transparent,
+          error: const Color(0xFFB37B7B),
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.white,
+          onBackground: Colors.white,
+          onError: const Color(0xFFE0C0C0),
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         useMaterial3: true,
       ),
       home: HomePage(
@@ -132,7 +144,7 @@ class _HomePageState extends State<HomePage> {
   late final RankingsVectorSearch _rankingsSearch;
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: 'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
+      text: 'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
       isUser: false,
     ),
   ];
@@ -154,7 +166,7 @@ class _HomePageState extends State<HomePage> {
       _messages.add(ChatMessage(
         text: '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
         isUser: false,
-        textColor: Colors.orange,
+        textColor: const Color(0xFFB37B7B),
       ));
     }
     
@@ -162,7 +174,7 @@ class _HomePageState extends State<HomePage> {
       _messages.add(ChatMessage(
         text: '⚠️ Qwen API недоступен.\nЗапустите:\n```\npython scripts/qwen_api.py\n```\n\nПока используется тестовый режим.',
         isUser: false,
-        textColor: Colors.orange,
+        textColor: const Color(0xFFB37B7B),
       ));
     }
   }
@@ -235,7 +247,7 @@ class _HomePageState extends State<HomePage> {
       final qwenResponse = await _qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
-        maxTokens: 1024, // Увеличиваем для подробных ответов
+        maxTokens: 1024,
       );
       
       if (qwenResponse != null) {
@@ -247,19 +259,17 @@ class _HomePageState extends State<HomePage> {
       }
     } else {
       // Тестовый режим с RAG контекстом
-      botResponse = '🤖 **Тестовый режим** (Qwen API недоступен)\n\n';
+      botResponse = '**Тестовый режим** (Qwen API недоступен)\n\n';
       
       if (ragContext.isNotEmpty) {
-        botResponse += '📊 **Найдено в векторной базе:**\n';
-        botResponse += '```\n$ragContext\n```\n\n';
+        botResponse += '**Найдено в базе:**\n';
+        botResponse += '$ragContext\n\n';
       } else {
-        botResponse += '⚠️ Данные в векторной базе не найдены.\n\n';
+        botResponse += 'Данные в базе не найдены.\n\n';
       }
       
-      botResponse += '📝 **Ваш запрос:** "$text"\n';
-      botResponse += '🎯 **Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
-      botResponse += '💡 **Для реальных ответов:**\n';
-      botResponse += '```bash\npython scripts/qwen_api.py\n```\n';
+      botResponse += '**Ваш запрос:** "$text"\n';
+      botResponse += '**Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
     }
 
     // Формируем полный ответ
@@ -269,7 +279,7 @@ class _HomePageState extends State<HomePage> {
     } else if (parsingStatus != null) {
       fullResponse = '$parsingStatus\n\n$botResponse';
     } else if (ragContext.isNotEmpty && widget.qwenAvailable) {
-      fullResponse = '📊 **RAG: Данные из векторной базы**\n\n$botResponse';
+      fullResponse = '**Данные из базы**\n\n$botResponse';
     } else {
       fullResponse = botResponse;
     }
@@ -294,73 +304,60 @@ class _HomePageState extends State<HomePage> {
       child: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Заголовок с эффектом свечения
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [
-                  Color(0xFF00D4FF),
-                  Color(0xFF7C4DFF),
-                  Color(0xFFE040FB),
-                ],
-              ).createShader(bounds),
-              child: const Text(
-                'Sportsense',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 3,
-                  shadows: [
-                    Shadow(
-                      color: Color(0xFF7C4DFF),
-                      offset: Offset(0, 0),
-                      blurRadius: 30,
-                    ),
-                    Shadow(
-                      color: Color(0xFF00D4FF),
-                      offset: Offset(0, 0),
-                      blurRadius: 50,
-                    ),
-                  ],
+            // Заголовок и подзаголовок
+            Column(
+              children: [
+                // Заголовок с черной обводкой через тени
+                Text(
+                  'Sportsense',
+                  style: GoogleFonts.inter(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                    shadows: [
+                      Shadow(offset: const Offset(2, 2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(-2, -2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(2, -2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(-2, 2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(0, 2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(0, -2), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(2, 0), blurRadius: 0, color: Colors.black),
+                      Shadow(offset: const Offset(-2, 0), blurRadius: 0, color: Colors.black),
+                    ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 4),
+
+                // Подзаголовок
+                Text(
+                  'AI-Powered Assistant',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.5),
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ],
             ),
 
-            const SizedBox(height: 8),
-
-            // Подзаголовок
-            Text(
-              'AI-Powered Assistant',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: const Color(0xFFB39DDB),
-                letterSpacing: 2,
-                fontWeight: FontWeight.w300,
-              ),
-            ),
-
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Чат
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.05),
+                  color: Colors.white.withOpacity(0.03),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withOpacity(0.08),
                     width: 1,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
