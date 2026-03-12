@@ -337,6 +337,7 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.w900,
                   color: Colors.white.withOpacity(0.6), // полупрозрачный
                   letterSpacing: 2,
+                  decoration: TextDecoration.none, // явное отсутствие линии
                   shadows: [
                     Shadow(
                       color: Colors.white.withOpacity(0.1),
