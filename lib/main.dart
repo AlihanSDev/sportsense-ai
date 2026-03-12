@@ -180,21 +180,64 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage(String text) async {
-    // специальная команда для демонстрации эффекта генерации текста
-    if (text == 'TEXT-IDLE') {
-      // добавляем пользовательский запрос, затем демонстрационный ответ
+    // специальные команды, используются только на UI
+    if (text == 'COMMAND-HEY') {
       setState(() {
         _messages.add(ChatMessage(text: text, isUser: true));
         _isLoading = true;
       });
-      // небольшой таймаут, чтобы визуально успела появиться точка загрузки
       await Future.delayed(const Duration(milliseconds: 300));
+      final info = '''
+*Список доступных команд:*
+- TEXT-IDLE: демонстрация длительной печати (~25 секунд)
+- BANANA-HEY: банановый отклик
+- COMMAND-HEY: показать это сообщение
+''';
       if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
-              text: 'Это пример генерируемого текста. Он будет появляться постепенно, ' 
-                    'словно AI печатает его прямо сейчас.',
-              isUser: false));
+              text: info,
+              isUser: false,
+              typingDuration: const Duration(milliseconds: 30)));
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (text == 'BANANA-HEY') {
+      setState(() {
+        _messages.add(ChatMessage(text: text, isUser: true));
+        _isLoading = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(
+              text: '🍌 БАНАН! 🍌',
+              isUser: false,
+              typingDuration: const Duration(milliseconds: 50)));
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    // специальная команда для демонстрации эффекта генерации текста
+    if (text == 'TEXT-IDLE') {
+      setState(() {
+        _messages.add(ChatMessage(text: text, isUser: true));
+        _isLoading = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 300));
+      final reply =
+          'Это пример генерируемого текста. Он будет появляться постепенно, ' 
+          'словно AI печатает его прямо сейчас.';
+      final perChar = Duration(milliseconds: 25000 ~/ reply.length);
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(
+              text: reply, isUser: false, typingDuration: perChar));
           _isLoading = false;
         });
       }

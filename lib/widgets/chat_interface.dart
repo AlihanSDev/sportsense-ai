@@ -128,8 +128,11 @@ class LavaLampPainter extends CustomPainter {
       ],
     );
 
-    // Эффект пульсации
-    final pulseRadius = radius * pulseValue;
+    // Эффект пульсации, усиливаем при печати
+    double pulseRadius = radius * pulseValue;
+    if (isTyping) {
+      pulseRadius *= 1.1 + 0.05 * math.sin(lightningValue * 2 * math.pi);
+    }
 
     // Эффект морфинга (лавовой лампы)
     final path = Path();
@@ -218,11 +221,17 @@ class ChatMessage {
   final DateTime timestamp;
   final Color? textColor; // Цвет текста для бота (зелёный/оранжевый для rankings)
 
+  /// Если указано, то при появлении сообщения будет использоваться именно
+  /// эта длительность между символами. Это позволяет, например, заставить
+  /// текст печататься долго (TEXT-IDLE).
+  final Duration? typingDuration;
+
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
     this.textColor, // По умолчанию null (используется стандартный цвет)
+    this.typingDuration,
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
@@ -269,7 +278,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
   }
 
   /// запускает анимацию печати для нового сообщения бота
-  Future<void> _startTyping(String fullText) async {
+  Future<void> _startTyping(String fullText, {Duration perChar = const Duration(milliseconds: 30)}) async {
     // Включаем анимацию молнии для последнего сообщения
     if (_isTyping.isNotEmpty) {
       _isTyping[_isTyping.length - 1] = true;
@@ -279,7 +288,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
     _triggerLightningAnimation();
     
     for (int i = 1; i <= fullText.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 30));
+      await Future.delayed(perChar);
       if (!mounted) return;
       setState(() {
         _displayedTexts[_displayedTexts.length - 1] = fullText.substring(0, i);
