@@ -29,15 +29,17 @@ class _AnimatedLavaLampState extends State<AnimatedLavaLamp> with TickerProvider
   void initState() {
     super.initState();
     
+    // контроллер пульсации: плавно расширяется и сужается
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
-    )..repeat();
+    )..repeat(reverse: true);
 
+    // контроллер морфинга контура: двигается туда‑обратно, чтобы не было скачка
     _morphController = AnimationController(
       duration: const Duration(seconds: 4),
       vsync: this,
-    )..repeat();
+    )..repeat(reverse: true);
 
     _lightningController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -45,7 +47,7 @@ class _AnimatedLavaLampState extends State<AnimatedLavaLamp> with TickerProvider
     );
 
     _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine),
     );
 
     _morphAnimation = Tween<double>(begin: 0, end: 1).animate(
