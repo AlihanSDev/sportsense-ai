@@ -229,11 +229,15 @@ class _HomePageState extends State<HomePage> {
         _messages.add(ChatMessage(text: text, isUser: true));
         _isLoading = true;
       });
-      await Future.delayed(const Duration(milliseconds: 300));
+      // длинная анимация «загрузка» перед появлением текста
+      await Future.delayed(const Duration(seconds: 15));
+
       final reply =
           'Это пример генерируемого текста. Он будет появляться постепенно, ' 
           'словно AI печатает его прямо сейчас.';
+      // рассчёт задержки между символами чтобы полный набор занял 25 секунд
       final perChar = Duration(milliseconds: 25000 ~/ reply.length);
+
       if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
