@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:sportsense/services/uefa_parser.dart';
 
 void main() {
@@ -120,18 +119,18 @@ void main() {
 
       expect(rankings, isNotEmpty);
       expect(rankings.length, equals(3));
-      
+
       // Проверка первой записи
       expect(rankings[0]['association'], equals('England'));
       expect(rankings[0]['clubs'], equals('9/9'));
       expect(rankings[0]['bonus'], equals('87.125'));
       expect(rankings[0]['points'], equals('200.625'));
       expect(rankings[0]['avg'], equals('22.291'));
-      
+
       // Проверка второй записи
       expect(rankings[1]['association'], equals('Italy'));
       expect(rankings[1]['clubs'], equals('5/7'));
-      
+
       // Проверка третьей записи
       expect(rankings[2]['association'], equals('Spain'));
       expect(rankings[2]['clubs'], equals('6/8'));
@@ -198,18 +197,27 @@ void main() {
       });
 
       final parser = UefaParser(client: mockClient);
-      
+
       // Проверка триггеров - парсинг запускается
-      final result1 = await UefaParser.parseIfRelevant('show UEFA ranking', parser: parser);
+      final result1 = await UefaParser.parseIfRelevant(
+        'show UEFA ranking',
+        parser: parser,
+      );
       // parseIfRelevant возвращает путь к файлу или null
       // В тестах сохранение не реализовано, поэтому будет null
       // Но мы проверяем что парсинг прошёл через вывод в консоль
       expect(result1, isNull); // Ожидаем null так как сохранение не реализовано
-      
-      final result2 = await UefaParser.parseIfRelevant('рейтинг клубов', parser: parser);
+
+      final result2 = await UefaParser.parseIfRelevant(
+        'рейтинг клубов',
+        parser: parser,
+      );
       expect(result2, isNull);
-      
-      final result3 = await UefaParser.parseIfRelevant('hello world', parser: parser);
+
+      final result3 = await UefaParser.parseIfRelevant(
+        'hello world',
+        parser: parser,
+      );
       expect(result3, isNull);
     });
   });

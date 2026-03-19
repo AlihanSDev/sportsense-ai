@@ -4,11 +4,8 @@ import 'package:flutter/material.dart';
 /// с мягкой анимацией загрузки.
 class UefaSearchIndicator extends StatefulWidget {
   final String message;
-  
-  const UefaSearchIndicator({
-    super.key,
-    this.message = 'Поиск информации...',
-  });
+
+  const UefaSearchIndicator({super.key, this.message = 'Поиск информации...'});
 
   @override
   State<UefaSearchIndicator> createState() => _UefaSearchIndicatorState();
@@ -22,7 +19,7 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
   @override
   void initState() {
     super.initState();
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1600),
       vsync: this,
@@ -46,30 +43,43 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.08),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Иконка поиска с анимацией
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1 * _pulseAnimation.value),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.search,
+                  color: Colors.white.withOpacity(0.8),
+                  size: 20,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+
           // Индикатор загрузки (три мягкие точки)
           SizedBox(
             width: 40,
             height: 16,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDot(0),
-                _buildDot(1),
-                _buildDot(2),
-              ],
+              children: [_buildDot(0), _buildDot(1), _buildDot(2)],
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Текст с плавной пульсацией
           Expanded(
             child: AnimatedBuilder(

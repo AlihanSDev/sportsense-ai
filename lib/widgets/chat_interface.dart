@@ -21,6 +21,7 @@ class ChatMessage {
 class ChatInterface extends StatefulWidget {
   final List<ChatMessage> messages;
   final Function(String) onSendMessage;
+  final VoidCallback? onClear;
   final bool isLoading;
   final bool showSearch;
   final String? searchError;
@@ -29,6 +30,7 @@ class ChatInterface extends StatefulWidget {
     super.key,
     required this.messages,
     required this.onSendMessage,
+    this.onClear,
     this.isLoading = false,
     this.showSearch = false,
     this.searchError,
@@ -85,7 +87,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
   @override
   void initState() {
     super.initState();
-    _displayedTexts = widget.messages.map((m) => m.isUser ? m.text : m.text).toList();
+    _displayedTexts = widget.messages
+        .map((m) => m.isUser ? m.text : m.text)
+        .toList();
     _fadedIn = List<bool>.filled(widget.messages.length, true);
   }
 
@@ -114,9 +118,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
       child: Column(
         children: [
           _buildHeader(),
-          Expanded(
-            child: _buildMessageList(),
-          ),
+          Expanded(child: _buildMessageList()),
           _buildInputField(),
         ],
       ),
@@ -126,15 +128,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.03)),
       child: Row(
         children: [
           Container(
@@ -171,7 +165,37 @@ class _ChatInterfaceState extends State<ChatInterface> {
               ),
             ],
           ),
+          const Spacer(),
+          if (widget.onClear != null) ...[
+            _buildHeaderAction(
+              icon: Icons.delete_outline,
+              tooltip: 'Очистить чат',
+              onPressed: widget.onClear!,
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: Colors.white70, size: 20),
+        ),
       ),
     );
   }
@@ -180,10 +204,11 @@ class _ChatInterfaceState extends State<ChatInterface> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      itemCount: widget.messages.length
-          + 1
-          + (widget.searchError != null ? 1 : 0)
-          + (widget.isLoading ? 1 : 0),
+      itemCount:
+          widget.messages.length +
+          1 +
+          (widget.searchError != null ? 1 : 0) +
+          (widget.isLoading ? 1 : 0),
       itemBuilder: (context, index) {
         final base = widget.messages.length;
         if (index < base) {
@@ -214,8 +239,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: Row(
-          mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: message.isUser
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!message.isUser) ...[
@@ -236,7 +262,10 @@ class _ChatInterfaceState extends State<ChatInterface> {
             ],
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: message.isUser
                       ? const Color(0xFF2B2B2B)
@@ -253,12 +282,15 @@ class _ChatInterfaceState extends State<ChatInterface> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _displayedTexts.length > index ? _displayedTexts[index] : message.text,
+                      _displayedTexts.length > index
+                          ? _displayedTexts[index]
+                          : message.text,
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         color: message.isUser
                             ? Colors.white
-                            : (message.textColor ?? Colors.white.withOpacity(0.9)),
+                            : (message.textColor ??
+                                  Colors.white.withOpacity(0.9)),
                         height: 1.5,
                         fontWeight: FontWeight.w400,
                       ),
@@ -458,10 +490,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withOpacity(0.2),
-          ],
+          colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
         ),
       ),
       child: Row(
@@ -526,10 +555,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
             ),
             child: IconButton(
               onPressed: _sendMessage,
-              icon: const Icon(
-                Icons.send_outlined,
-                color: Colors.white70,
-              ),
+              icon: const Icon(Icons.send_outlined, color: Colors.white70),
               iconSize: 22,
               padding: const EdgeInsets.all(14),
               splashRadius: 24,

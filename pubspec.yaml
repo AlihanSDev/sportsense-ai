@@ -40,6 +40,8 @@ dependencies:
   html: ^0.15.6
   puppeteer: ^3.20.0
   path: ^1.9.0
+  shared_preferences: ^2.2.3
+  path_provider: ^2.1.3
 
 dev_dependencies:
   flutter_test:
@@ -94,3 +96,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Supported platforms
+platforms:
+  android:
+    web:

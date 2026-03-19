@@ -26,22 +26,51 @@ class QdrantConfig {
   String get baseUrl => 'http://$host:$port';
 
   Map<String, String> get headers => {
-        'Content-Type': 'application/json',
-        if (apiKey != null && apiKey!.isNotEmpty)
-          'api-key': apiKey!,
-      };
+    'Content-Type': 'application/json',
+    if (apiKey != null && apiKey!.isNotEmpty) 'api-key': apiKey!,
+  };
 
   /// Создаёт конфигурацию из переменных окружения.
   factory QdrantConfig.fromEnv() {
     return QdrantConfig(
-      host: const String.fromEnvironment('QDRANT_HOST', defaultValue: 'localhost'),
-      port: int.tryParse(const String.fromEnvironment('QDRANT_PORT', defaultValue: '6333')) ?? 6333,
-      grpcPort: int.tryParse(const String.fromEnvironment('QDRANT_GRPC_PORT', defaultValue: '6334')) ?? 6334,
+      host: const String.fromEnvironment(
+        'QDRANT_HOST',
+        defaultValue: 'localhost',
+      ),
+      port:
+          int.tryParse(
+            const String.fromEnvironment('QDRANT_PORT', defaultValue: '6333'),
+          ) ??
+          6333,
+      grpcPort:
+          int.tryParse(
+            const String.fromEnvironment(
+              'QDRANT_GRPC_PORT',
+              defaultValue: '6334',
+            ),
+          ) ??
+          6334,
       apiKey: const String.fromEnvironment('QDRANT_API_KEY', defaultValue: ''),
-      collectionRankings: const String.fromEnvironment('QDRANT_COLLECTION_RANKINGS', defaultValue: 'uefa_rankings_embeddings'),
-      collectionMatches: const String.fromEnvironment('QDRANT_COLLECTION_MATCHES', defaultValue: 'uefa_matches_embeddings'),
-      vectorSize: int.tryParse(const String.fromEnvironment('QDRANT_VECTOR_SIZE', defaultValue: '768')) ?? 768,
-      distanceMetric: const String.fromEnvironment('QDRANT_DISTANCE_METRIC', defaultValue: 'Cosine'),
+      collectionRankings: const String.fromEnvironment(
+        'QDRANT_COLLECTION_RANKINGS',
+        defaultValue: 'uefa_rankings_embeddings',
+      ),
+      collectionMatches: const String.fromEnvironment(
+        'QDRANT_COLLECTION_MATCHES',
+        defaultValue: 'uefa_matches_embeddings',
+      ),
+      vectorSize:
+          int.tryParse(
+            const String.fromEnvironment(
+              'QDRANT_VECTOR_SIZE',
+              defaultValue: '768',
+            ),
+          ) ??
+          768,
+      distanceMetric: const String.fromEnvironment(
+        'QDRANT_DISTANCE_METRIC',
+        defaultValue: 'Cosine',
+      ),
     );
   }
 
@@ -52,11 +81,7 @@ class QdrantConfig {
 }
 
 /// Тип расстояния для векторного поиска.
-enum QdrantDistanceType {
-  cosine,
-  euclid,
-  dot,
-}
+enum QdrantDistanceType { cosine, euclid, dot }
 
 extension QdrantDistanceTypeExt on QdrantDistanceType {
   String get value {
@@ -79,7 +104,7 @@ extension QdrantDistanceTypeExt on QdrantDistanceType {
 }
 
 /// Сервис для работы с Qdrant vector database.
-/// 
+///
 /// Предоставляет базовый функционал:
 /// - Проверка доступности Qdrant
 /// - Создание коллекций
@@ -90,15 +115,14 @@ class QdrantService {
   final http.Client _client;
 
   QdrantService({required this.config, http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   /// Проверка доступности Qdrant.
   Future<bool> isAvailable() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${config.baseUrl}/'),
-        headers: config.headers,
-      ).timeout(const Duration(seconds: 5));
+      final response = await _client
+          .get(Uri.parse('${config.baseUrl}/'), headers: config.headers)
+          .timeout(const Duration(seconds: 5));
       return response.statusCode == 200;
     } catch (e) {
       return false;
@@ -132,10 +156,7 @@ class QdrantService {
         Uri.parse('${config.baseUrl}/collections/$collectionName'),
         headers: config.headers,
         body: json.encode({
-          'vectors': {
-            'size': vectorSize,
-            'distance': distance,
-          },
+          'vectors': {'size': vectorSize, 'distance': distance},
         }),
       );
       return response.statusCode == 200;
@@ -192,11 +213,7 @@ class QdrantService {
         headers: config.headers,
         body: json.encode({
           'points': [
-            {
-              'id': id,
-              'vector': vector,
-              if (payload != null) 'payload': payload,
-            },
+            {'id': id, 'vector': vector, 'payload': ?payload},
           ],
         }),
       );
@@ -216,12 +233,14 @@ class QdrantService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('${config.baseUrl}/collections/$collectionName/points/search'),
+        Uri.parse(
+          '${config.baseUrl}/collections/$collectionName/points/search',
+        ),
         headers: config.headers,
         body: json.encode({
           'vector': vector,
           'limit': limit,
-          if (filter != null) 'filter': filter,
+          'filter': ?filter,
         }),
       );
       if (response.statusCode == 200) {

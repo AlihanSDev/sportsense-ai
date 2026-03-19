@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 // Импорты сервисов
 import 'services/uefa_search_manager.dart';
@@ -15,47 +17,202 @@ import 'services/uefa_rankings_api_service.dart';
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 
+// ============================================================================
+// КОНФИГУРАЦИЯ ДЛЯ SMALL PHONE COLD BOOST EMULATOR
+// ============================================================================
+const String DEVICE_ID = 'small_phone_cold_boost';
+const String DEVICE_NAME = 'Small Phone Cold Boost';
+const String DEVICE_SCREEN = '720x1280';
+const String DEVICE_RAM = '1024MB';
+const String DEVICE_CPU = '4 cores x86_64';
+const String ANDROID_API = '36.1';
+
+// API конфигурация для локальной разработки
+const String QWEN_API_URL = 'http://127.0.0.1:5000';
+const String UEFA_PARSER_API_URL = 'http://127.0.0.1:8000';
+const String QDRANT_HOST = 'localhost';
+const int QDRANT_PORT = 6333;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Инициализация векторной базы данных
-  final vectorDbManager = VectorDatabaseManager();
-  await vectorDbManager.initialize();
+  // ========================================================================
+  _logStartupInfo();
 
-  // Инициализация сервиса векторизации запросов
-  final queryVectorizer = UserQueryVectorizerService(dbManager: vectorDbManager);
-  await queryVectorizer.initialize();
+  // Инициализация с обработкой ошибок
+  final appState = await _initializeAppState();
 
-  // Инициализация UEFA Rankings API
-  final rankingsApi = UefaRankingsApiService();
-  final rankingsApiAvailable = await rankingsApi.isAvailable();
-  print(rankingsApiAvailable 
-    ? '✅ UEFA Rankings API доступен (Python + Playwright)' 
-    : '⚠️ UEFA Rankings API недоступен (запустите python scripts/uefa_parser_api.py)');
+  if (appState == null) {
+    // Аварийный запуск с минимальными сервисами
+    _showEmergencyApp();
+    return;
+  }
 
-  // Инициализация парсера UEFA с API и векторной базой
-  final uefaParser = UefaParser(
-    vectorDbManager: vectorDbManager,
-    rankingsApi: rankingsApi,
+  runApp(
+    SpaceApp(
+      vectorDbManager: appState['vectorDbManager'] as VectorDatabaseManager,
+      queryVectorizer:
+          appState['queryVectorizer'] as UserQueryVectorizerService,
+      uefaParser: appState['uefaParser'] as UefaParser,
+      qwenApi: appState['qwenApi'] as QwenApiService,
+      rankingsSearch: appState['rankingsSearch'] as RankingsVectorSearch,
+      rankingsApiAvailable: appState['rankingsApiAvailable'] as bool,
+      qwenAvailable: appState['qwenAvailable'] as bool,
+    ),
   );
+}
 
-  // Инициализация поиска по векторной базе рейтингов
-  final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
+/// Логирование информации о запуске
+void _logStartupInfo() {
+  print('\n═════════════════════════════════════════════════════════════════');
+  print('🚀 SPORTSENSE-AI INITIALIZATION');
+  print('═════════════════════════════════════════════════════════════════');
+  print('📱 Device: $DEVICE_NAME');
+  print('   ID: $DEVICE_ID');
+  print('   Screen: $DEVICE_SCREEN');
+  print('   RAM: $DEVICE_RAM');
+  print('   CPU: $DEVICE_CPU');
+  print('   Android API: $ANDROID_API');
+  final platformName = kIsWeb
+      ? 'Web'
+      : (defaultTargetPlatform == TargetPlatform.android
+            ? 'Android'
+            : defaultTargetPlatform == TargetPlatform.iOS
+            ? 'iOS'
+            : defaultTargetPlatform == TargetPlatform.macOS
+            ? 'macOS'
+            : defaultTargetPlatform == TargetPlatform.windows
+            ? 'Windows'
+            : defaultTargetPlatform == TargetPlatform.linux
+            ? 'Linux'
+            : defaultTargetPlatform == TargetPlatform.fuchsia
+            ? 'Fuchsia'
+            : 'Unknown');
+  print('🔧 Platform: $platformName');
+  print(
+    '⚙️ Mode: ${const bool.fromEnvironment('dart.vm.product', defaultValue: false) ? 'RELEASE' : 'DEBUG'}',
+  );
+  print('🌐 Qwen API: $QWEN_API_URL');
+  print('📊 Qdrant: $QDRANT_HOST:$QDRANT_PORT');
+  print('═════════════════════════════════════════════════════════════════\n');
+}
 
-  // Инициализация Qwen API
-  final qwenApi = QwenApiService();
-  final qwenAvailable = await qwenApi.isAvailable();
-  print(qwenAvailable ? '✅ Qwen API доступен' : '⚠️ Qwen API недоступен (запустите python scripts/qwen_api.py)');
+/// Инициализация всех сервисов приложения
+Future<Map<String, dynamic>?> _initializeAppState() async {
+  try {
+    print('[1/6] 🗄️  Инициализация векторной базы данных...');
+    final vectorDbManager = VectorDatabaseManager(useLocalOnly: true);
+    await vectorDbManager.initialize();
+    print('     ✅ Векторная база данных готова\n');
 
-  runApp(SpaceApp(
-    vectorDbManager: vectorDbManager,
-    queryVectorizer: queryVectorizer,
-    uefaParser: uefaParser,
-    qwenApi: qwenApi,
-    rankingsSearch: rankingsSearch,
-    rankingsApiAvailable: rankingsApiAvailable,
-    qwenAvailable: qwenAvailable,
-  ));
+    print('[2/6] 🔍 Инициализация сервиса векторизации запросов...');
+    final queryVectorizer = UserQueryVectorizerService(
+      dbManager: vectorDbManager,
+    );
+    await queryVectorizer.initialize();
+    print('     ✅ Сервис векторизации готов\n');
+
+    print('[3/6] 📊 Проверка UEFA Rankings API ($UEFA_PARSER_API_URL)...');
+    final rankingsApi = UefaRankingsApiService();
+    final rankingsApiAvailable = await rankingsApi.isAvailable();
+    if (rankingsApiAvailable) {
+      print('     ✅ UEFA Rankings API доступен\n');
+    } else {
+      print('     ⚠️  UEFA Rankings API недоступен');
+      print('     💡 Запустите: python scripts/uefa_parser_api.py\n');
+    }
+
+    print('[4/6] ⚽ Инициализация UFC парсера...');
+    final uefaParser = UefaParser(
+      vectorDbManager: vectorDbManager,
+      rankingsApi: rankingsApi,
+    );
+    print('     ✅ UEFA парсер готов\n');
+
+    print('[5/6] 🔎 Инициализация поиска по рейтингам...');
+    final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
+    print('     ✅ Поиск по рейтингам готов\n');
+
+    print('[6/6] 🤖 Проверка Qwen API ($QWEN_API_URL)...');
+    final qwenApi = QwenApiService(baseUrl: QWEN_API_URL);
+    final qwenAvailable = await qwenApi.isAvailable();
+    if (qwenAvailable) {
+      print('     ✅ Qwen API доступен\n');
+    } else {
+      print('     ⚠️  Qwen API недоступен');
+      print('     💡 Запустите: python scripts/qwen_api.py\n');
+    }
+
+    print('═════════════════════════════════════════════════════════════════');
+    print('✅ ВСЕ СЕРВИСЫ ИНИЦИАЛИЗИРОВАНЫ УСПЕШНО');
+    print(
+      '═════════════════════════════════════════════════════════════════\n',
+    );
+
+    return {
+      'vectorDbManager': vectorDbManager,
+      'queryVectorizer': queryVectorizer,
+      'uefaParser': uefaParser,
+      'qwenApi': qwenApi,
+      'rankingsSearch': rankingsSearch,
+      'rankingsApiAvailable': rankingsApiAvailable,
+      'qwenAvailable': qwenAvailable,
+    };
+  } catch (e, stackTrace) {
+    print('\n❌ КРИТИЧЕСКАЯ ОШИБКА ПРИ ИНИЦИАЛИЗАЦИИ:');
+    print('Error: $e');
+    print('StackTrace: $stackTrace\n');
+    return null;
+  }
+}
+
+/// Аварийное приложение при ошибке инициализации
+void _showEmergencyApp() {
+  runApp(
+    MaterialApp(
+      title: 'Sportsense - Emergency Mode',
+      home: Scaffold(
+        backgroundColor: Colors.black87,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 24),
+              const Text(
+                'Ошибка инициализации приложения',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  'Проверьте логи консоли для получения информации об ошибке.\n\n'
+                  'Убедитесь, что запущены все необходимые сервисы:\n'
+                  '• python scripts/qwen_api.py\n'
+                  '• python scripts/uefa_parser_api.py',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  print('Попытка повторной инициализации...');
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Повторить'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class SpaceApp extends StatelessWidget {
@@ -88,12 +245,10 @@ class SpaceApp extends StatelessWidget {
           primary: Colors.white.withOpacity(0.9),
           secondary: Colors.white.withOpacity(0.7),
           surface: Colors.white.withOpacity(0.05),
-          background: Colors.transparent,
           error: const Color(0xFFB37B7B),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
           onSurface: Colors.white,
-          onBackground: Colors.white,
           onError: const Color(0xFFE0C0C0),
         ),
         textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
@@ -144,7 +299,8 @@ class _HomePageState extends State<HomePage> {
   late final RankingsVectorSearch _rankingsSearch;
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: 'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
+      text:
+          'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
       isUser: false,
     ),
   ];
@@ -160,22 +316,28 @@ class _HomePageState extends State<HomePage> {
     _uefaParser = widget.uefaParser;
     _qwenApi = widget.qwenApi;
     _rankingsSearch = widget.rankingsSearch;
-    
+
     // Добавляем сообщения о статусе сервисов
     if (!widget.rankingsApiAvailable) {
-      _messages.add(ChatMessage(
-        text: '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
-        isUser: false,
-        textColor: const Color(0xFFB37B7B),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
+          isUser: false,
+          textColor: const Color(0xFFB37B7B),
+        ),
+      );
     }
-    
+
     if (!widget.qwenAvailable) {
-      _messages.add(ChatMessage(
-        text: '⚠️ Qwen API недоступен.\nЗапустите:\n```\npython scripts/qwen_api.py\n```\n\nПока используется тестовый режим.',
-        isUser: false,
-        textColor: const Color(0xFFB37B7B),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              '⚠️ Qwen API недоступен.\nЗапустите:\n```\npython scripts/qwen_api.py\n```\n\nПока используется тестовый режим.',
+          isUser: false,
+          textColor: const Color(0xFFB37B7B),
+        ),
+      );
     }
   }
 
@@ -218,10 +380,10 @@ class _HomePageState extends State<HomePage> {
     if (relevance >= 2.0) {
       parsingStatus = '🔄 RAG: Парсинг UEFA Rankings...';
       print('🔍 RAG: Запрос релевантен Rankings, начинаем парсинг...');
-      
+
       // Парсим и сохраняем в векторную базу
       await _uefaParser.parseAndSaveRankings();
-      
+
       // Небольшая задержка чтобы данные успели сохраниться
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -230,7 +392,7 @@ class _HomePageState extends State<HomePage> {
     if (relevance >= 1.0) {
       print('🔍 RAG: Поиск данных в векторной базе...');
       ragContext = await _rankingsSearch.getRagContext(text, limit: 10);
-      
+
       if (ragContext.isEmpty) {
         print('⚠️ RAG: Данные не найдены в векторной базе');
       } else {
@@ -242,14 +404,14 @@ class _HomePageState extends State<HomePage> {
     String botResponse;
     if (widget.qwenAvailable) {
       print('🤖 RAG: Отправка запроса к Qwen с контекстом...');
-      
+
       // Запрос к реальной модели с контекстом
       final qwenResponse = await _qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
         maxTokens: 1024,
       );
-      
+
       if (qwenResponse != null) {
         botResponse = qwenResponse.response;
         print('✅ RAG: Ответ получен (${qwenResponse.tokensUsed} токенов)');
@@ -260,16 +422,17 @@ class _HomePageState extends State<HomePage> {
     } else {
       // Тестовый режим с RAG контекстом
       botResponse = '**Тестовый режим** (Qwen API недоступен)\n\n';
-      
+
       if (ragContext.isNotEmpty) {
         botResponse += '**Найдено в базе:**\n';
         botResponse += '$ragContext\n\n';
       } else {
         botResponse += 'Данные в базе не найдены.\n\n';
       }
-      
+
       botResponse += '**Ваш запрос:** "$text"\n';
-      botResponse += '**Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
+      botResponse +=
+          '**Релевантность:** ${RankingsRelevanceService.getRelevanceLabel(relevance)}\n\n';
     }
 
     // Формируем полный ответ
@@ -288,11 +451,9 @@ class _HomePageState extends State<HomePage> {
 
     if (mounted) {
       setState(() {
-        _messages.add(ChatMessage(
-          text: fullResponse,
-          isUser: false,
-          textColor: textColor,
-        ));
+        _messages.add(
+          ChatMessage(text: fullResponse, isUser: false, textColor: textColor),
+        );
         _isLoading = false;
       });
     }
@@ -306,10 +467,9 @@ class _HomePageState extends State<HomePage> {
           children: [
             const SizedBox(height: 20),
 
-            // Заголовок и подзаголовок
+            // Заголовок
             Column(
               children: [
-                // Заголовок с черной обводкой через тени
                 Text(
                   'Sportsense',
                   style: GoogleFonts.inter(
@@ -317,29 +477,18 @@ class _HomePageState extends State<HomePage> {
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                     letterSpacing: 2,
-                    shadows: [
-                      Shadow(offset: const Offset(2, 2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(-2, -2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(2, -2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(-2, 2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(0, 2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(0, -2), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(2, 0), blurRadius: 0, color: Colors.black),
-                      Shadow(offset: const Offset(-2, 0), blurRadius: 0, color: Colors.black),
-                    ],
+                    decoration: TextDecoration.none,
                   ),
                 ),
-
-                const SizedBox(height: 4),
-
-                // Подзаголовок
+                const SizedBox(height: 6),
                 Text(
-                  'AI-Powered Assistant',
+                  'AI Assistant',
                   style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.5),
-                    letterSpacing: 1,
+                    fontSize: 12,
                     fontWeight: FontWeight.w300,
+                    color: Colors.white.withOpacity(0.6),
+                    letterSpacing: 1,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
@@ -364,6 +513,13 @@ class _HomePageState extends State<HomePage> {
                   child: ChatInterface(
                     messages: _messages,
                     onSendMessage: _sendMessage,
+                    onClear: () {
+                      setState(() {
+                        _messages.clear();
+                        _isLoading = false;
+                      });
+                      _uefaSearchManager.reset();
+                    },
                     isLoading: _isLoading,
                     showSearch: _uefaSearchManager.isSearching,
                     searchError: _uefaSearchManager.hasError

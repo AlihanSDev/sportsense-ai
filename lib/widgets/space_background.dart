@@ -11,7 +11,8 @@ class SpaceBackground extends StatefulWidget {
   State<SpaceBackground> createState() => _SpaceBackgroundState();
 }
 
-class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderStateMixin {
+class _SpaceBackgroundState extends State<SpaceBackground>
+    with TickerProviderStateMixin {
   late AnimationController _starController;
   late AnimationController _cloudController;
   final List<Star> _stars = List.generate(80, (_) => Star()); // меньше звёзд
@@ -75,9 +76,7 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
           animation: _cloudController,
           builder: (context, child) {
             return CustomPaint(
-              painter: CloudPainter(
-                animation: _cloudController.value,
-              ),
+              painter: CloudPainter(animation: _cloudController.value),
               size: Size.infinite,
             );
           },
@@ -100,12 +99,12 @@ class Star {
   final double phase;
 
   Star()
-      : x = math.Random().nextDouble(),
-        y = math.Random().nextDouble(),
-        size = math.Random().nextDouble() * 1.5 + 0.3, // меньше
-        opacity = math.Random().nextDouble() * 0.4 + 0.2, // мягче
-        twinkleSpeed = math.Random().nextDouble() * 1.5 + 0.5,
-        phase = math.Random().nextDouble() * 2 * math.pi;
+    : x = math.Random().nextDouble(),
+      y = math.Random().nextDouble(),
+      size = math.Random().nextDouble() * 1.5 + 0.3, // меньше
+      opacity = math.Random().nextDouble() * 0.4 + 0.2, // мягче
+      twinkleSpeed = math.Random().nextDouble() * 1.5 + 0.5,
+      phase = math.Random().nextDouble() * 2 * math.pi;
 }
 
 /// Рисовальщик звёздного поля
@@ -118,8 +117,11 @@ class StarFieldPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final star in stars) {
-      final twinkle = (math.sin(animation * star.twinkleSpeed * 2 * math.pi + star.phase) + 1) / 2;
-      
+      final twinkle =
+          (math.sin(animation * star.twinkleSpeed * 2 * math.pi + star.phase) +
+              1) /
+          2;
+
       // Мягкое свечение
       final paint = Paint()
         ..color = Colors.white.withOpacity(star.opacity * (0.3 + twinkle * 0.3))
@@ -168,10 +170,7 @@ class CloudPainter extends CustomPainter {
         -0.2 + math.cos(animation * 0.15) * 0.1,
       ),
       radius: 0.9,
-      colors: [
-        const Color(0xFF8B7DD8).withOpacity(0.08),
-        Colors.transparent,
-      ],
+      colors: [const Color(0xFF8B7DD8).withOpacity(0.08), Colors.transparent],
     );
 
     // Мягкое синее облако (справа)
@@ -181,10 +180,7 @@ class CloudPainter extends CustomPainter {
         0.3 + math.sin(animation * 0.12) * 0.1,
       ),
       radius: 0.8,
-      colors: [
-        const Color(0xFF7A9BCB).withOpacity(0.07),
-        Colors.transparent,
-      ],
+      colors: [const Color(0xFF7A9BCB).withOpacity(0.07), Colors.transparent],
     );
 
     // Тёплое облако (снизу)
@@ -194,10 +190,7 @@ class CloudPainter extends CustomPainter {
         0.5 + math.cos(animation * 0.1) * 0.2,
       ),
       radius: 1.0,
-      colors: [
-        const Color(0xFFB89E97).withOpacity(0.05),
-        Colors.transparent,
-      ],
+      colors: [const Color(0xFFB89E97).withOpacity(0.05), Colors.transparent],
     );
 
     // Лёгкое серое облако (центр)
@@ -207,30 +200,15 @@ class CloudPainter extends CustomPainter {
         math.sin(animation * 0.2) * 0.2,
       ),
       radius: 0.7,
-      colors: [
-        const Color(0xFFA0A0B0).withOpacity(0.04),
-        Colors.transparent,
-      ],
+      colors: [const Color(0xFFA0A0B0).withOpacity(0.04), Colors.transparent],
     );
 
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    canvas.drawRect(
-      rect,
-      Paint()..shader = purpleGradient.createShader(rect),
-    );
-    canvas.drawRect(
-      rect,
-      Paint()..shader = blueGradient.createShader(rect),
-    );
-    canvas.drawRect(
-      rect,
-      Paint()..shader = warmGradient.createShader(rect),
-    );
-    canvas.drawRect(
-      rect,
-      Paint()..shader = grayGradient.createShader(rect),
-    );
+    canvas.drawRect(rect, Paint()..shader = purpleGradient.createShader(rect));
+    canvas.drawRect(rect, Paint()..shader = blueGradient.createShader(rect));
+    canvas.drawRect(rect, Paint()..shader = warmGradient.createShader(rect));
+    canvas.drawRect(rect, Paint()..shader = grayGradient.createShader(rect));
   }
 
   @override
