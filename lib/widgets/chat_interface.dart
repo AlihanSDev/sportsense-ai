@@ -15,6 +15,27 @@ class ChatMessage {
     DateTime? timestamp,
     this.textColor,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    return ChatMessage(
+      text: json['text'] as String? ?? '',
+      isUser: json['isUser'] as bool? ?? false,
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+          DateTime.now(),
+      textColor: json['textColor'] != null
+          ? Color(int.parse(json['textColor'].toString()))
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'text': text,
+      'isUser': isUser,
+      'timestamp': timestamp.toIso8601String(),
+      'textColor': textColor?.value,
+    };
+  }
 }
 
 /// Чистый, минималистичный чат-интерфейс

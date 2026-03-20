@@ -11,6 +11,7 @@ import 'services/core/rankings_relevance_service.dart';
 import 'services/core/uefa_parser.dart';
 import 'services/api/qwen_api_service.dart';
 import 'services/core/rankings_vector_search.dart';
+import 'services/core/chat_storage_service.dart';
 import 'services/api/uefa_rankings_api_service.dart';
 
 // Импорты виджетов
@@ -297,6 +298,8 @@ class _HomePageState extends State<HomePage> {
   late final UefaParser _uefaParser;
   late final QwenApiService _qwenApi;
   late final RankingsVectorSearch _rankingsSearch;
+  final LocalChatStorageService _chatStorage = LocalChatStorageService();
+
   final List<ChatMessage> _messages = [
     ChatMessage(
       text:
@@ -316,6 +319,11 @@ class _HomePageState extends State<HomePage> {
     _uefaParser = widget.uefaParser;
     _qwenApi = widget.qwenApi;
     _rankingsSearch = widget.rankingsSearch;
+
+    // Загружаем локальные чаты из хранилища
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChats();
+    });
 
     // Добавляем сообщения о статусе сервисов
     if (!widget.rankingsApiAvailable) {
@@ -338,6 +346,30 @@ class _HomePageState extends State<HomePage> {
           textColor: const Color(0xFFB37B7B),
         ),
       );
+    }
+  }
+
+  Future<void> _loadChats() async {
+    try {
+      await _chatStorage.initialize();
+      final chats = await _chatStorage.loadAllChats();
+      if (chats.isNotEmpty) {
+        setState(() {
+          _messages.clear();
+          _messages.addAll(chats);
+        });
+      }
+    } catch (e) {
+      // Локалные чаты не загружены - оставляем стандартное состояние.
+      print('⚠️ Не удалось загрузить локальные чаты: $e');
+    }
+  }
+
+  Future<void> _saveChats() async {
+    try {
+      await _chatStorage.saveAllChats(_messages);
+    } catch (e) {
+      print('⚠️ Не удалось сохранить локальные чаты: $e');
     }
   }
 
@@ -370,6 +402,7 @@ class _HomePageState extends State<HomePage> {
         ));
         _isLoading = false;
       });
+      await _saveChats();
       return;
     }
 
@@ -387,6 +420,7 @@ class _HomePageState extends State<HomePage> {
       _messages.add(ChatMessage(text: text, isUser: true));
       _isLoading = true;
     });
+    await _saveChats();
 
     // Проверка релевантности запроса к Rankings
     final relevance = RankingsRelevanceService.checkRelevance(text);
@@ -476,6 +510,7 @@ class _HomePageState extends State<HomePage> {
         );
         _isLoading = false;
       });
+      await _saveChats();
     }
   }
 
@@ -533,12 +568,18 @@ class _HomePageState extends State<HomePage> {
                   child: ChatInterface(
                     messages: _messages,
                     onSendMessage: _sendMessage,
-                    onClear: () {
+                    onClear: () async {
                       setState(() {
                         _messages.clear();
+                        _messages.add(ChatMessage(
+                          text:
+                              'Чат очищен. Введите /addchat для запуска новой сессии.',
+                          isUser: false,
+                        ));
                         _isLoading = false;
                       });
                       _uefaSearchManager.reset();
+                      await _saveChats();
                     },
                     isLoading: _isLoading,
                     showSearch: _uefaSearchManager.isSearching,
