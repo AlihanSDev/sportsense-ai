@@ -1,5 +1,11 @@
 # Sportsense AI
 
+[![Dart](https://img.shields.io/badge/Dart-3.11.0-blue.svg)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.14.0-blue.svg)](https://flutter.dev)
+[![Python](https://img.shields.io/badge/Python-3.12-green.svg)](https://www.python.org)
+[![Platforms](https://img.shields.io/badge/Platforms-Android%20|%20iOS%20|%20Web%20|%20Desktop-lightgrey.svg)](https://flutter.dev/docs)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
+
 Спортивное приложение с искусственным интеллектом, разработанное на Flutter.
 
 ## 📱 О проекте
