@@ -297,7 +297,11 @@ class _HomePageState extends State<HomePage> {
 
     // Шаг 3: Запрос к Qwen API с RAG контекстом
     String botResponse;
-    if (widget.qwenAvailable) {
+    
+    // Проверяем доступность Qwen API заново (на случай если он запустился позже)
+    final qwenActuallyAvailable = await _qwenApi.isAvailable();
+    
+    if (qwenActuallyAvailable) {
       print('🤖 RAG: Отправка запроса к Qwen с контекстом...');
       
       // Запрос к реальной модели с контекстом

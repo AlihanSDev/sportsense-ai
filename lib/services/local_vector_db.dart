@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:math' show sqrt;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Импорт для работы с localStorage (только web)
-import 'dart:html' as html_web;
+// import 'dart:html' as html_web; // Закомментировано для mobile
 
 /// Точка данных в локальной векторной базе.
 class LocalVectorPoint {
@@ -283,45 +284,32 @@ class LocalVectorDatabase {
 
   /// Сохранение на диск.
   Future<void> saveToDisk() async {
-    if (kIsWeb) {
-      // Для веба используем localStorage
-      final data = {
-        'nextId': _nextId,
-        'collections': _collections.values.map((c) => c.toJson()).toList(),
-      };
-      html_web.window.localStorage['vector_db'] = json.encode(data);
-      return;
-    }
-
-    // Для не-web платформ (Android, iOS, Desktop)
-    // Примечание: требует dart:io который не работает в вебе
-    throw UnsupportedError('saveToDisk not supported on web. Use localStorage instead.');
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      'nextId': _nextId,
+      'collections': _collections.values.map((c) => c.toJson()).toList(),
+    };
+    await prefs.setString('vector_db', json.encode(data));
   }
 
   /// Загрузка с диска.
   Future<void> _loadFromDisk() async {
-    if (kIsWeb) {
-      // Для веба используем localStorage
-      try {
-        final stored = html_web.window.localStorage['vector_db'];
-        if (stored == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final stored = prefs.getString('vector_db');
+      if (stored == null) return;
 
-        final data = json.decode(stored) as Map<String, dynamic>;
-        _nextId = data['nextId'] as int? ?? 1;
+      final data = json.decode(stored) as Map<String, dynamic>;
+      _nextId = data['nextId'] as int? ?? 1;
 
-        final collections = data['collections'] as List? ?? [];
-        for (final c in collections) {
-          final collection = LocalVectorCollection.fromJson(c as Map<String, dynamic>);
-          _collections[collection.name] = collection;
-        }
-      } catch (e) {
-        print('Error loading vector database from localStorage: $e');
+      final collections = data['collections'] as List? ?? [];
+      for (final c in collections) {
+        final collection = LocalVectorCollection.fromJson(c as Map<String, dynamic>);
+        _collections[collection.name] = collection;
       }
-      return;
+    } catch (e) {
+      print('Error loading vector database from SharedPreferences: $e');
     }
-
-    // Для не-web платформ
-    throw UnsupportedError('_loadFromDisk not supported on web. Use localStorage instead.');
   }
 
   /// Очистка всех данных.

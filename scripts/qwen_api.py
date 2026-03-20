@@ -17,7 +17,7 @@ from pathlib import Path
 try:
     from llama_cpp import Llama
 except ImportError:
-    print("❌ llama-cpp-python не установлена!")
+    print("[ERROR] llama-cpp-python not installed!")
     print("Установите командой:")
     print("  pip install llama-cpp-python")
     sys.exit(1)
@@ -26,7 +26,7 @@ try:
     from flask import Flask, request, jsonify
     from flask_cors import CORS
 except ImportError:
-    print("❌ Flask не установлен!")
+    print("[ERROR] Flask not installed!")
     print("Установите командой:")
     print("  pip install flask flask-cors")
     sys.exit(1)
@@ -34,7 +34,7 @@ except ImportError:
 
 # Конфигурация
 MODEL_PATH = "models/qwen2.5-1.5b-instruct-gguf/Qwen2.5-1.5B-Instruct-Q8_0.gguf"
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"  # Listen on all interfaces for emulator access
 PORT = 5000
 MAX_TOKENS = 512
 TEMPERATURE = 0.7
@@ -53,11 +53,11 @@ def load_model():
     model_file = Path(MODEL_PATH)
     
     if not model_file.exists():
-        print(f"❌ Модель не найдена: {MODEL_PATH}")
+        print(f"[ERROR] Model not found: {MODEL_PATH}")
         print("Сначала запустите: python scripts/download_qwen.py")
         return False
     
-    print(f"🤖 Загрузка модели: {MODEL_PATH}")
+    print(f"[AI] Loading model: {MODEL_PATH}")
     print("Это может занять несколько минут...")
     
     try:
@@ -68,10 +68,10 @@ def load_model():
             n_gpu_layers=0,  # 0 = только CPU (для ноутбуков без GPU)
             verbose=False,
         )
-        print(f"✅ Модель загружена успешно!")
+        print(f"[SUCCESS] Model loaded successfully!")
         return True
     except Exception as e:
-        print(f"❌ Ошибка загрузки модели: {e}")
+        print(f"[ERROR] Model loading error: {e}")
         return False
 
 
@@ -100,7 +100,7 @@ def chat():
     max_tokens = data.get('max_tokens', MAX_TOKENS)
     temperature = data.get('temperature', TEMPERATURE)
     
-    print(f"📥 Запрос: {message}")
+    print(f"[IN] Request: {message}")
     
     try:
         # Формируем промпт для Qwen Instruct
@@ -117,7 +117,7 @@ def chat():
         
         response_text = output['choices'][0]['text'].strip()
         
-        print(f"📤 Ответ: {response_text}")
+        print(f"[OUT] Response: {response_text}")
         
         return jsonify({
             'response': response_text,
@@ -126,7 +126,7 @@ def chat():
         })
         
     except Exception as e:
-        print(f"❌ Ошибка генерации: {e}")
+        print(f"[ERROR] Generation error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -162,7 +162,7 @@ def generate():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("🏆 Sportsense AI - Qwen2.5-1.5B Local API Server")
+    print("*** Sportsense AI - Qwen2.5-1.5B Local API Server ***")
     print("=" * 60)
     
     # Загрузка модели
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         sys.exit(1)
     
     # Запуск сервера
-    print(f"\n🌐 Запуск сервера на http://{HOST}:{PORT}")
+    print(f"\n[WEB] Starting server on http://{HOST}:{PORT}")
     print("Endpoints:")
     print("  GET  /health  - проверка доступности")
     print("  POST /chat    - запрос к чат-боту")
