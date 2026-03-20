@@ -353,6 +353,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
+    // Команда создания нового чата
+    if (trimmed.toLowerCase().startsWith('/addchat')) {
+      final args = trimmed.substring('/addchat'.length).trim();
+      final newChatTitle = args.isNotEmpty ? args : 'Новый чат';
+
+      setState(() {
+        _messages.clear();
+        _messages.add(ChatMessage(
+          text:
+              'Чат "$newChatTitle" создан. Здесь будет новый диалог. Напишите ваш вопрос.',
+          isUser: false,
+        ));
+        _isLoading = false;
+      });
+      return;
+    }
+
     // Проверка на триггеры UEFA
     final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
 
