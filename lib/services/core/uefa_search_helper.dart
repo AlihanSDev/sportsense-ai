@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/uefa_search_manager.dart';
-import '../widgets/uefa_search_indicator.dart';
+import 'package:sportsense/widgets/uefa_search_indicator.dart';
+import 'uefa_search_manager.dart';
 
 /// Helper для интеграции UEFA Search в чат.
 class UefaSearchWrapper extends StatelessWidget {

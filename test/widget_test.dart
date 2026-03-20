@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sportsense/main.dart';
-import 'package:sportsense/services/vector_db_manager.dart';
-import 'package:sportsense/services/user_query_vectorizer.dart';
-import 'package:sportsense/services/uefa_parser.dart';
-import 'package:sportsense/services/qwen_api_service.dart';
-import 'package:sportsense/services/rankings_vector_search.dart';
+import 'package:sportsense/services/core/vector_db_manager.dart';
+import 'package:sportsense/services/core/user_query_vectorizer.dart';
+import 'package:sportsense/services/core/uefa_parser.dart';
+import 'package:sportsense/services/api/qwen_api_service.dart';
+import 'package:sportsense/services/core/rankings_vector_search.dart';
 
 void main() {
   testWidgets('SpaceApp renders correctly', (WidgetTester tester) async {

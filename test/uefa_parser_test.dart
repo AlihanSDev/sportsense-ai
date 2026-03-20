@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:sportsense/services/uefa_parser.dart';
+import 'package:sportsense/services/core/uefa_parser.dart';
 
 void main() {
   group('UefaParser Tests', () {

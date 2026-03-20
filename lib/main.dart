@@ -4,14 +4,14 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 // Импорты сервисов
-import 'services/uefa_search_manager.dart';
-import 'services/vector_db_manager.dart';
-import 'services/user_query_vectorizer.dart';
-import 'services/rankings_relevance_service.dart';
-import 'services/uefa_parser.dart';
-import 'services/qwen_api_service.dart';
-import 'services/rankings_vector_search.dart';
-import 'services/uefa_rankings_api_service.dart';
+import 'services/core/uefa_search_manager.dart';
+import 'services/core/vector_db_manager.dart';
+import 'services/core/user_query_vectorizer.dart';
+import 'services/core/rankings_relevance_service.dart';
+import 'services/core/uefa_parser.dart';
+import 'services/api/qwen_api_service.dart';
+import 'services/core/rankings_vector_search.dart';
+import 'services/api/uefa_rankings_api_service.dart';
 
 // Импорты виджетов
 import 'widgets/space_background.dart';

@@ -6,7 +6,7 @@ import 'package:html/parser.dart';
 import 'dart:convert';
 
 import 'vector_db_manager.dart';
-import 'uefa_rankings_api_service.dart';
+import '../api/uefa_rankings_api_service.dart';
 
 /// Парсер для сайта UEFA.
 /// Для веба используется только HTTP-парсинг.
