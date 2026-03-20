@@ -12,6 +12,7 @@ import 'services/core/uefa_parser.dart';
 import 'services/api/qwen_api_service.dart';
 import 'services/core/rankings_vector_search.dart';
 import 'services/core/chat_storage_service.dart';
+import 'services/core/chat_storage_factory.dart';
 import 'services/api/uefa_rankings_api_service.dart';
 
 // Импорты виджетов
@@ -298,7 +299,7 @@ class _HomePageState extends State<HomePage> {
   late final UefaParser _uefaParser;
   late final QwenApiService _qwenApi;
   late final RankingsVectorSearch _rankingsSearch;
-  final LocalChatStorageService _chatStorage = LocalChatStorageService();
+  late final ChatStorageService _chatStorage;
 
   final List<ChatMessage> _messages = [
     ChatMessage(
@@ -319,6 +320,11 @@ class _HomePageState extends State<HomePage> {
     _uefaParser = widget.uefaParser;
     _qwenApi = widget.qwenApi;
     _rankingsSearch = widget.rankingsSearch;
+
+    // Инициализация хранилища чатов через фабрику
+    _chatStorage = ChatStorageFactory.isMongoEnabled()
+        ? MongoChatStorageService(config: MongoConfig.fromEnv())
+        : LocalChatStorageService();
 
     // Загружаем локальные чаты из хранилища
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -359,9 +365,10 @@ class _HomePageState extends State<HomePage> {
           _messages.addAll(chats);
         });
       }
+      print('✅ Чаты загружены из ${_chatStorage.runtimeType}');
     } catch (e) {
       // Локалные чаты не загружены - оставляем стандартное состояние.
-      print('⚠️ Не удалось загрузить локальные чаты: $e');
+      print('⚠️ Не удалось загрузить чаты: $e');
     }
   }
 
@@ -369,19 +376,20 @@ class _HomePageState extends State<HomePage> {
     try {
       await _chatStorage.saveAllChats(_messages);
     } catch (e) {
-      print('⚠️ Не удалось сохранить локальные чаты: $e');
+      print('⚠️ Не удалось сохранить чаты: $e');
     }
-  }
-
-  void _onUefaSearchChanged() {
-    setState(() {});
   }
 
   @override
   void dispose() {
+    _chatStorage.dispose();
     _uefaSearchManager.removeListener(_onUefaSearchChanged);
     _uefaSearchManager.dispose();
     super.dispose();
+  }
+
+  void _onUefaSearchChanged() {
+    setState(() {});
   }
 
   Future<void> _sendMessage(String text) async {
