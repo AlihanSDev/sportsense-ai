@@ -459,78 +459,179 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Drawer _buildDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.black,
+      child: Column(
+        children: [
+          const DrawerHeader(
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                'История чатов',
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+            ),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.chat, color: Colors.white),
+            title: const Text('Чат 1', style: TextStyle(color: Colors.white)),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat, color: Colors.white),
+            title: const Text('Чат 2', style: TextStyle(color: Colors.white)),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat, color: Colors.white),
+            title: const Text('Чат 3', style: TextStyle(color: Colors.white)),
+            onTap: () {},
+          ),
+
+          const Spacer(),
+          const Divider(color: Colors.white24),
+
+          ListTile(
+            leading: const Icon(Icons.settings, color: Colors.white),
+            title: const Text(
+              'Настройки',
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SpaceBackground(
-      child: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            // Заголовок
-            Column(
-              children: [
-                Text(
-                  'Sportsense',
-                  style: GoogleFonts.inter(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                    decoration: TextDecoration.none,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      drawer: _buildDrawer(context),
+      body: SpaceBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Builder(
+                    builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu, color: Colors.white),
+                      onPressed: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'AI Assistant',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w300,
-                    color: Colors.white.withOpacity(0.6),
-                    letterSpacing: 1,
-                    decoration: TextDecoration.none,
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Заголовок
+              Column(
+                children: [
+                  Text(
+                    'Sportsense',
+                    style: GoogleFonts.inter(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Чат
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.03),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.08),
-                    width: 1,
+                  const SizedBox(height: 6),
+                  Text(
+                    'AI Assistant',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.white.withOpacity(0.6),
+                      letterSpacing: 1,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: ChatInterface(
-                    messages: _messages,
-                    onSendMessage: _sendMessage,
-                    onClear: () {
-                      setState(() {
-                        _messages.clear();
-                        _isLoading = false;
-                      });
-                      _uefaSearchManager.reset();
-                    },
-                    isLoading: _isLoading,
-                    showSearch: _uefaSearchManager.isSearching,
-                    searchError: _uefaSearchManager.hasError
-                        ? _uefaSearchManager.errorMessage
-                        : null,
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Чат
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.08),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: ChatInterface(
+                      messages: _messages,
+                      onSendMessage: _sendMessage,
+                      onClear: () {
+                        setState(() {
+                          _messages.clear();
+                          _isLoading = false;
+                        });
+                        _uefaSearchManager.reset();
+                      },
+                      isLoading: _isLoading,
+                      showSearch: _uefaSearchManager.isSearching,
+                      searchError: _uefaSearchManager.hasError
+                          ? _uefaSearchManager.errorMessage
+                          : null,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Настройки'),
+        backgroundColor: Colors.black,
+      ),
+      body: ListView(
+        children: const [
+          ListTile(
+            leading: Icon(Icons.person, color: Colors.white),
+            title: Text('Аккаунт', style: TextStyle(color: Colors.white)),
+          ),
+          ListTile(
+            leading: Icon(Icons.notifications, color: Colors.white),
+            title: Text('Уведомления', style: TextStyle(color: Colors.white)),
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode, color: Colors.white),
+            title: Text('Тема', style: TextStyle(color: Colors.white)),
+          ),
+          ListTile(
+            leading: Icon(Icons.info, color: Colors.white),
+            title: Text('О приложении', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
