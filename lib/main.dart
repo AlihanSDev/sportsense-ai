@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'services/chat_history_database.dart';
+import 'services/hf_embedding_service.dart';
 import 'services/qwen_api_service.dart';
 import 'services/query_datetime_parser.dart';
 import 'services/rankings_relevance_service.dart';
@@ -9,7 +11,6 @@ import 'services/rankings_vector_search.dart';
 import 'services/uefa_parser.dart';
 import 'services/uefa_rankings_api_service.dart';
 import 'services/uefa_search_manager.dart';
-import 'services/hf_embedding_service.dart';
 import 'services/user_query_vectorizer.dart';
 import 'services/vector_db_manager.dart';
 import 'widgets/chat_interface.dart';
@@ -152,13 +153,10 @@ class _HomePageState extends State<HomePage> {
   late final UefaParser _uefaParser;
   late final QwenApiService _qwenApi;
   late final RankingsVectorSearch _rankingsSearch;
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      text:
-          'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
-      isUser: false,
-    ),
-  ];
+  late final ChatHistoryDatabase _chatDb;
+
+  final List<ChatMessage> _messages = [];
+  double _temperature = 0.7;
   bool _isLoading = false;
 
   @override
@@ -171,9 +169,32 @@ class _HomePageState extends State<HomePage> {
     _uefaParser = widget.uefaParser;
     _qwenApi = widget.qwenApi;
     _rankingsSearch = widget.rankingsSearch;
+    _chatDb = ChatHistoryDatabase();
+    _loadChatHistory();
+  }
+
+  @override
+  void dispose() {
+    _uefaSearchManager.removeListener(_onUefaSearchChanged);
+    _uefaSearchManager.dispose();
+    super.dispose();
+  }
+
+  void _onUefaSearchChanged() {
+    setState(() {});
+  }
+
+  List<ChatMessage> _buildInitialMessages() {
+    final messages = <ChatMessage>[
+      ChatMessage(
+        text:
+            'Здравствуйте! Я ваш ИИ-ассистент Sportsense. Чем я могу вам помочь сегодня?',
+        isUser: false,
+      ),
+    ];
 
     if (!widget.rankingsApiAvailable) {
-      _messages.add(
+      messages.add(
         ChatMessage(
           text:
               '⚠️ UEFA Rankings API недоступен.\nЗапустите:\n```\npython scripts/uefa_parser_api.py\n```\n\nПока данные не будут загружены.',
@@ -184,7 +205,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (!widget.qwenAvailable) {
-      _messages.add(
+      messages.add(
         ChatMessage(
           text:
               '⚠️ Hugging Face Llama API недоступен.\nУкажите `HF_TOKEN` в `.env`.\n\nПока используется тестовый режим.',
@@ -193,20 +214,37 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
+
+    return messages;
   }
 
-  void _onUefaSearchChanged() {
-    setState(() {});
+  Future<void> _loadChatHistory() async {
+    final savedMessages = await _chatDb.getMessages();
+    if (!mounted) return;
+
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(
+          savedMessages.isNotEmpty ? savedMessages : _buildInitialMessages(),
+        );
+    });
   }
 
-  @override
-  void dispose() {
-    _uefaSearchManager.removeListener(_onUefaSearchChanged);
-    _uefaSearchManager.dispose();
-    super.dispose();
+  Future<void> _clearChatHistory() async {
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(_buildInitialMessages());
+      _isLoading = false;
+    });
+
+    await _chatDb.clearMessages();
+    _uefaSearchManager.reset();
   }
 
   Future<void> _sendMessage(String text) async {
+    final userMessage = ChatMessage(text: text, isUser: true);
     final hasUefaTrigger = await _uefaSearchManager.interceptQuery(text);
 
     if (hasUefaTrigger) {
@@ -216,9 +254,10 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() {
-      _messages.add(ChatMessage(text: text, isUser: true));
+      _messages.add(userMessage);
       _isLoading = true;
     });
+    await _chatDb.insertMessage(userMessage);
 
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
@@ -256,6 +295,7 @@ class _HomePageState extends State<HomePage> {
         context: ragContext.isNotEmpty ? ragContext : null,
         temporalContext: temporalContext.toPromptContext(),
         maxTokens: 1024,
+        temperature: _temperature,
       );
 
       if (qwenResponse != null) {
@@ -301,14 +341,19 @@ class _HomePageState extends State<HomePage> {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (mounted) {
-      setState(() {
-        _messages.add(
-          ChatMessage(text: fullResponse, isUser: false, textColor: textColor),
-        );
-        _isLoading = false;
-      });
-    }
+    if (!mounted) return;
+
+    final botMessage = ChatMessage(
+      text: fullResponse,
+      isUser: false,
+      textColor: textColor,
+    );
+    await _chatDb.insertMessage(botMessage);
+
+    setState(() {
+      _messages.add(botMessage);
+      _isLoading = false;
+    });
   }
 
   @override
@@ -382,11 +427,18 @@ class _HomePageState extends State<HomePage> {
                   child: ChatInterface(
                     messages: _messages,
                     onSendMessage: _sendMessage,
+                    onClear: _clearChatHistory,
                     isLoading: _isLoading,
                     showSearch: _uefaSearchManager.isSearching,
                     searchError: _uefaSearchManager.hasError
                         ? _uefaSearchManager.errorMessage
                         : null,
+                    temperature: _temperature,
+                    onTemperatureChanged: (value) {
+                      setState(() {
+                        _temperature = value;
+                      });
+                    },
                   ),
                 ),
               ),

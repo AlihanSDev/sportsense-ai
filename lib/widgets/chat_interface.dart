@@ -1,37 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'uefa_search_indicator.dart';
 
-/// Сообщение чата
 class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
-  final Color? textColor; // Цвет текста для бота (зелёный/оранжевый для rankings)
+  final Color? textColor;
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
-    this.textColor, // По умолчанию null (используется стандартный цвет)
+    this.textColor,
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
-/// Виджет чата в стиле ChatGPT/Qwen/DeepSeek
 class ChatInterface extends StatefulWidget {
   final List<ChatMessage> messages;
   final Function(String) onSendMessage;
+  final Future<void> Function()? onClear;
   final bool isLoading;
   final bool showSearch;
   final String? searchError;
+  final double temperature;
+  final ValueChanged<double>? onTemperatureChanged;
 
   const ChatInterface({
     super.key,
     required this.messages,
     required this.onSendMessage,
+    this.onClear,
     this.isLoading = false,
     this.showSearch = false,
     this.searchError,
+    this.temperature = 0.7,
+    this.onTemperatureChanged,
   });
 
   @override
@@ -42,58 +47,13 @@ class _ChatInterfaceState extends State<ChatInterface> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  /// содержимое, отображаемое в пузырьках; для бот-сообщений может
-  /// заполняться постепенно, создавая эффект «набирается текст»
   late List<String> _displayedTexts;
-
-  /// флаги для постепенного появления сообщения (для анимации opacity)
   late List<bool> _fadedIn;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  /// запускает анимацию печати для нового сообщения бота
-  Future<void> _startTyping(String fullText) async {
-    for (int i = 1; i <= fullText.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 30));
-      if (!mounted) return;
-      setState(() {
-        _displayedTexts[_displayedTexts.length - 1] = fullText.substring(0, i);
-      });
-      _scrollToBottom();
-    }
-  }
-
-  /// плавное появление пузырька после добавления в список
-  void _fadeIn(int index) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _fadedIn[index] = true;
-        });
-      }
-    });
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    // при старте все сообщения уже должны показываться полностью
-    _displayedTexts = widget.messages.map((m) => m.isUser ? m.text : m.text).toList();
+    _displayedTexts = widget.messages.map((message) => message.text).toList();
     _fadedIn = List<bool>.filled(widget.messages.length, true);
   }
 
@@ -102,20 +62,42 @@ class _ChatInterfaceState extends State<ChatInterface> {
     super.didUpdateWidget(oldWidget);
 
     if (widget.messages.length > oldWidget.messages.length) {
-      // добавлено новое сообщение (скорее всего от ИИ)
-      final newMsg = widget.messages.last;
-      _displayedTexts.add(newMsg.text);
+      final newMessage = widget.messages.last;
+      _displayedTexts.add(newMessage.text);
       _fadedIn.add(false);
       _fadeIn(_fadedIn.length - 1);
-    } else if (widget.messages.length < oldWidget.messages.length) {
-      // сообщения удалены? просто синхронизируем списки
-      _displayedTexts = widget.messages.map((m) => m.text).toList();
-      _fadedIn = List<bool>.filled(widget.messages.length, true);
-    } else {
-      // изменение без изменения длины, синхронизируем всё
-      _displayedTexts = widget.messages.map((m) => m.text).toList();
-      _fadedIn = List<bool>.filled(widget.messages.length, true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      return;
     }
+
+    _displayedTexts = widget.messages.map((message) => message.text).toList();
+    _fadedIn = List<bool>.filled(widget.messages.length, true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _fadeIn(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _fadedIn[index] = true;
+      });
+    });
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -124,15 +106,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
       color: Colors.transparent,
       child: Column(
         children: [
-          // Заголовок
           _buildHeader(),
-
-          // Список сообщений
-          Expanded(
-            child: _buildMessageList(),
-          ),
-
-          // Поле ввода
+          Expanded(child: _buildMessageList()),
+          if (widget.onTemperatureChanged != null) _buildTemperatureControl(),
           _buildInputField(),
         ],
       ),
@@ -145,10 +121,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.05),
         border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
         ),
       ),
       child: Row(
@@ -157,10 +130,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF00D4FF),
-                  Color(0xFF7C4DFF),
-                ],
+                colors: [Color(0xFF00D4FF), Color(0xFF7C4DFF)],
               ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
@@ -198,6 +168,61 @@ class _ChatInterfaceState extends State<ChatInterface> {
               ),
             ],
           ),
+          const Spacer(),
+          if (widget.onClear != null)
+            IconButton(
+              tooltip: 'Очистить чат',
+              onPressed: () async {
+                await widget.onClear!.call();
+              },
+              icon: const Icon(Icons.delete_outline, color: Colors.white70),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemperatureControl() {
+    final clampedTemperature = widget.temperature.clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.05),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Температура',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Slider(
+              value: clampedTemperature,
+              min: 0.0,
+              max: 1.0,
+              divisions: 10,
+              label: widget.temperature.toStringAsFixed(1),
+              onChanged: (value) {
+                widget.onTemperatureChanged?.call(value);
+                setState(() {});
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            widget.temperature.toStringAsFixed(1),
+            style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70),
+          ),
         ],
       ),
     );
@@ -207,31 +232,33 @@ class _ChatInterfaceState extends State<ChatInterface> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      // always reserve a slot for the search indicator to avoid list reflows
-      itemCount: widget.messages.length
-          + 1
-          + (widget.searchError != null ? 1 : 0)
-          + (widget.isLoading ? 1 : 0),
+      itemCount:
+          widget.messages.length +
+          1 +
+          (widget.searchError != null ? 1 : 0) +
+          (widget.isLoading ? 1 : 0),
       itemBuilder: (context, index) {
-        final base = widget.messages.length;
-        if (index < base) {
+        final messageCount = widget.messages.length;
+        if (index < messageCount) {
           return _buildMessageBubble(widget.messages[index], index);
         }
-        if (index == base) {
-          // indicator slot
+
+        if (index == messageCount) {
           return _buildSearchIndicator(widget.showSearch);
         }
-        int offset = 1;
+
+        var offset = 1;
         if (widget.searchError != null) {
-          if (index == base + offset) {
+          if (index == messageCount + offset) {
             return _buildSearchError(widget.searchError!);
           }
           offset++;
         }
-        if (widget.isLoading && index == base + offset) {
+
+        if (widget.isLoading && index == messageCount + offset) {
           return _buildLoadingIndicator();
         }
-        // should not reach here normally
+
         return const SizedBox.shrink();
       },
     );
@@ -244,98 +271,96 @@ class _ChatInterfaceState extends State<ChatInterface> {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Row(
-          mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF00D4FF),
-                    Color(0xFF7C4DFF),
-                  ],
+          mainAxisAlignment: message.isUser
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          children: [
+            if (!message.isUser) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4FF), Color(0xFF7C4DFF)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                borderRadius: BorderRadius.circular(10),
+                child: const Icon(
+                  Icons.smart_toy_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.smart_toy_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: message.isUser
-                    ? const Color(0xFF7C4DFF).withOpacity(0.3)
-                    : Colors.grey.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
+              const SizedBox(width: 12),
+            ],
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
                   color: message.isUser
                       ? const Color(0xFF7C4DFF).withOpacity(0.3)
-                      : Colors.white.withOpacity(0.1),
-                  width: 1,
+                      : Colors.grey.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: message.isUser
+                        ? const Color(0xFF7C4DFF).withOpacity(0.3)
+                        : Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    // отображаем часть текста, если идет печать
-                    _displayedTexts.length > index ? _displayedTexts[index] : message.text,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      color: message.isUser
-                          ? Colors.white
-                          : (message.textColor ?? Colors.grey[200]),
-                      height: 1.5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _displayedTexts.length > index
+                          ? _displayedTexts[index]
+                          : message.text,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        color: message.isUser
+                            ? Colors.white
+                            : (message.textColor ?? Colors.grey[200]),
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatTime(message.timestamp),
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey[500],
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTime(message.timestamp),
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (message.isUser) ...[
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFE040FB),
-                    Color(0xFF7C4DFF),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.person_outline,
-                color: Colors.white,
-                size: 20,
               ),
             ),
+            if (message.isUser) ...[
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE040FB), Color(0xFF7C4DFF)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildSearchIndicator(bool visible) {
-    // keep the slot always there; animate size & opacity when shown/hidden
     return AnimatedSize(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -352,10 +377,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF00D4FF),
-                            Color(0xFF7C4DFF),
-                          ],
+                          colors: [Color(0xFF00D4FF), Color(0xFF7C4DFF)],
                         ),
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -366,7 +388,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
+                    const Expanded(
                       child: UefaSearchIndicator(
                         message: 'Поиск информации...',
                       ),
@@ -380,7 +402,6 @@ class _ChatInterfaceState extends State<ChatInterface> {
   }
 
   Widget _buildSearchError(String message) {
-    // error shown inline after the search indicator
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: UefaErrorIndicator(message: message),
@@ -397,10 +418,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF00D4FF),
-                  Color(0xFF7C4DFF),
-                ],
+                colors: [Color(0xFF00D4FF), Color(0xFF7C4DFF)],
               ),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -438,7 +456,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
   }
 
   Widget _buildDot(int index) {
-    return TweenAnimationBuilder(
+    return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 400 + index * 200),
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, value, child) {
@@ -451,9 +469,6 @@ class _ChatInterfaceState extends State<ChatInterface> {
           ),
         );
       },
-      onEnd: () {
-        // Restart animation handled by parent rebuild
-      },
     );
   }
 
@@ -464,10 +479,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withOpacity(0.3),
-          ],
+          colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
         ),
       ),
       child: Row(
@@ -510,13 +522,8 @@ class _ChatInterfaceState extends State<ChatInterface> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {
-                      // Add attachment functionality
-                    },
-                    icon: const Icon(
-                      Icons.attach_file,
-                      color: Colors.grey,
-                    ),
+                    onPressed: () {},
+                    icon: const Icon(Icons.attach_file, color: Colors.grey),
                     iconSize: 20,
                   ),
                 ],
@@ -527,10 +534,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
           Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF00D4FF),
-                  Color(0xFF7C4DFF),
-                ],
+                colors: [Color(0xFF00D4FF), Color(0xFF7C4DFF)],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
@@ -543,10 +547,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
             ),
             child: IconButton(
               onPressed: _sendMessage,
-              icon: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.send_rounded, color: Colors.white),
               iconSize: 24,
               padding: const EdgeInsets.all(14),
             ),
@@ -558,11 +559,11 @@ class _ChatInterfaceState extends State<ChatInterface> {
 
   void _sendMessage() {
     final text = _controller.text.trim();
-    if (text.isNotEmpty) {
-      widget.onSendMessage(text);
-      _controller.clear();
-      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
-    }
+    if (text.isEmpty) return;
+
+    widget.onSendMessage(text);
+    _controller.clear();
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
   String _formatTime(DateTime time) {
