@@ -12,10 +12,13 @@ import 'services/uefa_parser.dart';
 import 'services/qwen_api_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_rankings_api_service.dart';
+import 'services/database_service.dart';
+import 'services/database_models.dart';
 
 // ======================= ВИДЖЕТЫ =======================
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
+import 'widgets/auth_dialog.dart';
 
 // ======================= КОНФИГУРАЦИЯ =======================
 const String DEVICE_ID = 'small_phone_cold_boost';
@@ -55,6 +58,9 @@ class ChatMessage {
 // ======================= MAIN =======================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Инициализация базы данных
+  initDatabase();
 
   final appState = await _initializeAppState();
   if (appState == null) {
@@ -150,14 +156,18 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   late final UefaSearchManager _uefaSearchManager;
   final TextEditingController _controller = TextEditingController();
+  final DatabaseService _db = DatabaseService();
 
-  List<ChatSession> _chats = [];
+  final List<ChatSession> _chats = [];
   int _currentChatIndex = 0;
   bool _isLoading = false;
   bool _isLoggedIn = false;
+  User? _currentUser;
   String _username = '';
+  bool _isInitializing = true;  // Флаг инициализации
 
-  ChatSession get currentChat => _chats[_currentChatIndex];
+  ChatSession? get _currentChatOrNull => _chats.isNotEmpty ? _chats[_currentChatIndex] : null;
+  ChatSession get currentChat => _chats.isNotEmpty ? _chats[_currentChatIndex] : ChatSession(id: '0', title: '', messages: []);
 
   @override
   void initState() {
@@ -165,37 +175,124 @@ class _ChatScreenState extends State<ChatScreen> {
     _uefaSearchManager = UefaSearchManager();
     _uefaSearchManager.initialize();
     _uefaSearchManager.addListener(_onUefaSearchChanged);
-
+    
+    // Запускаем инициализацию и создаём чат сразу
     _createNewChat();
+    _checkAuth();  // Асинхронная проверка, не блокирует
+  }
 
-    currentChat.messages.add(
-      ChatMessage(
-        text:
-            'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
-        isUser: false,
-      ),
-    );
-
-    if (!widget.rankingsApiAvailable) {
-      currentChat.messages.add(
-        ChatMessage(
-          text:
-              '⚠️ UEFA Rankings API недоступен.\nЗапустите: python scripts/uefa_parser_api.py',
-          isUser: false,
-          textColor: const Color(0xFFB37B7B),
-        ),
-      );
+  /// Проверка авторизации при запуске
+  Future<void> _checkAuth() async {
+    try {
+      final user = await _db.getCurrentUser();
+      if (user != null) {
+        if (!mounted) return;
+        setState(() {
+          _currentUser = user;
+          _isLoggedIn = true;
+          _username = user.name;
+        });
+        
+        // Загружаем чаты пользователя
+        await _loadUserChats();
+      }
+    } catch (e) {
+      print('Ошибка проверки авторизации: $e');
+    } finally {
+      // В любом случае снимаем флаг инициализации
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     }
 
-    if (!widget.qwenAvailable) {
-      currentChat.messages.add(
-        ChatMessage(
-          text:
-              '⚠️ Qwen API недоступен.\nЗапустите: python scripts/qwen_api.py',
-          isUser: false,
-          textColor: const Color(0xFFB37B7B),
-        ),
-      );
+    // Добавляем приветственное сообщение только если чат существует и пуст
+    if (mounted && _chats.isNotEmpty) {
+      final chat = _chats[_currentChatIndex];
+      if (chat.messages.isEmpty) {
+        chat.messages.add(
+          ChatMessage(
+            text: 'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
+            isUser: false,
+          ),
+        );
+
+        if (!widget.rankingsApiAvailable) {
+          chat.messages.add(
+            ChatMessage(
+              text: '⚠️ UEFA Rankings API недоступен.\nЗапустите: python scripts/uefa_parser_api.py',
+              isUser: false,
+              textColor: const Color(0xFFB37B7B),
+            ),
+          );
+        }
+
+        if (!widget.qwenAvailable) {
+          chat.messages.add(
+            ChatMessage(
+              text: '⚠️ Qwen API недоступен.\nЗапустите: python scripts/qwen_api.py',
+              isUser: false,
+              textColor: const Color(0xFFB37B7B),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// Загрузка чатов пользователя из SQLite
+  Future<void> _loadUserChats() async {
+    if (_currentUser == null) return;
+
+    try {
+      final chats = await _db.getUserChats(_currentUser!.id!);
+      if (chats.isNotEmpty && mounted) {
+        setState(() {
+          _chats.clear();
+          for (final chat in chats) {
+            _chats.add(ChatSession(
+              id: chat.id.toString(),
+              title: chat.title,
+              messages: [],
+            ));
+          }
+          _currentChatIndex = 0;
+        });
+
+        // Загружаем сообщения текущего чата
+        await _loadChatMessages(_chats.first);
+      } else if (mounted) {
+        _createNewChat();
+      }
+    } catch (e) {
+      print('Ошибка загрузки чатов: $e');
+      if (mounted && _chats.isEmpty) {
+        _createNewChat();
+      }
+    }
+  }
+
+  /// Загрузка сообщений чата из SQLite
+  Future<void> _loadChatMessages(ChatSession chat) async {
+    final chatId = int.tryParse(chat.id ?? '0');
+    if (chatId == null) return;
+
+    try {
+      final messages = await _db.getChatMessages(chatId);
+      if (messages.isNotEmpty && mounted) {
+        setState(() {
+          chat.messages.clear();
+          for (final msg in messages) {
+            chat.messages.add(ChatMessage(
+              text: msg.text,
+              isUser: msg.isUser,
+            ));
+          }
+        });
+      }
+    } catch (e) {
+      print('Ошибка загрузки сообщений: $e');
     }
   }
 
@@ -211,14 +308,30 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _createNewChat() {
+    final newChat = ChatSession(
+      id: DateTime.now().toString(),
+      title: 'Чат ${_chats.length + 1}',
+      messages: [],
+    );
+
+    // Если пользователь авторизован, сохраняем чат в SQLite
+    if (_isLoggedIn && _currentUser != null) {
+      _db.createChat(
+        userId: _currentUser!.id!,
+        title: newChat.title,
+      ).then((savedChat) {
+        if (savedChat != null && mounted) {
+          setState(() {
+            newChat.id = savedChat.id.toString();
+          });
+        }
+      }).catchError((e) {
+        print('Ошибка сохранения чата: $e');
+      });
+    }
+
     setState(() {
-      _chats.add(
-        ChatSession(
-          id: DateTime.now().toString(),
-          title: 'Чат ${_chats.length + 1}',
-          messages: [],
-        ),
-      );
+      _chats.add(newChat);
       _currentChatIndex = _chats.length - 1;
     });
   }
@@ -228,125 +341,41 @@ class _ChatScreenState extends State<ChatScreen> {
       _currentChatIndex = index;
     });
     Navigator.pop(context);
+    _loadChatMessages(_chats[index]);
   }
 
+  /// Показ диалога авторизации в новом стиле
   void _showRegistrationDialog() {
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController passwordController = TextEditingController();
-    final TextEditingController nameController = TextEditingController();
-
-    showDialog(
+    showDialog<User>(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AlertDialog(
-          title: Text(
-            _isLoggedIn ? 'Войти' : 'Регистрация',
-            style: TextStyle(color: isDark ? Colors.white : Colors.black),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!_isLoggedIn)
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Имя',
-                      hintText: 'Введите ваше имя',
-                    ),
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'example@mail.com',
-                  ),
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Пароль',
-                    hintText: 'Введите пароль',
-                  ),
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                  obscureText: true,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (_isLoggedIn) {
-                  // Логика входа
-                  if (emailController.text.isNotEmpty &&
-                      passwordController.text.isNotEmpty) {
-                    setState(() {
-                      _username = emailController.text.split('@')[0];
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Вход выполнен успешно!')),
-                    );
-                    Navigator.pop(context);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Пожалуйста, заполните все поля'),
-                      ),
-                    );
-                  }
-                } else {
-                  // Логика регистрации
-                  if (nameController.text.isNotEmpty &&
-                      emailController.text.isNotEmpty &&
-                      passwordController.text.isNotEmpty) {
-                    setState(() {
-                      _username = nameController.text;
-                      _isLoggedIn = true;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Добро пожаловать, ${nameController.text}!',
-                        ),
-                      ),
-                    );
-                    Navigator.pop(context);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Пожалуйста, заполните все поля'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(_isLoggedIn ? 'Войти' : 'Зарегистрироваться'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isLoggedIn = !_isLoggedIn;
-                });
-              },
-              child: Text(
-                _isLoggedIn
-                    ? 'Нет аккаунта? Зарегистрироваться'
-                    : 'Уже есть аккаунт? Войти',
+        return AuthDialog(
+          onAuthSuccess: (User user) async {
+            setState(() {
+              _currentUser = user;
+              _isLoggedIn = true;
+              _username = user.name;
+            });
+            await _loadUserChats();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Добро пожаловать, ${user.name}!'),
+                backgroundColor: const Color(0xFF7C4DFF),
               ),
-            ),
-          ],
+            );
+          },
         );
       },
-    );
+    ).then((user) {
+      if (user != null && mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoggedIn = true;
+          _username = user.name;
+        });
+      }
+    });
   }
 
   void _logout() {
@@ -488,7 +517,20 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
-    if (text.isEmpty) return;
+    if (text.isEmpty || _chats.isEmpty) return;
+
+    // Сохраняем сообщение пользователя в SQLite
+    if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
+      final chatId = int.parse(currentChat.id!);
+      _db.addMessage(
+        chatId: chatId,
+        text: text,
+        isUser: true,
+      ).catchError((e) {
+        print('Ошибка сохранения сообщения: $e');
+        return null;
+      });
+    }
 
     setState(() {
       currentChat.messages.add(ChatMessage(text: text, isUser: true));
@@ -531,13 +573,26 @@ class _ChatScreenState extends State<ChatScreen> {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (mounted) {
+    if (mounted && _chats.isNotEmpty) {
       setState(() {
         currentChat.messages.add(
           ChatMessage(text: fullResponse, isUser: false, textColor: textColor),
         );
         _isLoading = false;
       });
+
+      // Сохраняем ответ бота в SQLite
+      if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
+        final chatId = int.parse(currentChat.id!);
+        _db.addMessage(
+          chatId: chatId,
+          text: fullResponse,
+          isUser: false,
+        ).catchError((e) {
+          print('Ошибка сохранения ответа: $e');
+          return null;
+        });
+      }
     }
 
     _controller.clear();
@@ -546,6 +601,27 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Показываем индикатор загрузки во время инициализации
+    if (_isInitializing && _chats.isEmpty) {
+      return SpaceBackground(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Загрузка Sportsense...',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       drawer: _buildDrawer(),
@@ -604,34 +680,41 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: ListView.builder(
-                  controller: ScrollController(),
-                  itemCount: currentChat.messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = currentChat.messages[index];
-                    return Align(
-                      alignment: msg.isUser
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.all(8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: msg.isUser
-                              ? Colors.blue
-                              : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                child: _chats.isEmpty
+                    ? const Center(
                         child: Text(
-                          msg.text,
-                          style: TextStyle(
-                            color: msg.textColor ?? Colors.white,
-                          ),
+                          'Загрузка чата...',
+                          style: TextStyle(color: Colors.white54),
                         ),
+                      )
+                    : ListView.builder(
+                        controller: ScrollController(),
+                        itemCount: currentChat.messages.length,
+                        itemBuilder: (context, index) {
+                          final msg = currentChat.messages[index];
+                          return Align(
+                            alignment: msg.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: msg.isUser
+                                    ? Colors.blue
+                                    : Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                msg.text,
+                                style: TextStyle(
+                                  color: msg.textColor ?? Colors.white,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(8),
