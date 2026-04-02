@@ -469,7 +469,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case 1:
-        return _MatchesTab(onOpenAssistant: widget.onOpenAssistant);
+        return _MatchesTabLive(onOpenAssistant: widget.onOpenAssistant);
       case 2:
         return _TournamentsTab(onOpenAssistant: widget.onOpenAssistant);
       case 3:
