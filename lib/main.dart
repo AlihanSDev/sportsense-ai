@@ -1747,17 +1747,20 @@ class _MatchesTabLive extends StatefulWidget {
 }
 
 class _MatchesTabLiveState extends State<_MatchesTabLive> {
-  late Future<List<MatchItem>> _matchesFuture;
+  static const String _allLeaguesKey = '__all__';
+
+  late Future<MatchFeed> _matchesFuture;
+  String _selectedLeagueId = _allLeaguesKey;
 
   @override
   void initState() {
     super.initState();
-    _matchesFuture = MatchesService().fetchMatches();
+    _matchesFuture = MatchesService().fetchMatchFeed();
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _matchesFuture = MatchesService().fetchMatches();
+      _matchesFuture = MatchesService().fetchMatchFeed();
     });
     await _matchesFuture;
   }
@@ -1797,7 +1800,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
           ),
         ),
         const SizedBox(height: 16),
-        FutureBuilder<List<MatchItem>>(
+        FutureBuilder<MatchFeed>(
           future: _matchesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1822,13 +1825,16 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               );
             }
 
-            final matches = snapshot.data ?? const [];
-            if (matches.isEmpty) {
+            final feed = snapshot.data;
+            final allMatches = feed?.matches ?? const <MatchItem>[];
+            final leagues = feed?.leagues ?? const <LeagueOption>[];
+
+            if (allMatches.isEmpty) {
               return _SectionPanel(
                 title: tr('Матчей не найдено', 'No matches found'),
                 subtitle: tr(
-                  'На сегодня и завтра в выбранных турнирах нет событий.',
-                  'No events were found for today and tomorrow in the selected competitions.',
+                  'На сегодня и завтра футбольных событий не найдено.',
+                  'No football events were found for today and tomorrow.',
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -1844,23 +1850,80 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               );
             }
 
+            final filteredMatches = _selectedLeagueId == _allLeaguesKey
+                ? allMatches
+                : allMatches
+                    .where((match) => match.leagueId == _selectedLeagueId)
+                    .toList();
+
+            final visibleMatches =
+                filteredMatches.isEmpty ? allMatches : filteredMatches;
+
             return Column(
-              children: matches
-                  .map(
-                    (match) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _LiveMatchCard(
-                        match: match,
-                        onPreview: () => widget.onOpenAssistant(
-                          draft: tr(
-                            'Сделай предматчевый разбор ${match.homeTeam} против ${match.awayTeam}',
-                            'Create a pre-match briefing for ${match.homeTeam} vs ${match.awayTeam}',
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (leagues.isNotEmpty) ...[
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _LeagueChip(
+                          label: tr('Все матчи', 'All matches'),
+                          selected: _selectedLeagueId == _allLeaguesKey,
+                          onTap: () {
+                            setState(() {
+                              _selectedLeagueId = _allLeaguesKey;
+                            });
+                          },
+                        ),
+                        ...leagues.map(
+                          (league) => _LeagueChip(
+                            label: league.name,
+                            selected: _selectedLeagueId == league.id,
+                            onTap: () {
+                              setState(() {
+                                _selectedLeagueId = league.id;
+                              });
+                            },
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (filteredMatches.isEmpty && _selectedLeagueId != _allLeaguesKey)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      tr(
+                        'В выбранной лиге матчей не найдено, показываем все доступные события.',
+                        'No matches were found in the selected league, showing all available events.',
+                      ),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.68),
                       ),
                     ),
                   )
-                  .toList(),
+                else
+                  const SizedBox.shrink(),
+                ...visibleMatches.map(
+                  (match) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _LiveMatchCard(
+                      match: match,
+                      onPreview: () => widget.onOpenAssistant(
+                        draft: tr(
+                          'Сделай предматчевый разбор ${match.homeTeam} против ${match.awayTeam}',
+                          'Create a pre-match briefing for ${match.homeTeam} vs ${match.awayTeam}',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -2136,6 +2199,53 @@ class _SignalRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LeagueChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LeagueChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white
+                : Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? Colors.white
+                  : Colors.white.withOpacity(0.08),
+            ),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? const Color(0xFF102A43)
+                  : Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }

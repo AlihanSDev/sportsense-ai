@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 class MatchItem {
   final String id;
+  final String leagueId;
   final String competition;
   final String homeTeam;
   final String awayTeam;
@@ -17,6 +18,7 @@ class MatchItem {
 
   const MatchItem({
     required this.id,
+    required this.leagueId,
     required this.competition,
     required this.homeTeam,
     required this.awayTeam,
@@ -36,6 +38,7 @@ class MatchItem {
 
     return MatchItem(
       id: (json['idEvent'] as String?) ?? '${json['strHomeTeam']}_${json['strAwayTeam']}_$date',
+      leagueId: (json['idLeague'] as String?) ?? 'unknown',
       competition: (json['strLeague'] as String?) ?? 'Football',
       homeTeam: (json['strHomeTeam'] as String?) ?? 'TBD',
       awayTeam: (json['strAwayTeam'] as String?) ?? 'TBD',
@@ -60,20 +63,35 @@ class MatchItem {
   }
 }
 
+class LeagueOption {
+  final String id;
+  final String name;
+
+  const LeagueOption({
+    required this.id,
+    required this.name,
+  });
+}
+
+class MatchFeed {
+  final List<MatchItem> matches;
+  final List<LeagueOption> leagues;
+
+  const MatchFeed({
+    required this.matches,
+    required this.leagues,
+  });
+}
+
 class MatchesService {
   static const _baseUrl = 'https://www.thesportsdb.com/api/v1/json/123';
-  static const _priorityLeagueIds = {
-    '4480',
-    '4481',
-    '4328',
-    '4335',
-  };
+  static const priorityLeagueIds = {'4480', '4481', '4328', '4335', '4332'};
 
   final http.Client _client;
 
   MatchesService({http.Client? client}) : _client = client ?? http.Client();
 
-  Future<List<MatchItem>> fetchMatches() async {
+  Future<MatchFeed> fetchMatchFeed() async {
     final now = DateTime.now();
     final dates = [now, now.add(const Duration(days: 1))];
     final events = <MatchItem>[];
@@ -90,7 +108,27 @@ class MatchesService {
 
     final sorted = unique.values.toList()
       ..sort((a, b) => a.kickoff.compareTo(b.kickoff));
-    return sorted.take(8).toList();
+
+    final leaguesMap = <String, LeagueOption>{};
+    for (final match in sorted) {
+      leaguesMap[match.leagueId] = LeagueOption(
+        id: match.leagueId,
+        name: match.competition,
+      );
+    }
+
+    final leagues = leaguesMap.values.toList()
+      ..sort((a, b) {
+        final aPriority = priorityLeagueIds.contains(a.id) ? 0 : 1;
+        final bPriority = priorityLeagueIds.contains(b.id) ? 0 : 1;
+        if (aPriority != bPriority) return aPriority.compareTo(bPriority);
+        return a.name.compareTo(b.name);
+      });
+
+    return MatchFeed(
+      matches: sorted,
+      leagues: leagues,
+    );
   }
 
   Future<List<MatchItem>> _fetchMatchesForDate(DateTime date) async {
@@ -109,7 +147,6 @@ class MatchesService {
 
     return events
         .whereType<Map<String, dynamic>>()
-        .where((event) => _priorityLeagueIds.contains(event['idLeague']))
         .map(MatchItem.fromJson)
         .toList();
   }
