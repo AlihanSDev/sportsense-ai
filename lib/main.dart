@@ -106,7 +106,7 @@ class SpaceApp extends StatelessWidget {
       themeMode: themeNotifier.mode,
       theme: ThemeData.light().copyWith(scaffoldBackgroundColor: Colors.white),
       darkTheme: ThemeData.dark(),
-      home: ChatScreen(
+      home: HomeScreen(
         vectorDbManager: vectorDbManager,
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
@@ -114,6 +114,322 @@ class SpaceApp extends StatelessWidget {
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: rankingsApiAvailable,
         qwenAvailable: qwenAvailable,
+      ),
+    );
+  }
+}
+
+// ======================= HOME SCREEN =======================
+class HomeScreen extends StatelessWidget {
+  final VectorDatabaseManager vectorDbManager;
+  final UserQueryVectorizerService queryVectorizer;
+  final UefaParser uefaParser;
+  final QwenApiService qwenApi;
+  final RankingsVectorSearch rankingsSearch;
+  final bool rankingsApiAvailable;
+  final bool qwenAvailable;
+
+  const HomeScreen({
+    super.key,
+    required this.vectorDbManager,
+    required this.queryVectorizer,
+    required this.uefaParser,
+    required this.qwenApi,
+    required this.rankingsSearch,
+    required this.rankingsApiAvailable,
+    required this.qwenAvailable,
+  });
+
+  void _openAssistant(BuildContext context, {String? draft}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          vectorDbManager: vectorDbManager,
+          queryVectorizer: queryVectorizer,
+          uefaParser: uefaParser,
+          qwenApi: qwenApi,
+          rankingsSearch: rankingsSearch,
+          rankingsApiAvailable: rankingsApiAvailable,
+          qwenAvailable: qwenAvailable,
+          initialDraft: draft,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusItems = [
+      _StatusItem(
+        label: 'UEFA rankings',
+        value: rankingsApiAvailable ? 'online' : 'offline',
+        active: rankingsApiAvailable,
+      ),
+      _StatusItem(
+        label: 'AI analysis',
+        value: qwenAvailable ? 'ready' : 'standby',
+        active: qwenAvailable,
+      ),
+      const _StatusItem(label: 'Mode', value: 'matchday', active: true),
+    ];
+
+    final quickActions = [
+      _QuickActionData(
+        title: 'Club Power Index',
+        subtitle: 'Track form, ranking shifts and season momentum.',
+        icon: Icons.stacked_line_chart_rounded,
+        colors: const [Color(0xFF1746A2), Color(0xFF5F9DF7)],
+        onTap: () => _openAssistant(
+          context,
+          draft: 'Покажи ключевые изменения в рейтингах UEFA за последний период',
+        ),
+      ),
+      _QuickActionData(
+        title: 'Team Comparison',
+        subtitle: 'Compare two clubs before a decisive fixture.',
+        icon: Icons.compare_arrows_rounded,
+        colors: const [Color(0xFF0F766E), Color(0xFF34D399)],
+        onTap: () => _openAssistant(
+          context,
+          draft: 'Сравни две команды по силе и текущему положению в рейтингах UEFA',
+        ),
+      ),
+      _QuickActionData(
+        title: 'Player Radar',
+        subtitle: 'Open a concise scouting-style briefing.',
+        icon: Icons.radar_rounded,
+        colors: const [Color(0xFF9A3412), Color(0xFFF59E0B)],
+        onTap: () => _openAssistant(
+          context,
+          draft: 'Сделай краткий аналитический профиль игрока и его сильных сторон',
+        ),
+      ),
+    ];
+
+    final insightCards = [
+      const _InsightCardData(
+        eyebrow: 'Focus',
+        title: 'Pre-match briefings',
+        description: 'Short matchday summaries for clubs, players and UEFA context.',
+      ),
+      const _InsightCardData(
+        eyebrow: 'Workflow',
+        title: 'Scenario planning',
+        description: 'Use prepared entry points instead of starting from an empty chat.',
+      ),
+      const _InsightCardData(
+        eyebrow: 'Benefit',
+        title: 'Faster decisions',
+        description: 'The product now feels closer to a sports intelligence hub than a bot.',
+      ),
+    ];
+
+    return Scaffold(
+      body: SpaceBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sportsense',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Football intelligence workspace for fans, analysts and matchday decisions.',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.72),
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.12),
+                        ),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.tune_rounded, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF102A43), Color(0xFF1E5F74), Color(0xFF3BA99C)],
+                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3BA99C).withOpacity(0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'MATCHDAY HUB',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Start from live football scenarios, not from an empty bot conversation.',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Explore rankings, compare teams and open AI analysis only when it helps the flow.',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          color: Colors.white.withOpacity(0.82),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _PrimaryButton(
+                            label: 'Open Analysis Center',
+                            icon: Icons.north_east_rounded,
+                            onTap: () => _openAssistant(context),
+                          ),
+                          _GhostButton(
+                            label: 'UEFA Snapshot',
+                            icon: Icons.insights_rounded,
+                            onTap: () => _openAssistant(
+                              context,
+                              draft: 'Дай краткую сводку по текущему состоянию рейтингов UEFA',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: statusItems
+                      .map((item) => _StatusPill(item: item))
+                      .toList(),
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  'Quick actions',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Entry points that feel like product features instead of chat prompts.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.68),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...quickActions.map(
+                  (action) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _QuickActionCard(action: action),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Inside Sportsense',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      ...insightCards.map(
+                        (card) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _InsightCard(card: card),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -128,6 +444,7 @@ class ChatScreen extends StatefulWidget {
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
+  final String? initialDraft;
 
   const ChatScreen({
     super.key,
@@ -138,6 +455,7 @@ class ChatScreen extends StatefulWidget {
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
+    this.initialDraft,
   });
 
   @override
@@ -166,10 +484,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
     currentChat.messages.add(
       ChatMessage(
-        text: 'Добро пожаловать в Sportsense! 🏆\n\nЗадайте вопрос о футбольных игроках, командах или рейтингах UEFA.',
+        text:
+            'Добро пожаловать в Analysis Center.\n\nВыберите готовый сценарий или задайте вопрос по клубам, игрокам и рейтингам UEFA.',
         isUser: false,
       ),
     );
+
+    if (widget.initialDraft != null && widget.initialDraft!.trim().isNotEmpty) {
+      _controller.text = widget.initialDraft!;
+    }
   }
 
   void _onUefaSearchChanged() {
@@ -532,12 +855,12 @@ class _ChatScreenState extends State<ChatScreen> {
               Column(
                 children: [
                   Text(
-                    'Sportsense',
-                    style: GoogleFonts.inter(
-                      fontSize: 42,
+                    'Analysis Center',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 36,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
-                      letterSpacing: 2,
+                      letterSpacing: -0.6,
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -549,12 +872,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                        colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'AI ASSISTANT',
+                      'ON-DEMAND ANALYSIS',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -566,6 +889,32 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _PromptChip(
+                        label: 'UEFA snapshot',
+                        onTap: () => _controller.text =
+                            'Дай краткую сводку по текущему состоянию рейтингов UEFA',
+                      ),
+                      _PromptChip(
+                        label: 'Compare clubs',
+                        onTap: () => _controller.text =
+                            'Сравни две команды по форме и силе в рейтинге UEFA',
+                      ),
+                      _PromptChip(
+                        label: 'Player brief',
+                        onTap: () => _controller.text =
+                            'Подготовь короткий аналитический профиль игрока',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               Expanded(
                 child: ListView.builder(
                   controller: ScrollController(),
@@ -604,7 +953,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: TextField(
                         controller: _controller,
                         decoration: const InputDecoration(
-                          hintText: "Введите сообщение",
+                          hintText: "Введите запрос для аналитики",
                           hintStyle: TextStyle(color: Colors.white54),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -655,6 +1004,343 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _PrimaryButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF102A43),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 18, color: const Color(0xFF102A43)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GhostButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _GhostButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.16)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 18, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusItem {
+  final String label;
+  final String value;
+  final bool active;
+
+  const _StatusItem({
+    required this.label,
+    required this.value,
+    required this.active,
+  });
+}
+
+class _StatusPill extends StatelessWidget {
+  final _StatusItem item;
+
+  const _StatusPill({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent =
+        item.active ? const Color(0xFF34D399) : const Color(0xFFF97316);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '${item.label} ',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.66),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                TextSpan(
+                  text: item.value,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActionData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Color> colors;
+  final VoidCallback onTap;
+
+  const _QuickActionData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.colors,
+    required this.onTap,
+  });
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final _QuickActionData action;
+
+  const _QuickActionCard({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                action.colors.first.withOpacity(0.92),
+                action.colors.last.withOpacity(0.86),
+              ],
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(action.icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.title,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      action.subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        height: 1.45,
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightCardData {
+  final String eyebrow;
+  final String title;
+  final String description;
+
+  const _InsightCardData({
+    required this.eyebrow,
+    required this.title,
+    required this.description,
+  });
+}
+
+class _InsightCard extends StatelessWidget {
+  final _InsightCardData card;
+
+  const _InsightCard({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            card.eyebrow.toUpperCase(),
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF7DD3FC),
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            card.title,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            card.description,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              height: 1.45,
+              color: Colors.white.withOpacity(0.74),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PromptChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _PromptChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: ActionChip(
+        onPressed: onTap,
+        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        backgroundColor: Colors.white.withOpacity(0.08),
+        label: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }
