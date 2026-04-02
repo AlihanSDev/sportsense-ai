@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 // ======================= СЕРВИСЫ =======================
 import 'services/uefa_search_manager.dart';
@@ -15,7 +13,6 @@ import 'services/uefa_rankings_api_service.dart';
 
 // ======================= ВИДЖЕТЫ =======================
 import 'widgets/space_background.dart';
-import 'widgets/chat_interface.dart';
 
 // ======================= КОНФИГУРАЦИЯ =======================
 const String DEVICE_ID = 'small_phone_cold_boost';
@@ -153,7 +150,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   List<ChatSession> _chats = [];
   int _currentChatIndex = 0;
-  bool _isLoading = false;
   bool _isLoggedIn = false;
   String _username = '';
 
@@ -170,33 +166,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     currentChat.messages.add(
       ChatMessage(
-        text:
-            'Здравствуйте! Я ваш ассистент Sportsense. Чем я могу вам помочь сегодня?',
+        text: 'Добро пожаловать в Sportsense! 🏆\n\nЗадайте вопрос о футбольных игроках, командах или рейтингах UEFA.',
         isUser: false,
       ),
     );
-
-    if (!widget.rankingsApiAvailable) {
-      currentChat.messages.add(
-        ChatMessage(
-          text:
-              '⚠️ UEFA Rankings API недоступен.\nЗапустите: python scripts/uefa_parser_api.py',
-          isUser: false,
-          textColor: const Color(0xFFB37B7B),
-        ),
-      );
-    }
-
-    if (!widget.qwenAvailable) {
-      currentChat.messages.add(
-        ChatMessage(
-          text:
-              '⚠️ Qwen API недоступен.\nЗапустите: python scripts/qwen_api.py',
-          isUser: false,
-          textColor: const Color(0xFFB37B7B),
-        ),
-      );
-    }
   }
 
   void _onUefaSearchChanged() {
@@ -492,19 +465,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       currentChat.messages.add(ChatMessage(text: text, isUser: true));
-      _isLoading = true;
     });
 
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
 
     String ragContext = '';
-    String? parsingStatus;
 
     if (relevance >= 2.0) {
-      parsingStatus = '🔄 RAG: Парсинг UEFA Rankings...';
       await widget.uefaParser.parseAndSaveRankings();
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
     }
 
     if (relevance >= 1.0) {
@@ -519,24 +489,19 @@ class _ChatScreenState extends State<ChatScreen> {
         maxTokens: 1024,
       );
       botResponse =
-          qwenResponse?.response ?? '❌ Ошибка при получении ответа от Qwen.';
+          qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
     } else {
-      botResponse = '**Тестовый режим**\n';
-      if (ragContext.isNotEmpty) botResponse += '$ragContext\n';
-      botResponse += 'Ваш запрос: "$text"';
+      botResponse = 'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
+      if (ragContext.isNotEmpty) botResponse += '\n\n$ragContext';
     }
 
-    String fullResponse =
-        (parsingStatus != null ? '$parsingStatus\n\n' : '') + botResponse;
-
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 400));
 
     if (mounted) {
       setState(() {
         currentChat.messages.add(
-          ChatMessage(text: fullResponse, isUser: false, textColor: textColor),
+          ChatMessage(text: botResponse, isUser: false, textColor: textColor),
         );
-        _isLoading = false;
       });
     }
 
@@ -545,8 +510,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       drawer: _buildDrawer(),
       body: SpaceBackground(
@@ -669,8 +632,6 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(title: const Text("Настройки")),
       body: ListView(
@@ -679,6 +640,19 @@ class SettingsScreen extends StatelessWidget {
             title: const Text("Тёмная тема"),
             value: themeNotifier.isDark,
             onChanged: (_) => themeNotifier.toggle(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text("О приложении"),
+            subtitle: const Text("Версия 1.0.0"),
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'Sportsense',
+                applicationVersion: '1.0.0',
+                applicationLegalese: '© 2026 Sportsense. Все права защищены.',
+              );
+            },
           ),
         ],
       ),
