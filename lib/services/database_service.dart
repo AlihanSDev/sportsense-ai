@@ -97,6 +97,12 @@ class DatabaseService implements DatabaseServiceInterface {
   Future<void> clearChatMessages(int chatId) => _delegate.clearChatMessages(chatId);
 
   @override
+  Future<bool> updateChatTitle({
+    required int chatId,
+    required String title,
+  }) => _delegate.updateChatTitle(chatId: chatId, title: title);
+
+  @override
   Future<void> close() => _delegate.close();
 }
 
@@ -286,6 +292,28 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
       print('Сообщения чата очищены: $chatId');
     } catch (e) {
       print('Ошибка очистки сообщений: $e');
+    }
+  }
+
+  @override
+  Future<bool> updateChatTitle({
+    required int chatId,
+    required String title,
+  }) async {
+    try {
+      final chat = _chats[chatId];
+      if (chat == null) {
+        print('Чат не найден: $chatId');
+        return false;
+      }
+      
+      final updatedChat = chat.copyWith(title: title);
+      _chats[chatId] = updatedChat;
+      print('Название чата обновлено: $chatId -> $title');
+      return true;
+    } catch (e) {
+      print('Ошибка обновления названия чата: $e');
+      return false;
     }
   }
 

@@ -668,8 +668,9 @@ class ApiControlPanel:
         
         def send_chat():
             try:
+                port = self.port_var.get()
                 response = requests.post(
-                    "http://127.0.0.1:5000/chat",
+                    f"http://127.0.0.1:{port}/chat",
                     json={'message': message, 'max_tokens': 256},
                     timeout=30
                 )
@@ -680,6 +681,21 @@ class ApiControlPanel:
                     tokens = data.get('tokens_used', 0)
                     self.root.after(0, lambda: self._log(f"Ответ бота: {bot_response}", "SUCCESS"))
                     self.root.after(0, lambda: self._log(f"Использовано токенов: {tokens}"))
+                    
+                    # Генерация названия чата
+                    try:
+                        title_response = requests.post(
+                            f"http://127.0.0.1:{port}/generate_title",
+                            json={'message': message},
+                            timeout=10
+                        )
+                        if title_response.status_code == 200:
+                            title_data = title_response.json()
+                            chat_title = title_data.get('title', '')
+                            if chat_title:
+                                self.root.after(0, lambda: self._log(f"📝 Название чата: '{chat_title}'", "SUCCESS"))
+                    except Exception as title_error:
+                        self.root.after(0, lambda: self._log(f"Не удалось сгенерировать название: {title_error}", "WARNING"))
                 else:
                     self.root.after(0, lambda: self._log(f"Ошибка чата: {response.status_code}", "ERROR"))
                     

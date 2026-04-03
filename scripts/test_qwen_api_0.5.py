@@ -187,8 +187,9 @@ def test_server_startup(model_available=False):
             response = requests.get(f"http://127.0.0.1:{port}/health", timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                if data.get('ok'):
-                    print_test("Health endpoint", "PASS")
+                # Проверяем поле 'loaded' (исправлено)
+                if data.get('loaded'):
+                    print_test("Health endpoint (loaded)", "PASS")
                     print_test("Сервер запущен", "PASS")
                     
                     # Тестируем generate endpoint
@@ -218,6 +219,26 @@ def test_server_startup(model_available=False):
                             print_test("Chat endpoint", "FAIL", f"Status: {chat_response.status_code}")
                     except Exception as e:
                         print_test("Chat endpoint", "FAIL", str(e))
+                    
+                    # Тестируем generate_title endpoint
+                    try:
+                        title_response = requests.post(
+                            f"http://127.0.0.1:{port}/generate_title",
+                            json={'message': 'Расскажи про футбол в Лиге Чемпионов'},
+                            timeout=30
+                        )
+                        if title_response.status_code == 200:
+                            title_data = title_response.json()
+                            title = title_data.get('title', '')
+                            if title:
+                                print_test("Generate title endpoint", "PASS")
+                                print_test(f"Сгенерировано название: '{title}'", "INFO")
+                            else:
+                                print_test("Generate title endpoint", "FAIL", "Пустое название")
+                        else:
+                            print_test("Generate title endpoint", "FAIL", f"Status: {title_response.status_code}")
+                    except Exception as e:
+                        print_test("Generate title endpoint", "FAIL", str(e))
                     
                     return process
                 else:

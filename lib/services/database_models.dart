@@ -192,6 +192,11 @@ abstract class DatabaseServiceInterface {
   
   Future<void> clearChatMessages(int chatId);
   
+  Future<bool> updateChatTitle({
+    required int chatId,
+    required String title,
+  });
+  
   Future<void> close();
 }
 

@@ -170,7 +170,7 @@ if __name__ == '__main__':
         sys.exit(1)
     
     # Запуск сервера
-    print(f"\n🌐 Запуск сервера на http://{HOST}:{PORT}")
+    print(f"\n[WEB] Запуск сервера на http://{HOST}:{PORT}")
     print("Endpoints:")
     print("  GET  /health  - проверка доступности")
     print("  POST /chat    - запрос к чат-боту")

@@ -951,7 +951,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final chatId = int.parse(currentChat.id!);
         _db.addMessage(
           chatId: chatId,
-          text: fullResponse,
+          text: botResponse,
           isUser: false,
         ).catchError((e) {
           print('Ошибка сохранения ответа: $e');

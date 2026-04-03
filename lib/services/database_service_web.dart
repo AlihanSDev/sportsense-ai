@@ -200,6 +200,28 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   }
 
   @override
+  Future<bool> updateChatTitle({
+    required int chatId,
+    required String title,
+  }) async {
+    try {
+      final chat = _chats[chatId];
+      if (chat == null) {
+        print('Чат не найден: $chatId');
+        return false;
+      }
+      
+      final updatedChat = chat.copyWith(title: title);
+      _chats[chatId] = updatedChat;
+      print('Название чата обновлено: $chatId -> $title');
+      return true;
+    } catch (e) {
+      print('Ошибка обновления названия чата: $e');
+      return false;
+    }
+  }
+
+  @override
   Future<void> close() async {
     // В веб-реализации ничего не делаем
   }

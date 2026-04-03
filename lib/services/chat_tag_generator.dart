@@ -69,6 +69,31 @@ class ChatTagGenerator {
   /// Генерация названия с помощью LLM API
   Future<String?> _generateWithLLM(String userMessage) async {
     try {
+      // Сначала пробуем новый endpoint /generate_title
+      final titleResponse = await http.post(
+        Uri.parse('$apiBaseUrl/generate_title'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'message': userMessage,
+        }),
+      ).timeout(const Duration(seconds: 5));
+
+      if (titleResponse.statusCode == 200) {
+        final data = jsonDecode(titleResponse.body);
+        String title = data['title']?.toString().trim() ?? '';
+        
+        // Очищаем ответ
+        title = title.replaceAll(RegExp(r'^["\s]+|["\s]+$'), '');
+        if (title.length > 50) {
+          title = title.substring(0, 47) + '...';
+        }
+        
+        if (title.isNotEmpty) {
+          return '💬 $title';
+        }
+      }
+      
+      // Fallback: используем старый метод через /generate
       final response = await http.post(
         Uri.parse('$apiBaseUrl/generate'),
         headers: {'Content-Type': 'application/json'},
