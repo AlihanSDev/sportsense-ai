@@ -160,6 +160,9 @@ class VectorDatabaseManager {
     return _isQdrantAvailable;
   }
 
+  /// Получение локальной векторной базы данных.
+  LocalVectorDatabase get localDb => _localDb;
+
   /// Текущий режим работы.
   String get currentMode {
     if (useLocalOnly) return 'LOCAL_ONLY';
