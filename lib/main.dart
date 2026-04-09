@@ -107,8 +107,116 @@ class SpaceApp extends StatelessWidget {
       title: 'Sportsense',
       debugShowCheckedModeBanner: false,
       themeMode: themeNotifier.mode,
-      theme: ThemeData.light().copyWith(scaffoldBackgroundColor: Colors.white),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeData.light().copyWith(
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        primaryColor: const Color(0xFF4A90E2),
+        colorScheme: ColorScheme.light(
+          primary: const Color(0xFF4A90E2),
+          secondary: const Color(0xFF5BA3F5),
+          surface: Colors.white,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: const Color(0xFF1A1A2E),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF1A1A2E),
+          elevation: 0,
+          iconTheme: IconThemeData(color: Color(0xFF1A1A2E)),
+          titleTextStyle: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 3,
+          shadowColor: Color(0x1A000000),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFFE0E4E8)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFFE0E4E8)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFF4A90E2), width: 2),
+          ),
+          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFF1A1A2E)),
+          bodyMedium: TextStyle(color: Color(0xFF1A1A2E)),
+          titleMedium: TextStyle(color: Color(0xFF1A1A2E)),
+        ),
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        dividerColor: const Color(0xFFE0E4E8),
+        listTileTheme: const ListTileThemeData(
+          iconColor: Color(0xFF1A1A2E),
+          textColor: Color(0xFF1A1A2E),
+          selectedTileColor: Color(0x144A90E2),
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
+      ),
+      darkTheme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0B0B12),
+        colorScheme: ColorScheme.dark(
+          primary: const Color(0xFF4A90E2),
+          secondary: const Color(0xFF5BA3F5),
+          surface: const Color(0xFF1A1A26),
+          onSurface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0B0B12),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        cardTheme: const CardThemeData(
+          color: Color(0xFF1A1A26),
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF1A1A26),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFF2A2A36)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFF2A2A36)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: Color(0xFF4A90E2), width: 2),
+          ),
+          hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Color(0xFF0B0B12),
+          surfaceTintColor: Color(0xFF0B0B12),
+        ),
+      ),
       home: ChatScreen(
         vectorDbManager: vectorDbManager,
         queryVectorizer: queryVectorizer,
@@ -363,13 +471,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Drawer(
-      backgroundColor: isDark ? Colors.black : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0B0B12) : Colors.white,
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey[900] : Colors.blue[50],
+              color: isDark ? const Color(0xFF14141F) : const Color(0xFFEBF4FF),
             ),
             child: Column(
               children: [
@@ -377,9 +485,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: Colors.blue,
+                    color: const Color(0xFF4A90E2),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(
+                      color: isDark ? Colors.white : Colors.white,
+                      width: 2,
+                    ),
                   ),
                   child: const Center(
                     child: Icon(
@@ -545,120 +656,184 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AnimatedBuilder(
+      animation: themeNotifier,
+      builder: (context, _) {
+        final isDark = themeNotifier.isDark;
 
-    return Scaffold(
-      drawer: _buildDrawer(),
-      body: SpaceBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              Row(
+        return Scaffold(
+          drawer: _buildDrawer(),
+          body: SpaceBackground(
+            child: SafeArea(
+              child: Column(
                 children: [
-                  Builder(
-                    builder: (context) => IconButton(
-                      icon: Icon(Icons.menu, color: Colors.white),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Логотип (белый цвет)
-              Column(
-                children: [
-                  Text(
-                    'Sportsense',
-                    style: GoogleFonts.inter(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Builder(
+                        builder: (context) => IconButton(
+                          icon: Icon(
+                            Icons.menu,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1A1A2E),
+                          ),
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'AI ASSISTANT',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  controller: ScrollController(),
-                  itemCount: currentChat.messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = currentChat.messages[index];
-                    return Align(
-                      alignment: msg.isUser
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.all(8),
-                        padding: const EdgeInsets.all(12),
+                  const SizedBox(height: 10),
+                  // Логотип
+                  Column(
+                    children: [
+                      Text(
+                        'Sportsense',
+                        style: GoogleFonts.inter(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1A1A2E),
+                          letterSpacing: 2,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: msg.isUser
-                              ? Colors.blue
-                              : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          msg.text,
-                          style: TextStyle(
-                            color: msg.textColor ?? Colors.white,
+                          'AI ASSISTANT',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: "Введите сообщение",
-                          hintStyle: TextStyle(color: Colors.white54),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                        onSubmitted: (_) => _sendMessage(_controller.text),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: ScrollController(),
+                      itemCount: currentChat.messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = currentChat.messages[index];
+                        return Align(
+                          alignment: msg.isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: msg.isUser
+                                  ? const Color(0xFF4A90E2)
+                                  : (isDark
+                                        ? const Color(0xFF1A1A26)
+                                        : Colors.white),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              msg.text,
+                              style: TextStyle(
+                                color:
+                                    msg.textColor ??
+                                    (msg.isUser
+                                        ? Colors.white
+                                        : (isDark
+                                              ? Colors.white
+                                              : const Color(0xFF1A1A2E))),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1A1A26) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              decoration: const InputDecoration(
+                                hintText: "Введите сообщение",
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1A1A2E),
+                              ),
+                              onSubmitted: (_) =>
+                                  _sendMessage(_controller.text),
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4A90E2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.send,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () => _sendMessage(_controller.text),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () => _sendMessage(_controller.text),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -675,10 +850,48 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Настройки")),
       body: ListView(
         children: [
-          SwitchListTile(
-            title: const Text("Тёмная тема"),
-            value: themeNotifier.isDark,
-            onChanged: (_) => themeNotifier.toggle(),
+          ListTile(
+            leading: Icon(
+              isDark ? Icons.dark_mode : Icons.light_mode,
+              color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            ),
+            title: Text(
+              isDark ? "Тёмная тема" : "Светлая тема",
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              isDark ? "Сейчас: тёмная" : "Сейчас: светлая",
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+              ),
+            ),
+            trailing: Switch(
+              value: themeNotifier.isDark,
+              onChanged: (_) => themeNotifier.toggle(),
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            leading: Icon(
+              Icons.info_outline,
+              color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+            ),
+            title: Text(
+              "Sportsense AI Assistant",
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              "Версия 1.0.0",
+              style: TextStyle(
+                color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+              ),
+            ),
           ),
         ],
       ),

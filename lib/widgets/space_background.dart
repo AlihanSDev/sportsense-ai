@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../main.dart' show themeNotifier;
 
 /// Спокойный фон с мягкими облаками и мерцающими звёздами
 class SpaceBackground extends StatefulWidget {
@@ -40,43 +41,59 @@ class _SpaceBackgroundState extends State<SpaceBackground>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDark;
+
     return Stack(
       children: [
-        // Мягкий градиент фона
+        // Градиент фона
         Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF0B0B12), // глубокий тёмно-синий
-                Color(0xFF14141F), // мягкий фиолетово-серый
-                Color(0xFF1A1A26), // тёплый тёмно-серый
-              ],
-            ),
+          decoration: BoxDecoration(
+            gradient: isDark
+                ? const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF0B0B12),
+                      Color(0xFF14141F),
+                      Color(0xFF1A1A26),
+                    ],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFE8EEF5),
+                      Color(0xFFF0F4F8),
+                      Color(0xFFF5F7FA),
+                    ],
+                  ),
           ),
         ),
 
-        // Мерцающие звёзды
-        AnimatedBuilder(
-          animation: _starController,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: StarFieldPainter(
-                stars: _stars,
-                animation: _starController.value,
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
+        // Мерцающие звёзды (только для тёмной темы)
+        if (isDark)
+          AnimatedBuilder(
+            animation: _starController,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: StarFieldPainter(
+                  stars: _stars,
+                  animation: _starController.value,
+                ),
+                size: Size.infinite,
+              );
+            },
+          ),
 
         // Мягкие облака
         AnimatedBuilder(
           animation: _cloudController,
           builder: (context, child) {
             return CustomPaint(
-              painter: CloudPainter(animation: _cloudController.value),
+              painter: CloudPainter(
+                animation: _cloudController.value,
+                isDark: isDark,
+              ),
               size: Size.infinite,
             );
           },
@@ -155,60 +172,109 @@ class StarFieldPainter extends CustomPainter {
 /// Рисовальщик мягких облаков
 class CloudPainter extends CustomPainter {
   final double animation;
+  final bool isDark;
 
-  CloudPainter({required this.animation});
+  CloudPainter({required this.animation, this.isDark = true});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
 
-    // Мягкое фиолетовое облако (слева)
-    final purpleGradient = RadialGradient(
-      center: Alignment(
-        -0.3 + math.sin(animation * 0.2) * 0.1,
-        -0.2 + math.cos(animation * 0.15) * 0.1,
-      ),
-      radius: 0.9,
-      colors: [const Color(0xFF8B7DD8).withOpacity(0.08), Colors.transparent],
-    );
+    if (isDark) {
+      // Мягкое фиолетовое облако (слева)
+      final purpleGradient = RadialGradient(
+        center: Alignment(
+          -0.3 + math.sin(animation * 0.2) * 0.1,
+          -0.2 + math.cos(animation * 0.15) * 0.1,
+        ),
+        radius: 0.9,
+        colors: [const Color(0xFF8B7DD8).withOpacity(0.08), Colors.transparent],
+      );
 
-    // Мягкое синее облако (справа)
-    final blueGradient = RadialGradient(
-      center: Alignment(
-        0.4 + math.cos(animation * 0.18) * 0.15,
-        0.3 + math.sin(animation * 0.12) * 0.1,
-      ),
-      radius: 0.8,
-      colors: [const Color(0xFF7A9BCB).withOpacity(0.07), Colors.transparent],
-    );
+      // Мягкое синее облако (справа)
+      final blueGradient = RadialGradient(
+        center: Alignment(
+          0.4 + math.cos(animation * 0.18) * 0.15,
+          0.3 + math.sin(animation * 0.12) * 0.1,
+        ),
+        radius: 0.8,
+        colors: [const Color(0xFF7A9BCB).withOpacity(0.07), Colors.transparent],
+      );
 
-    // Тёплое облако (снизу)
-    final warmGradient = RadialGradient(
-      center: Alignment(
-        -0.1 + math.sin(animation * 0.1) * 0.2,
-        0.5 + math.cos(animation * 0.1) * 0.2,
-      ),
-      radius: 1.0,
-      colors: [const Color(0xFFB89E97).withOpacity(0.05), Colors.transparent],
-    );
+      // Тёплое облако (снизу)
+      final warmGradient = RadialGradient(
+        center: Alignment(
+          -0.1 + math.sin(animation * 0.1) * 0.2,
+          0.5 + math.cos(animation * 0.1) * 0.2,
+        ),
+        radius: 1.0,
+        colors: [const Color(0xFFB89E97).withOpacity(0.05), Colors.transparent],
+      );
 
-    // Лёгкое серое облако (центр)
-    final grayGradient = RadialGradient(
-      center: Alignment(
-        math.cos(animation * 0.25) * 0.2,
-        math.sin(animation * 0.2) * 0.2,
-      ),
-      radius: 0.7,
-      colors: [const Color(0xFFA0A0B0).withOpacity(0.04), Colors.transparent],
-    );
+      // Лёгкое серое облако (центр)
+      final grayGradient = RadialGradient(
+        center: Alignment(
+          math.cos(animation * 0.25) * 0.2,
+          math.sin(animation * 0.2) * 0.2,
+        ),
+        radius: 0.7,
+        colors: [const Color(0xFFA0A0B0).withOpacity(0.04), Colors.transparent],
+      );
 
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    canvas.drawRect(rect, Paint()..shader = purpleGradient.createShader(rect));
-    canvas.drawRect(rect, Paint()..shader = blueGradient.createShader(rect));
-    canvas.drawRect(rect, Paint()..shader = warmGradient.createShader(rect));
-    canvas.drawRect(rect, Paint()..shader = grayGradient.createShader(rect));
+      canvas.drawRect(
+        rect,
+        Paint()..shader = purpleGradient.createShader(rect),
+      );
+      canvas.drawRect(rect, Paint()..shader = blueGradient.createShader(rect));
+      canvas.drawRect(rect, Paint()..shader = warmGradient.createShader(rect));
+      canvas.drawRect(rect, Paint()..shader = grayGradient.createShader(rect));
+    } else {
+      // Светлые облака для белой темы
+      final lightBlueGradient = RadialGradient(
+        center: Alignment(
+          -0.2 + math.sin(animation * 0.2) * 0.1,
+          -0.3 + math.cos(animation * 0.15) * 0.1,
+        ),
+        radius: 0.9,
+        colors: [const Color(0xFFB3D4F0).withOpacity(0.3), Colors.transparent],
+      );
+
+      final lightPurpleGradient = RadialGradient(
+        center: Alignment(
+          0.5 + math.cos(animation * 0.18) * 0.15,
+          0.2 + math.sin(animation * 0.12) * 0.1,
+        ),
+        radius: 0.8,
+        colors: [const Color(0xFFD4C4F0).withOpacity(0.25), Colors.transparent],
+      );
+
+      final lightWarmGradient = RadialGradient(
+        center: Alignment(
+          -0.1 + math.sin(animation * 0.1) * 0.2,
+          0.6 + math.cos(animation * 0.1) * 0.2,
+        ),
+        radius: 1.0,
+        colors: [const Color(0xFFF0E0D4).withOpacity(0.2), Colors.transparent],
+      );
+
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+      canvas.drawRect(
+        rect,
+        Paint()..shader = lightBlueGradient.createShader(rect),
+      );
+      canvas.drawRect(
+        rect,
+        Paint()..shader = lightPurpleGradient.createShader(rect),
+      );
+      canvas.drawRect(
+        rect,
+        Paint()..shader = lightWarmGradient.createShader(rect),
+      );
+    }
   }
 
   @override
