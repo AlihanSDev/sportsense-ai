@@ -137,32 +137,26 @@ def chat():
             web_context = search_web(message)
         if web_context:
             prompt = (
-                f"<<system>>\n"
-                f"Ты Sportsense AI. Ты нашёл следующую информацию в интернете:\n\n"
+                f"<|system|>\n"
+                f"Ты Sportsense AI. Вот информация из интернета по запросу пользователя:\n\n"
                 f"{web_context}\n\n"
-                f"ИНСТРУКЦИЯ:\n"
-                f"1. Ответь на вопрос пользователя, используя ТОЛЬКО информацию из источников выше.\n"
-                f"2. В конце ответа обязательно укажи источники в формате:\n"
-                f"   ---\n"
-                f"   Источники:\n"
-                f"   [1] Заголовок — URL\n"
-                f"   [2] Заголовок — URL\n"
-                f"3. Если в источниках нет ответа — скажи честно.\n"
-                f"<<user>>\n{message}\n"
-                f"<<assistant>>\n"
+                f"ОТВЕЧАЙ НА РУССКОМ ЯЗЫКЕ. Используй ТОЛЬКО эти источники. "
+                f"В конце ответа укажи ссылки.\n"
+                f"<|user|>\n{message}\n"
+                f"<|assistant|>\n"
             )
         else:
             prompt = (
-                f"<<system>>\n"
+                f"<|system|>\n"
                 f"Ты полезный ассистент Sportsense AI, специализирующийся на спортивной аналитике.\n"
-                f"<<user>>\n{message}\n"
-                f"<<assistant>>\n"
+                f"<|user|>\n{message}\n"
+                f"<|assistant|>\n"
             )
         output = llm(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["<<assistant>>", "<<user>>"],
+            stop=["<|user|>", "<|system|>"],
             echo=False,
         )
         response_text = output["choices"][0]["text"].strip()
@@ -225,13 +219,13 @@ def generate_title():
     message = data["message"]
     try:
         prompt = (
-            f"<<system>>\n"
+            f"<|system|>\n"
             f"Сгенерируй короткое название чата (макс 5 слов) для этого сообщения. "
             f"Ответь только названием, без кавычек и объяснений.\n"
-            f"<<user>>\n{message}\n"
-            f"<<assistant>>\n"
+            f"<|user|>\n{message}\n"
+            f"<|assistant|>\n"
         )
-        output = llm(prompt, max_tokens=30, temperature=0.7, stop=["<<assistant>>"], echo=False)
+        output = llm(prompt, max_tokens=30, temperature=0.7, stop=["<|user|>"], echo=False)
         title = output["choices"][0]["text"].strip().replace('"', '').strip()
         return jsonify({"title": title})
     except Exception as e:

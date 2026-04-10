@@ -102,6 +102,9 @@ User question: $message
           sources: sourcesList,
         );
         print('✅ Qwen response received (${result.tokensUsed} tokens, ${sourcesList.length} sources)');
+        for (final s in sourcesList) {
+          print('   📎 Source: ${s.title} -> ${s.url}');
+        }
         return result;
       } else {
         print('❌ API error: ${response.statusCode}');

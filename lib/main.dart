@@ -1023,6 +1023,7 @@ class _ChatScreenState extends State<ChatScreen> {
       'найди онлайн', 'погугли', 'google it', 'search online',
     ];
     final shouldSearch = _useSearch || searchTriggers.any((t) => text.toLowerCase().contains(t));
+    print('🔍 Web search: shouldSearch=$shouldSearch (button=$_useSearch, triggers matched)');
 
     String ragContext = '';
 
