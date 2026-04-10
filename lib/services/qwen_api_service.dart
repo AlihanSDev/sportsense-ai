@@ -86,12 +86,22 @@ User question: $message
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        final sourcesList = <SearchSource>[];
+        if (data['sources'] != null) {
+          for (final s in data['sources'] as List) {
+            sourcesList.add(SearchSource(
+              title: s['title'] as String? ?? '',
+              url: s['url'] as String? ?? '',
+            ));
+          }
+        }
         final result = QwenChatResponse(
           response: data['response'] as String,
           model: data['model'] as String,
           tokensUsed: data['tokens_used'] as int,
+          sources: sourcesList,
         );
-        print('✅ Qwen response received (${result.tokensUsed} tokens)');
+        print('✅ Qwen response received (${result.tokensUsed} tokens, ${sourcesList.length} sources)');
         return result;
       } else {
         print('❌ API error: ${response.statusCode}');
@@ -138,21 +148,30 @@ User question: $message
   }
 }
 
+/// Источник из поиска в интернете
+class SearchSource {
+  final String title;
+  final String url;
+  SearchSource({required this.title, required this.url});
+}
+
 /// Ответ от Qwen API на запрос чата.
 class QwenChatResponse {
   final String response;
   final String model;
   final int tokensUsed;
+  final List<SearchSource> sources;
 
   QwenChatResponse({
     required this.response,
     required this.model,
     required this.tokensUsed,
+    this.sources = const [],
   });
 
   @override
   String toString() {
-    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
+    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, sources: ${sources.length}, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
   }
 }
 

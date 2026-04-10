@@ -83,7 +83,13 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final Color? textColor;
-  ChatMessage({required this.text, required this.isUser, this.textColor});
+  final List<SearchSource> sources;
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.textColor,
+    this.sources = const [],
+  });
 }
 
 // ======================= MAIN =======================
@@ -1048,6 +1054,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     String botResponse;
+    List<SearchSource> botSources = [];
     if (widget.qwenAvailable) {
       final qwenResponse = await widget.qwenApi.chat(
         text,
@@ -1057,6 +1064,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       if (_stopRequested) { _cancelGeneration(); return; }
       botResponse = qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
+      botSources = qwenResponse?.sources ?? [];
     } else {
       // Имитация постепенной генерации
       botResponse = 'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
@@ -1091,6 +1099,7 @@ class _ChatScreenState extends State<ChatScreen> {
             text: botResponse.substring(0, i),
             isUser: false,
             textColor: textColor,
+            sources: botSources,
           );
         });
       }
@@ -1239,18 +1248,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           if (msg.text.isEmpty && !msg.isUser) {
                             return _useSearch ? const _SearchIndicator() : const _TypingIndicator();
                           }
-                          return Align(
-                            alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.all(8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
-                            ),
-                          );
+                          return _MessageBubble(msg: msg);
                         },
                       ),
               ),
@@ -1414,6 +1412,79 @@ class _ChatBottomDock extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final ChatMessage msg;
+  const _MessageBubble({required this.msg});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
+            if (msg.sources.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.link_rounded, size: 14, color: Color(0xFF4A90E2)),
+                  const SizedBox(width: 4),
+                  Text(
+                    tr('Источники', 'Sources'),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4A90E2)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ...msg.sources.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: InkWell(
+                  onTap: () {
+                    // TODO: open URL
+                    print('Source URL: ${s.url}');
+                  },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '• ',
+                        style: const TextStyle(color: Color(0xFF4A90E2), fontSize: 12),
+                      ),
+                      Expanded(
+                        child: Text(
+                          s.title.isNotEmpty ? s.title : s.url,
+                          style: const TextStyle(
+                            color: Color(0xFF4A90E2),
+                            fontSize: 11,
+                            decoration: TextDecoration.underline,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

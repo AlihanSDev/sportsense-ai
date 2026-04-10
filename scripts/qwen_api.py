@@ -138,10 +138,16 @@ def chat():
         if web_context:
             prompt = (
                 f"<<system>>\n"
-                f"Ты Sportsense AI. Используй информацию из интернета для ответа.\n\n"
-                f"Контекст из интернета:\n{web_context}\n\n"
-                f"Ответь на вопрос пользователя, опираясь на эти данные. "
-                f"Если источники противоречат друг другу — укажи это.\n"
+                f"Ты Sportsense AI. Ты нашёл следующую информацию в интернете:\n\n"
+                f"{web_context}\n\n"
+                f"ИНСТРУКЦИЯ:\n"
+                f"1. Ответь на вопрос пользователя, используя ТОЛЬКО информацию из источников выше.\n"
+                f"2. В конце ответа обязательно укажи источники в формате:\n"
+                f"   ---\n"
+                f"   Источники:\n"
+                f"   [1] Заголовок — URL\n"
+                f"   [2] Заголовок — URL\n"
+                f"3. Если в источниках нет ответа — скажи честно.\n"
                 f"<<user>>\n{message}\n"
                 f"<<assistant>>\n"
             )
@@ -161,12 +167,29 @@ def chat():
         )
         response_text = output["choices"][0]["text"].strip()
         print(f"[RESPONSE] {response_text}")
+
+        # Парсим источники для frontend
+        sources = []
+        if web_context:
+            for part in web_context.split("\n\n"):
+                if part.startswith("[Источник"):
+                    lines = part.strip().split("\n")
+                    title = ""
+                    url = ""
+                    for line in lines:
+                        if line.startswith("Заголовок:"):
+                            title = line.replace("Заголовок:", "").strip()
+                        elif line.startswith("URL:"):
+                            url = line.replace("URL:", "").strip()
+                    if title or url:
+                        sources.append({"title": title, "url": url})
+
         return jsonify({
             "response": response_text,
             "model": "Qwen2.5-1.5B-Instruct",
             "tokens_used": output["usage"]["total_tokens"],
             "search_used": use_search and web_context != "",
-            "search_results": len(web_context.split("[Source")) - 1 if web_context else 0,
+            "sources": sources,
         })
     except Exception as e:
         print(f"[ERROR] Ошибка генерации: {e}")
