@@ -2063,25 +2063,18 @@ class _BottomDock extends StatelessWidget {
                 GestureDetector(
                   onTap: onOpenChat,
                   child: Container(
-                    width: 44,
-                    height: 44,
+                    width: 40,
+                    height: 40,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                      color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12),
+                        width: 1,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF7C4DFF).withOpacity(0.3),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
                     ),
-                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.sports_soccer_rounded, color: Colors.white54, size: 22),
                   ),
                 ),
                 // Турниры
