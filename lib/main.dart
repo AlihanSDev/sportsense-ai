@@ -992,6 +992,9 @@ class _ChatScreenState extends State<ChatScreen> {
       currentChat.messages.add(ChatMessage(text: text, isUser: true));
     });
 
+    // Очищаем поле ввода сразу, не ждём ответа
+    _controller.clear();
+
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
 
@@ -1042,8 +1045,6 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     }
-
-    _controller.clear();
   }
 
   @override
