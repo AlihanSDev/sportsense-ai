@@ -1345,7 +1345,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                   icon: const Icon(Icons.send_rounded, color: Colors.white),
                                   onPressed: () => _sendMessage(_controller.text),
                                 ),
-                          ),
                         ),
                       ],
                     ),
