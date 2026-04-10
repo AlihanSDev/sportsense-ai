@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../services/theme_notifier.dart';
 
 /// Адаптивный фон: тёмный космический / светлый молочный / Sportsense (тёмный + соты)
 class SpaceBackground extends StatefulWidget {
@@ -47,91 +48,97 @@ class _SpaceBackgroundState extends State<SpaceBackground>
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    final isLight = brightness == Brightness.light;
-    // Sportsense = тёмный фон + соты (геометрические детали светлой темы)
-    final isSportsense = !isLight;
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, _) {
+        final theme = themeNotifier.theme;
+        final isLight = theme == AppTheme.light;
+        final isSportsense = theme == AppTheme.sportsense;
+        // isDark = чистая тёмная тема (без сот)
+        final isDark = theme == AppTheme.dark;
 
-    return Stack(
-      children: [
-        // Фон: тёмный космический или светлый молочный
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: isLight
-                  ? const [
-                      Color(0xFFF8F9FA), // молочный
-                      Color(0xFFE8F0FF), // светло-синий
-                      Color(0xFFD6E6FF), // голубой
-                    ]
-                  : const [
-                      Color(0xFF0B0B12), // глубокий тёмно-синий
-                      Color(0xFF14141F), // мягкий фиолетово-серый
-                      Color(0xFF1A1A26), // тёплый тёмно-серый
-                    ],
+        return Stack(
+          children: [
+            // Фон: тёмный космический или светлый молочный
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isLight
+                      ? const [
+                          Color(0xFFF8F9FA), // молочный
+                          Color(0xFFE8F0FF), // светло-синий
+                          Color(0xFFD6E6FF), // голубой
+                        ]
+                      : const [
+                          Color(0xFF0B0B12), // глубокий тёмно-синий
+                          Color(0xFF14141F), // мягкий фиолетово-серый
+                          Color(0xFF1A1A26), // тёплый тёмно-серый
+                        ],
+                ),
+              ),
             ),
-          ),
-        ),
 
-        // Звёзды: всегда на тёмном фоне
-        if (!isLight)
-          AnimatedBuilder(
-            animation: _starController,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: StarFieldPainter(
-                  stars: _stars,
-                  animation: _starController.value,
-                ),
-                size: Size.infinite,
-              );
-            },
-          ),
+            // Звёзды: тёмная ИЛИ Sportsense
+            if (!isLight)
+              AnimatedBuilder(
+                animation: _starController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: StarFieldPainter(
+                      stars: _stars,
+                      animation: _starController.value,
+                    ),
+                    size: Size.infinite,
+                  );
+                },
+              ),
 
-        // Мягкие облака: только для чистой тёмной темы (без сот)
-        if (!isLight && !isSportsense)
-          AnimatedBuilder(
-            animation: _cloudController,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: CloudPainter(animation: _cloudController.value),
-                size: Size.infinite,
-              );
-            },
-          ),
+            // Мягкие облака: ТОЛЬКО чистая тёмная тема (без сот)
+            if (isDark)
+              AnimatedBuilder(
+                animation: _cloudController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: CloudPainter(animation: _cloudController.value),
+                    size: Size.infinite,
+                  );
+                },
+              ),
 
-        // Соты: светлая тема ИЛИ Sportsense (тёмный + геометрия)
-        if (!isLight || isSportsense)
-          AnimatedBuilder(
-            animation: _honeycombController,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: HoneycombPainter(
-                  animation: _honeycombController.value,
-                  isDark: !isLight,
-                ),
-                size: Size.infinite,
-              );
-            },
-          ),
+            // Соты: ТОЛЬКО Sportsense или светлая
+            if (isSportsense || isLight)
+              AnimatedBuilder(
+                animation: _honeycombController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: HoneycombPainter(
+                      animation: _honeycombController.value,
+                      isDark: isSportsense,
+                    ),
+                    size: Size.infinite,
+                  );
+                },
+              ),
 
-        // Лёгкие туманности для светлой темы
-        if (isLight)
-          AnimatedBuilder(
-            animation: _cloudController,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: LightNebulaPainter(animation: _cloudController.value),
-                size: Size.infinite,
-              );
-            },
-          ),
+            // Лёгкие туманности для светлой темы
+            if (isLight)
+              AnimatedBuilder(
+                animation: _cloudController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: LightNebulaPainter(animation: _cloudController.value),
+                    size: Size.infinite,
+                  );
+                },
+              ),
 
-        // Контент
-        widget.child,
-      ],
+            // Контент
+            widget.child,
+          ],
+        );
+      },
     );
   }
 }

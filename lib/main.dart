@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 // ======================= СЕРВИСЫ =======================
+import 'services/theme_notifier.dart';
 import 'services/uefa_search_manager.dart';
 import 'services/vector_db_manager.dart';
 import 'services/user_query_vectorizer.dart';
@@ -34,34 +35,7 @@ const String QDRANT_HOST = 'localhost';
 const int QDRANT_PORT = 6333;
 
 // ======================= THEME =======================
-enum AppTheme { dark, light, sportsense }
-
-class ThemeNotifier extends ChangeNotifier {
-  AppTheme _theme = AppTheme.dark;
-  AppTheme get theme => _theme;
-  bool get isDark => _theme != AppTheme.light;
-  bool get isSportsense => _theme == AppTheme.sportsense;
-  ThemeMode get mode => _theme == AppTheme.light ? ThemeMode.light : ThemeMode.dark;
-
-  void setTheme(AppTheme theme) {
-    if (_theme == theme) return;
-    _theme = theme;
-    notifyListeners();
-  }
-
-  void toggle() {
-    if (_theme == AppTheme.dark) {
-      _theme = AppTheme.light;
-    } else if (_theme == AppTheme.light) {
-      _theme = AppTheme.sportsense;
-    } else {
-      _theme = AppTheme.dark;
-    }
-    notifyListeners();
-  }
-}
-
-final themeNotifier = ThemeNotifier();
+// ThemeNotifier и AppTheme импортированы из services/theme_notifier.dart
 
 enum AppLanguage { ru, en }
 
@@ -1882,17 +1856,18 @@ class _LanguageToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: languageNotifier,
+      listenable: Listenable.merge([languageNotifier, themeNotifier]),
       builder: (context, _) {
+        final isDark = themeNotifier.isDark;
         return Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
+            color: isDark
                 ? Colors.white.withOpacity(0.08)
                 : Colors.black.withOpacity(0.06),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Theme.of(context).brightness == Brightness.dark
+              color: isDark
                   ? Colors.white.withOpacity(0.12)
                   : Colors.black.withOpacity(0.1),
             ),
@@ -1931,7 +1906,7 @@ class _LanguageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = themeNotifier.isDark;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -1979,61 +1954,66 @@ class _BottomDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.black.withOpacity(0.4)
-            : Colors.white.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
-        ),
-      ),
-      child: Row(
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final selected = index == selectedIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? (isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF4A90E2).withOpacity(0.15))
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: selected
-                          ? (isDark ? Colors.white : const Color(0xFF4A90E2))
-                          : (isDark ? Colors.white.withOpacity(0.55) : Colors.black38),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.label,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected
-                            ? (isDark ? Colors.white : const Color(0xFF4A90E2))
-                            : (isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, _) {
+        final isDark = themeNotifier.isDark;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.black.withOpacity(0.4)
+                : Colors.white.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
             ),
-          );
-        }),
-      ),
+          ),
+          child: Row(
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final selected = index == selectedIndex;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onSelect(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? (isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF4A90E2).withOpacity(0.15))
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.icon,
+                          color: selected
+                              ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                              : (isDark ? Colors.white.withOpacity(0.55) : Colors.black38),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          item.label,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected
+                                ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                                : (isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }
