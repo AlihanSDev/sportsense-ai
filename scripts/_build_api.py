@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""Builds qwen_api.py with HF Router + LangChain search integration."""
+import os
+
+content = r'''#!/usr/bin/env python3
 """
 Sportsense AI API Server.
 - Local Qwen 1.5B (llama-cpp-python)
@@ -259,3 +263,9 @@ if __name__ == "__main__":
     print("=" * 60)
     os.environ["FLASK_ENV"] = "production"
     app.run(host=HOST, port=PORT, debug=False)
+'''
+
+path = os.path.join(os.path.dirname(__file__), "qwen_api.py")
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+print(f"Written {len(content)} bytes to {path}")

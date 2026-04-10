@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Сервис для работы с HuggingFace Inference API (OpenAI-совместимый endpoint).
-/// Использует router.huggingface.co/v1 для доступа к моделям Mistral, Qwen и др.
+/// Сервис для работы с HuggingFace Inference API.
+/// При use_search=true — запрос идёт через Python сервер (/hf_chat)
+/// который выполняет LangChain поиск и передаёт контекст модели.
+/// При use_search=false — прямой запрос к HF Router.
 class HuggingFaceApiService {
   static const _baseUrl = 'https://router.huggingface.co/v1';
+  static const _localApiUrl = 'http://127.0.0.1:5000';
   final http.Client _client;
 
   String? _apiKey;
@@ -15,7 +18,6 @@ class HuggingFaceApiService {
 
   HuggingFaceApiService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Инициализация из .env файла.
   Future<bool> initialize() async {
     try {
       _apiKey = dotenv.env['HF_TOKEN']?.trim();
@@ -35,7 +37,6 @@ class HuggingFaceApiService {
     }
   }
 
-  /// Проверка доступности API.
   Future<bool> isAvailable() async {
     if (_apiKey == null) return false;
     try {
@@ -53,7 +54,6 @@ class HuggingFaceApiService {
     }
   }
 
-  /// Отправка запроса к чат-боту через HuggingFace.
   Future<HFChatResponse?> chat(String message, {
     int? maxTokens,
     double? temperature,
@@ -67,84 +67,106 @@ class HuggingFaceApiService {
     }
 
     try {
-      // Текущая дата для модели
-      final now = DateTime.now();
-      final dateStr = '${now.day}.${now.month}.${now.year}';
-
-      // Формируем системный промпт
-      String systemPrompt;
-      if (useSearch && webContext != null && webContext.isNotEmpty) {
-        systemPrompt = (
-          'Ты — Sportsense AI, умный спортивный ассистент. Сейчас $dateStr.\n\n'
-          'Ниже приведена АКТУАЛЬНАЯ информация из интернета по запросу пользователя:\n\n'
-          '=== НАЧАЛО ДАННЫХ ИЗ ИНТЕРНЕТА ===\n'
-          '$webContext\n'
-          '=== КОНЕЦ ДАННЫХ ИЗ ИНТЕРНЕТА ===\n\n'
-          'ПРАВИЛА:\n'
-          '1. ОТВЕЧАЙ НА РУССКОМ ЯЗЫКЕ.\n'
-          '2. Используй ТОЛЬКО данные из блока выше. НЕ используй свои старые знания.\n'
-          '3. НЕ говори что не знаешь — информация УЖЕ предоставлена выше.\n'
-          '4. НЕ упоминай дату своего обучения. Сейчас $dateStr.\n'
-          '5. Перескажи информацию своими словами, опираясь на источники.\n'
-          '6. В конце ответа укажи источники:\n'
-          '   ---\n'
-          '   Источники:\n'
-          '   [1] Заголовок — URL'
-        );
-      } else if (context != null && context.isNotEmpty) {
-        systemPrompt = (
-          'Ты — Sportsense AI, умный спортивный ассистент. Сейчас $dateStr.\n'
-          'Используй данные ниже для ответа:\n\n$context'
-        );
+      if (useSearch) {
+        return await _chatWithSearch(message, maxTokens, temperature);
       } else {
-        systemPrompt = (
-          'Ты — Sportsense AI, умный спортивный ассистент. Сейчас $dateStr.\n'
-          'Ты специализируешься на спортивной аналитике, данных UEFA, футболе.\n'
-          'Отвечай на русском языке. Будь полезен и точен.'
-        );
+        return await _chatDirect(message, maxTokens, temperature, context);
       }
-
-      print('[HF] 🤖 Запрос к $_model (search=$useSearch)...');
-
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer $_apiKey',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'model': _model,
-          'messages': [
-            {'role': 'system', 'content': systemPrompt},
-            {'role': 'user', 'content': message},
-          ],
-          'max_tokens': maxTokens ?? _maxTokens,
-          'temperature': temperature ?? _temperature,
-        }),
-      ).timeout(const Duration(seconds: 120));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        final choice = data['choices'] as List?;
-        if (choice != null && choice.isNotEmpty) {
-          final messageData = choice[0]['message'] as Map<String, dynamic>;
-          final text = messageData['content'] as String;
-          final usage = data['usage'] as Map<String, dynamic>?;
-          print('[HF] ✅ Ответ получен (${usage?['total_tokens'] ?? '?'} tokens)');
-          return HFChatResponse(
-            response: text,
-            model: _model ?? 'unknown',
-            tokensUsed: usage?['total_tokens'] as int? ?? 0,
-          );
-        }
-      } else {
-        print('[HF] ❌ Ошибка ${response.statusCode}: ${response.body}');
-      }
-      return null;
     } catch (e) {
       print('[HF] ❌ Ошибка запроса: $e');
       return null;
     }
+  }
+
+  /// Запрос через Python сервер с LangChain поиском
+  Future<HFChatResponse?> _chatWithSearch(
+    String message, int? maxTokens, double? temperature,
+  ) async {
+    print('[HF] 🌐 Запрос через LangChain search...');
+    final response = await _client.post(
+      Uri.parse('$_localApiUrl/hf_chat'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'message': message,
+        'use_search': true,
+        'max_tokens': maxTokens ?? _maxTokens,
+        'temperature': temperature ?? _temperature,
+      }),
+    ).timeout(const Duration(seconds: 120));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final result = HFChatResponse(
+        response: data['response'] as String,
+        model: data['model'] as String? ?? _model ?? 'unknown',
+        tokensUsed: data['tokens_used'] as int? ?? 0,
+      );
+      print('[HF] ✅ Ответ через LangChain (${result.tokensUsed} tokens)');
+      return result;
+    } else {
+      print('[HF] ❌ Ошибка ${response.statusCode}: ${response.body}');
+      return null;
+    }
+  }
+
+  /// Прямой запрос к HF Router
+  Future<HFChatResponse?> _chatDirect(
+    String message, int? maxTokens, double? temperature, String? context,
+  ) async {
+    final now = DateTime.now();
+    final dateStr = '${now.day}.${now.month}.${now.year}';
+
+    String systemPrompt;
+    if (context != null && context.isNotEmpty) {
+      systemPrompt = (
+        'Ты — Sportsense AI. Сейчас $dateStr.\n'
+        'Используй данные для ответа:\n\n$context'
+      );
+    } else {
+      systemPrompt = (
+        'Ты — Sportsense AI. Сейчас $dateStr.\n'
+        'Специализация: спортивная аналитика, UEFA, футбол.\n'
+        'Отвечай на русском языке.'
+      );
+    }
+
+    print('[HF] 🤖 Прямой запрос к $_model...');
+
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/chat/completions'),
+      headers: {
+        'Authorization': 'Bearer $_apiKey',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'model': _model,
+        'messages': [
+          {'role': 'system', 'content': systemPrompt},
+          {'role': 'user', 'content': message},
+        ],
+        'max_tokens': maxTokens ?? _maxTokens,
+        'temperature': temperature ?? _temperature,
+      }),
+    ).timeout(const Duration(seconds: 120));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final choice = data['choices'] as List?;
+      if (choice != null && choice.isNotEmpty) {
+        final messageData = choice[0]['message'] as Map<String, dynamic>;
+        final text = messageData['content'] as String;
+        final usage = data['usage'] as Map<String, dynamic>?;
+        print('[HF] ✅ Ответ (${usage?['total_tokens'] ?? '?'} tokens)');
+        return HFChatResponse(
+          response: text,
+          model: _model ?? 'unknown',
+          tokensUsed: usage?['total_tokens'] as int? ?? 0,
+        );
+      }
+    } else {
+      print('[HF] ❌ Ошибка ${response.statusCode}: ${response.body}');
+    }
+    return null;
   }
 
   void dispose() {
@@ -152,20 +174,9 @@ class HuggingFaceApiService {
   }
 }
 
-/// Ответ от HuggingFace API.
 class HFChatResponse {
   final String response;
   final String model;
   final int tokensUsed;
-
-  HFChatResponse({
-    required this.response,
-    required this.model,
-    required this.tokensUsed,
-  });
-
-  @override
-  String toString() {
-    return 'HFChatResponse(model: $model, tokens: $tokensUsed, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
-  }
+  HFChatResponse({required this.response, required this.model, required this.tokensUsed});
 }

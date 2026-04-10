@@ -1087,25 +1087,29 @@ class _ChatScreenState extends State<ChatScreen> {
     String botResponse;
     List<SearchSource> botSources = [];
 
-    // Приоритет: HuggingFace (Mistral 7B) > локальная Qwen > заглушка
+    // Приоритет: HuggingFace (Qwen 7B через LangChain) > локальная Qwen > заглушка
     if (widget.hfAvailable && shouldSearch) {
-      // HuggingFace с поиском — передаём webContext
-      String? webContext;
-      if (shouldSearch) {
-        // Триггерные слова для поиска — используем тот же запрос
-        webContext = await _fetchWebContext(text);
-      }
+      // HuggingFace через Python сервер с LangChain поиском
+      final hfResponse = await widget.hfApi.chat(
+        text,
+        maxTokens: 1024,
+        temperature: 0.7,
+        useSearch: true,
+      );
+      if (_stopRequested) { _cancelGeneration(); return; }
+      botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
+      print('[HF] Ответ: ${botResponse.substring(0, botResponse.length.clamp(0, 100))}...');
+    } else if (widget.hfAvailable) {
+      // HuggingFace без поиска — прямой запрос
       final hfResponse = await widget.hfApi.chat(
         text,
         maxTokens: 1024,
         temperature: 0.7,
         context: ragContext.isNotEmpty ? ragContext : null,
-        useSearch: shouldSearch,
-        webContext: webContext,
+        useSearch: false,
       );
       if (_stopRequested) { _cancelGeneration(); return; }
       botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
-      print('[HF] Ответ: ${botResponse.substring(0, botResponse.length.clamp(0, 100))}...');
     } else if (widget.qwenAvailable) {
       final qwenResponse = await widget.qwenApi.chat(
         text,
@@ -1185,29 +1189,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _isGenerating = false;
       _stopRequested = false;
     });
-  }
-
-  /// Получает контекст из интернета через Python API сервер (/search endpoint)
-  Future<String?> _fetchWebContext(String query) async {
-    try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/search'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'query': query}),
-      ).timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final ctx = data['web_context'] as String?;
-        if (ctx != null && ctx.isNotEmpty) {
-          print('🔍 Web context получен: ${ctx.length} символов');
-        }
-        return ctx;
-      }
-    } catch (e) {
-      print('⚠️ Ошибка получения web контекста: $e');
-    }
-    return null;
   }
 
   @override
