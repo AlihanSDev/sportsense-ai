@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 // ======================= СЕРВИСЫ =======================
 import 'services/theme_notifier.dart';
@@ -10,6 +12,7 @@ import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
 import 'services/uefa_parser.dart';
 import 'services/qwen_api_service.dart';
+import 'services/huggingface_api_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_rankings_api_service.dart';
 import 'services/database_service.dart';
@@ -114,9 +117,11 @@ void main() async {
           queryVectorizer: appState['queryVectorizer'],
           uefaParser: appState['uefaParser'],
           qwenApi: appState['qwenApi'],
+          hfApi: appState['hfApi'],
           rankingsSearch: appState['rankingsSearch'],
           rankingsApiAvailable: appState['rankingsApiAvailable'],
           qwenAvailable: appState['qwenAvailable'],
+          hfAvailable: appState['hfAvailable'],
         );
       },
     ),
@@ -129,9 +134,11 @@ class SpaceApp extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
+  final bool hfAvailable;
 
   const SpaceApp({
     super.key,
@@ -139,9 +146,11 @@ class SpaceApp extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
+    required this.hfAvailable,
   });
 
   @override
@@ -171,9 +180,11 @@ class SpaceApp extends StatelessWidget {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
+        hfApi: hfApi,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: rankingsApiAvailable,
         qwenAvailable: qwenAvailable,
+        hfAvailable: hfAvailable,
       ),
     );
   }
@@ -185,9 +196,11 @@ class HomeScreen extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
+  final bool hfAvailable;
 
   const HomeScreen({
     super.key,
@@ -195,9 +208,11 @@ class HomeScreen extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
+    required this.hfAvailable,
   });
 
   void _openAssistant(BuildContext context, {String? draft}) {
@@ -209,9 +224,11 @@ class HomeScreen extends StatelessWidget {
           queryVectorizer: queryVectorizer,
           uefaParser: uefaParser,
           qwenApi: qwenApi,
+          hfApi: hfApi,
           rankingsSearch: rankingsSearch,
           rankingsApiAvailable: rankingsApiAvailable,
           qwenAvailable: qwenAvailable,
+          hfAvailable: hfAvailable,
           initialDraft: draft,
         ),
       ),
@@ -531,9 +548,11 @@ class ChatScreen extends StatefulWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
+  final bool hfAvailable;
   final String? initialDraft;
 
   const ChatScreen({
@@ -542,9 +561,11 @@ class ChatScreen extends StatefulWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
+    required this.hfAvailable,
     this.initialDraft,
   });
 
@@ -1056,7 +1077,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
     String botResponse;
     List<SearchSource> botSources = [];
-    if (widget.qwenAvailable) {
+
+    // Приоритет: HuggingFace (Mistral 7B) > локальная Qwen > заглушка
+    if (widget.hfAvailable && shouldSearch) {
+      // HuggingFace с поиском — передаём webContext
+      String? webContext;
+      if (shouldSearch) {
+        // Триггерные слова для поиска — используем тот же запрос
+        webContext = await _fetchWebContext(text);
+      }
+      final hfResponse = await widget.hfApi.chat(
+        text,
+        maxTokens: 1024,
+        temperature: 0.7,
+        context: ragContext.isNotEmpty ? ragContext : null,
+        useSearch: shouldSearch,
+        webContext: webContext,
+      );
+      if (_stopRequested) { _cancelGeneration(); return; }
+      botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
+      print('[HF] Ответ: ${botResponse.substring(0, botResponse.length.clamp(0, 100))}...');
+    } else if (widget.qwenAvailable) {
       final qwenResponse = await widget.qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
@@ -1135,6 +1176,29 @@ class _ChatScreenState extends State<ChatScreen> {
       _isGenerating = false;
       _stopRequested = false;
     });
+  }
+
+  /// Получает контекст из интернета через Python API сервер
+  Future<String?> _fetchWebContext(String query) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:5000/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'message': query,
+          'use_search': true,
+          'max_tokens': 10,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['web_context'] as String?;
+      }
+    } catch (e) {
+      print('⚠️ Ошибка получения web контекста: $e');
+    }
+    return null;
   }
 
   @override
@@ -3834,14 +3898,24 @@ Future<Map<String, dynamic>?> _initializeAppState() async {
     final qwenApi = QwenApiService(baseUrl: QWEN_API_URL);
     final qwenAvailable = await qwenApi.isAvailable();
 
+    final hfApi = HuggingFaceApiService();
+    final hfAvailable = await hfApi.initialize();
+    if (hfAvailable) {
+      print('✅ HuggingFace API (Mistral 7B) доступен');
+    } else {
+      print('⚠️ HuggingFace API недоступен — проверьте HF_TOKEN в .env');
+    }
+
     return {
       'vectorDbManager': vectorDbManager,
       'queryVectorizer': queryVectorizer,
       'uefaParser': uefaParser,
       'qwenApi': qwenApi,
+      'hfApi': hfApi,
       'rankingsSearch': rankingsSearch,
       'rankingsApiAvailable': rankingsApiAvailable,
       'qwenAvailable': qwenAvailable,
+      'hfAvailable': hfAvailable,
     };
   } catch (e, stackTrace) {
     print('❌ Ошибка инициализации: $e\n$stackTrace');
