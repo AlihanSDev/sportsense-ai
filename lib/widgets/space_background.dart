@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Адаптивный фон: тёмный космический (оригинал) / светлый молочный с сотами
+/// Адаптивный фон: тёмный космический / светлый молочный / Sportsense (тёмный + соты)
 class SpaceBackground extends StatefulWidget {
   final Widget child;
 
@@ -47,7 +47,10 @@ class _SpaceBackgroundState extends State<SpaceBackground>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brightness = Theme.of(context).brightness;
+    final isLight = brightness == Brightness.light;
+    // Sportsense = тёмный фон + соты (геометрические детали светлой темы)
+    final isSportsense = !isLight;
 
     return Stack(
       children: [
@@ -57,23 +60,23 @@ class _SpaceBackgroundState extends State<SpaceBackground>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: isDark
+              colors: isLight
                   ? const [
-                      Color(0xFF0B0B12), // глубокий тёмно-синий
-                      Color(0xFF14141F), // мягкий фиолетово-серый
-                      Color(0xFF1A1A26), // тёплый тёмно-серый
-                    ]
-                  : const [
                       Color(0xFFF8F9FA), // молочный
                       Color(0xFFE8F0FF), // светло-синий
                       Color(0xFFD6E6FF), // голубой
+                    ]
+                  : const [
+                      Color(0xFF0B0B12), // глубокий тёмно-синий
+                      Color(0xFF14141F), // мягкий фиолетово-серый
+                      Color(0xFF1A1A26), // тёплый тёмно-серый
                     ],
             ),
           ),
         ),
 
-        // Тёмная тема: звёзды + мягкие облака (оригинал)
-        if (isDark) ...[
+        // Звёзды: всегда на тёмном фоне
+        if (!isLight)
           AnimatedBuilder(
             animation: _starController,
             builder: (context, child) {
@@ -86,6 +89,9 @@ class _SpaceBackgroundState extends State<SpaceBackground>
               );
             },
           ),
+
+        // Мягкие облака: только для чистой тёмной темы (без сот)
+        if (!isLight && !isSportsense)
           AnimatedBuilder(
             animation: _cloudController,
             builder: (context, child) {
@@ -95,21 +101,24 @@ class _SpaceBackgroundState extends State<SpaceBackground>
               );
             },
           ),
-        ],
 
-        // Светлая тема: соты + мягкие туманности
-        if (!isDark) ...[
+        // Соты: светлая тема ИЛИ Sportsense (тёмный + геометрия)
+        if (!isLight || isSportsense)
           AnimatedBuilder(
             animation: _honeycombController,
             builder: (context, child) {
               return CustomPaint(
                 painter: HoneycombPainter(
                   animation: _honeycombController.value,
+                  isDark: !isLight,
                 ),
                 size: Size.infinite,
               );
             },
           ),
+
+        // Лёгкие туманности для светлой темы
+        if (isLight)
           AnimatedBuilder(
             animation: _cloudController,
             builder: (context, child) {
@@ -119,7 +128,6 @@ class _SpaceBackgroundState extends State<SpaceBackground>
               );
             },
           ),
-        ],
 
         // Контент
         widget.child,
@@ -251,15 +259,18 @@ class CloudPainter extends CustomPainter {
 
 class HoneycombPainter extends CustomPainter {
   final double animation;
+  final bool isDark;
 
-  HoneycombPainter({required this.animation});
+  HoneycombPainter({required this.animation, this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = const Color(0xFF4A90E2).withOpacity(0.12);
+      ..strokeWidth = isDark ? 1.2 : 1.5
+      ..color = isDark
+          ? const Color(0xFFA7C7FF).withOpacity(0.2)
+          : const Color(0xFF4A90E2).withOpacity(0.12);
 
     final hexSize = 40.0;
     final hexHeight = hexSize * math.sqrt(3);
@@ -284,8 +295,12 @@ class HoneycombPainter extends CustomPainter {
         }
         path.close();
 
-        final alpha = (0.05 + 0.08 * math.sin((x + y) * 0.02 + animation * 2)).clamp(0.0, 0.15);
-        paint.color = Color(0xFF4A90E2).withOpacity(alpha);
+        final alpha = isDark
+            ? (0.08 + 0.15 * math.sin((x + y) * 0.02 + animation * 2)).clamp(0.0, 0.3)
+            : (0.05 + 0.08 * math.sin((x + y) * 0.02 + animation * 2)).clamp(0.0, 0.15);
+        paint.color = isDark
+            ? Color(0xFFA7C7FF).withOpacity(alpha)
+            : Color(0xFF4A90E2).withOpacity(alpha);
 
         canvas.drawPath(path, paint);
       }

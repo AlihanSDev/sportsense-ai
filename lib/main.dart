@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
 
 // ======================= СЕРВИСЫ =======================
 import 'services/uefa_search_manager.dart';
@@ -33,13 +34,29 @@ const String QDRANT_HOST = 'localhost';
 const int QDRANT_PORT = 6333;
 
 // ======================= THEME =======================
+enum AppTheme { dark, light, sportsense }
+
 class ThemeNotifier extends ChangeNotifier {
-  bool _isDark = true;
-  bool get isDark => _isDark;
-  ThemeMode get mode => _isDark ? ThemeMode.dark : ThemeMode.light;
+  AppTheme _theme = AppTheme.sportsense;
+  AppTheme get theme => _theme;
+  bool get isDark => _theme != AppTheme.light;
+  bool get isSportsense => _theme == AppTheme.sportsense;
+  ThemeMode get mode => _theme == AppTheme.light ? ThemeMode.light : ThemeMode.dark;
+
+  void setTheme(AppTheme theme) {
+    if (_theme == theme) return;
+    _theme = theme;
+    notifyListeners();
+  }
 
   void toggle() {
-    _isDark = !_isDark;
+    if (_theme == AppTheme.dark) {
+      _theme = AppTheme.light;
+    } else if (_theme == AppTheme.light) {
+      _theme = AppTheme.sportsense;
+    } else {
+      _theme = AppTheme.dark;
+    }
     notifyListeners();
   }
 }
@@ -1245,12 +1262,61 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('Настройки', 'Settings'))),
       body: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          SwitchListTile(
-            title: Text(tr('Тёмная тема', 'Dark theme')),
-            value: themeNotifier.isDark,
-            onChanged: (_) => themeNotifier.toggle(),
+          Text(
+            tr('Тема оформления', 'Appearance'),
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : const Color(0xFF1A1A2E),
+            ),
           ),
+          const SizedBox(height: 16),
+          ListenableBuilder(
+            listenable: themeNotifier,
+            builder: (context, _) {
+              return Column(
+                children: [
+                  _ThemeCard(
+                    theme: AppTheme.dark,
+                    current: themeNotifier.theme,
+                    title: tr('Тёмная', 'Dark'),
+                    subtitle: tr('Классический космос со звёздами', 'Classic space with stars'),
+                    gradient: const [Color(0xFF0B0B12), Color(0xFF1A1A26)],
+                    accent: const Color(0xFF8B7DD8),
+                    onTap: () => themeNotifier.setTheme(AppTheme.dark),
+                  ),
+                  const SizedBox(height: 12),
+                  _ThemeCard(
+                    theme: AppTheme.sportsense,
+                    current: themeNotifier.theme,
+                    title: 'Sportsense',
+                    subtitle: tr('Тёмный с геометрическими деталями', 'Dark with geometric details'),
+                    gradient: const [Color(0xFF0B0B12), Color(0xFF14141F)],
+                    accent: const Color(0xFFA7C7FF),
+                    showHoneycomb: true,
+                    onTap: () => themeNotifier.setTheme(AppTheme.sportsense),
+                  ),
+                  const SizedBox(height: 12),
+                  _ThemeCard(
+                    theme: AppTheme.light,
+                    current: themeNotifier.theme,
+                    title: tr('Светлая', 'Light'),
+                    subtitle: tr('Молочный фон с голубыми сотами', 'Milk-white with blue honeycombs'),
+                    gradient: const [Color(0xFFF8F9FA), Color(0xFFD6E6FF)],
+                    accent: const Color(0xFF4A90E2),
+                    onTap: () => themeNotifier.setTheme(AppTheme.light),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(tr('О приложении', 'About')),
@@ -1268,6 +1334,209 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ThemeCard extends StatelessWidget {
+  final AppTheme theme;
+  final AppTheme current;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final Color accent;
+  final bool showHoneycomb;
+  final VoidCallback onTap;
+
+  const _ThemeCard({
+    required this.theme,
+    required this.current,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.accent,
+    this.showHoneycomb = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = theme == current;
+    final isDarkTheme = theme != AppTheme.light;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradient,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? accent : Colors.transparent,
+            width: isSelected ? 2.5 : 0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withOpacity(isSelected ? 0.3 : 0.08),
+              blurRadius: isSelected ? 16 : 8,
+              spreadRadius: isSelected ? 2 : 0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Превью темы
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradient,
+                ),
+                border: Border.all(
+                  color: isDarkTheme
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.06),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    // Мини-звёзды для тёмных тем
+                    if (isDarkTheme)
+                      ...List.generate(8, (i) {
+                        final rng = (i * 137.5) % 1;
+                        return Positioned(
+                          left: rng * 44 + 4,
+                          top: ((i * 97.3) % 1) * 44 + 4,
+                          child: Container(
+                            width: 1.5,
+                            height: 1.5,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.4 + (i % 3) * 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        );
+                      }),
+                    // Мини-соты для Sportsense/светлой
+                    if (showHoneycomb || !isDarkTheme)
+                      Center(
+                        child: CustomPaint(
+                          size: const Size(30, 30),
+                          painter: _MiniHoneycomb(color: accent),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Текст
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDarkTheme ? Colors.white : const Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDarkTheme
+                          ? Colors.white.withOpacity(0.6)
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Галочка
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isSelected ? accent : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? accent : (isDarkTheme ? Colors.white30 : Colors.black26),
+                  width: 1.5,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniHoneycomb extends CustomPainter {
+  final Color color;
+  _MiniHoneycomb({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color.withOpacity(0.5);
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = 8.0;
+
+    for (int ring = 0; ring < 2; ring++) {
+      final r = radius * (ring + 1);
+      for (int i = 0; i < 6; i++) {
+        final angle = math.pi / 3 * i;
+        final cx = center.dx + r * 0.6 * math.cos(angle);
+        final cy = center.dy + r * 0.6 * math.sin(angle);
+
+        final path = Path();
+        for (int j = 0; j < 6; j++) {
+          final a = math.pi / 3 * j;
+          final hx = cx + 5 * math.cos(a);
+          final hy = cy + 5 * math.sin(a);
+          if (j == 0) {
+            path.moveTo(hx, hy);
+          } else {
+            path.lineTo(hx, hy);
+          }
+        }
+        path.close();
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniHoneycomb oldDelegate) => false;
 }
 
 class _PrimaryButton extends StatelessWidget {
