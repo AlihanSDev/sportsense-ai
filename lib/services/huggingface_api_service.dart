@@ -19,7 +19,7 @@ class HuggingFaceApiService {
   Future<bool> initialize() async {
     try {
       _apiKey = dotenv.env['HF_TOKEN']?.trim();
-      _model = dotenv.env['HF_MODEL']?.trim() ?? 'mistralai/Mistral-7B-Instruct-v0.2';
+      _model = dotenv.env['HF_MODEL']?.trim() ?? 'Qwen/Qwen2.5-7B-Instruct';
       _maxTokens = int.tryParse(dotenv.env['HF_MAX_TOKENS'] ?? '1024') ?? 1024;
       _temperature = double.tryParse(dotenv.env['HF_TEMPERATURE'] ?? '0.7') ?? 0.7;
 
