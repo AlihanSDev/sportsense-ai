@@ -502,6 +502,36 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
             runSpacing: 12,
             children: statusItems.map((item) => _StatusPill(item: item)).toList(),
           ),
+          const SizedBox(height: 24),
+          // Круглая кнопка AI
+          GestureDetector(
+            onTap: () => widget.onOpenAssistant(),
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C4DFF).withOpacity(0.35),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF4A90E2).withOpacity(0.2),
+                    blurRadius: 30,
+                    spreadRadius: 8,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 32),
+            ),
+          ),
         ],
       ),
     );
@@ -1198,19 +1228,16 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
-      // Нижняя панель навигации с круглой кнопкой чата
+      // Нижняя панель навигации
       extendBody: true,
-      bottomNavigationBar: _ChatBottomNav(onOpenChat: () {
-        // Уже в чате — ничего не делаем или скроллим вниз
-      }),
+      bottomNavigationBar: _ChatBottomDock(),
     );
   }
 }
 
-/// Нижняя панель навигации для экрана чата (как на главном экране + круглая кнопка)
-class _ChatBottomNav extends StatelessWidget {
-  final VoidCallback onOpenChat;
-  const _ChatBottomNav({required this.onOpenChat});
+/// Нижняя панель навигации для экрана чата (без круглой кнопки — мы уже в чате)
+class _ChatBottomDock extends StatelessWidget {
+  const _ChatBottomDock();
 
   @override
   Widget build(BuildContext context) {
@@ -1220,142 +1247,74 @@ class _ChatBottomNav extends StatelessWidget {
         final isDark = themeNotifier.isDark;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              // Панель навигации
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.85),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Главная (возврат)
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.home_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
-                              const SizedBox(height: 4),
-                              Text(
-                                tr('Главная', 'Home'),
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Матчи
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.sports_soccer_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
-                              const SizedBox(height: 4),
-                              Text(
-                                tr('Матчи', 'Matches'),
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Пустое место для круглой кнопки
-                    const Expanded(child: SizedBox.shrink()),
-                    // Турниры
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.emoji_events_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
-                              const SizedBox(height: 4),
-                              Text(
-                                tr('Турниры', 'Tournaments'),
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Сохранённое
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.bookmark_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
-                              const SizedBox(height: 4),
-                              Text(
-                                tr('Сохранённое', 'Saved'),
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
               ),
-              // Круглая кнопка чата по центру
-              Positioned(
-                top: -28,
-                child: GestureDetector(
-                  onTap: onOpenChat,
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF7C4DFF).withOpacity(0.4),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 28),
-                  ),
+            ),
+            child: Row(
+              children: [
+                _ChatNavItem(
+                  icon: Icons.home_rounded,
+                  label: tr('Главная', 'Home'),
+                  onTap: () => Navigator.pop(context),
+                  isDark: isDark,
                 ),
-              ),
-            ],
+                _ChatNavItem(
+                  icon: Icons.sports_soccer_rounded,
+                  label: tr('Матчи', 'Matches'),
+                  onTap: () => Navigator.pop(context),
+                  isDark: isDark,
+                ),
+                _ChatNavItem(
+                  icon: Icons.emoji_events_rounded,
+                  label: tr('Турниры', 'Tournaments'),
+                  onTap: () => Navigator.pop(context),
+                  isDark: isDark,
+                ),
+                _ChatNavItem(
+                  icon: Icons.bookmark_rounded,
+                  label: tr('Сохранённое', 'Saved'),
+                  onTap: () => Navigator.pop(context),
+                  isDark: isDark,
+                ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _ChatNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+  const _ChatNavItem({required this.icon, required this.label, required this.onTap, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
