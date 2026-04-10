@@ -66,6 +66,27 @@ final languageNotifier = LanguageNotifier();
 String tr(String ru, String en) =>
     languageNotifier.isRussian ? ru : en;
 
+/// Получить цвет текста в зависимости от темы
+Color onSurface(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF1A1A2E);
+
+Color onSurfaceSecondary(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.72)
+        : const Color(0xFF6B7280);
+
+Color surfaceContainer(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.08)
+        : Colors.black.withOpacity(0.04);
+
+Color surfaceBorder(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.12)
+        : Colors.black.withOpacity(0.08);
+
 // ======================= MODELS =======================
 class ChatMessage {
   final String text;
@@ -285,6 +306,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
   }
 
   Widget _buildTopBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtitles = [
       tr('Ваш футбольный центр управления.', 'Your football command center.'),
       tr('Живой матчдэй с быстрым контекстом.', 'Live matchday view with quick context.'),
@@ -303,7 +325,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: onSurface(context),
                   letterSpacing: -0.8,
                 ),
               ),
@@ -312,7 +334,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 subtitles[_selectedTab],
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.72),
+                  color: onSurfaceSecondary(context),
                   height: 1.5,
                 ),
               ),
@@ -324,9 +346,9 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
         const SizedBox(width: 10),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: surfaceContainer(context),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: surfaceBorder(context)),
           ),
           child: IconButton(
             onPressed: () {
@@ -335,7 +357,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
-            icon: const Icon(Icons.tune_rounded, color: Colors.white),
+            icon: Icon(Icons.tune_rounded, color: onSurface(context)),
           ),
         ),
       ],
@@ -343,6 +365,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
   }
 
   Widget _buildHero(List<_StatusItem> statusItems) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final eyebrow = [
       tr('MATCHDAY HUB', 'MATCHDAY HUB'),
       tr('LIVE BOARD', 'LIVE BOARD'),
@@ -390,15 +413,21 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF102A43), Color(0xFF1E5F74), Color(0xFF3BA99C)],
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        gradient: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF102A43), Color(0xFF1E5F74), Color(0xFF3BA99C)],
+              )
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF4A90E2), Color(0xFF357ABD), Color(0xFF3BA99C)],
+              ),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3BA99C).withOpacity(0.18),
+            color: const Color(0xFF3BA99C).withOpacity(isDark ? 0.18 : 0.12),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -410,7 +439,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
+              color: isDark ? Colors.white.withOpacity(0.14) : Colors.white.withOpacity(0.25),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -1583,28 +1612,39 @@ class _LanguageToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _LanguageButton(
-            label: 'RU',
-            selected: languageNotifier.language == AppLanguage.ru,
-            onTap: () => languageNotifier.setLanguage(AppLanguage.ru),
+    return ListenableBuilder(
+      listenable: languageNotifier,
+      builder: (context, _) {
+        return Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.black.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.12)
+                  : Colors.black.withOpacity(0.1),
+            ),
           ),
-          _LanguageButton(
-            label: 'EN',
-            selected: languageNotifier.language == AppLanguage.en,
-            onTap: () => languageNotifier.setLanguage(AppLanguage.en),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _LanguageButton(
+                label: 'RU',
+                selected: languageNotifier.language == AppLanguage.ru,
+                onTap: () => languageNotifier.setLanguage(AppLanguage.ru),
+              ),
+              _LanguageButton(
+                label: 'EN',
+                selected: languageNotifier.language == AppLanguage.en,
+                onTap: () => languageNotifier.setLanguage(AppLanguage.en),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1622,13 +1662,17 @@ class _LanguageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected
+              ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
@@ -1636,7 +1680,9 @@ class _LanguageButton extends StatelessWidget {
           style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: selected ? const Color(0xFF102A43) : Colors.white,
+            color: selected
+                ? (isDark ? const Color(0xFF102A43) : Colors.white)
+                : (isDark ? Colors.white70 : Colors.black54),
           ),
         ),
       ),
@@ -1664,12 +1710,17 @@ class _BottomDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
+        color: isDark
+            ? Colors.black.withOpacity(0.4)
+            : Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+        ),
       ),
       child: Row(
         children: List.generate(items.length, (index) {
@@ -1683,7 +1734,7 @@ class _BottomDock extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: selected
-                      ? Colors.white.withOpacity(0.14)
+                      ? (isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF4A90E2).withOpacity(0.15))
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -1693,19 +1744,18 @@ class _BottomDock extends StatelessWidget {
                     Icon(
                       item.icon,
                       color: selected
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.55),
+                          ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                          : (isDark ? Colors.white.withOpacity(0.55) : Colors.black38),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       item.label,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                         color: selected
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.6),
+                            ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                            : (isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
                       ),
                     ),
                   ],
