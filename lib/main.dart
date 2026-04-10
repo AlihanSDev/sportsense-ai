@@ -1087,26 +1087,14 @@ class _ChatScreenState extends State<ChatScreen> {
     String botResponse;
     List<SearchSource> botSources = [];
 
-    // Приоритет: HuggingFace (Qwen 7B через LangChain) > локальная Qwen > заглушка
-    if (widget.hfAvailable && shouldSearch) {
-      // HuggingFace через Python сервер с LangChain поиском
+    // Приоритет: HuggingFace (Qwen 3.5 9B) > локальная Qwen 1.5B > заглушка
+    if (widget.hfAvailable) {
+      // HuggingFace API — напрямую к HF Router, без Python сервера
       final hfResponse = await widget.hfApi.chat(
         text,
-        maxTokens: 1024,
-        temperature: 0.7,
-        useSearch: true,
-      );
-      if (_stopRequested) { _cancelGeneration(); return; }
-      botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
-      print('[HF] Ответ: ${botResponse.substring(0, botResponse.length.clamp(0, 100))}...');
-    } else if (widget.hfAvailable) {
-      // HuggingFace без поиска — прямой запрос
-      final hfResponse = await widget.hfApi.chat(
-        text,
-        maxTokens: 1024,
+        maxTokens: 512,
         temperature: 0.7,
         context: ragContext.isNotEmpty ? ragContext : null,
-        useSearch: false,
       );
       if (_stopRequested) { _cancelGeneration(); return; }
       botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
