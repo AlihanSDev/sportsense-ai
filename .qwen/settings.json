@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter *)",
+      "Bash(findstr *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git checkout *)",
+      "Bash(git stash)",
+      "Bash(git merge *)",
+      "Bash(git fetch *)",
+      "Bash(git reset *)",
+      "Bash(select-object *)",
+      "Bash(git show *)"
+    ]
+  },
+  "$version": 3
+}

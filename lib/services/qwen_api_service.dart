@@ -3,29 +3,46 @@ import 'package:http/http.dart' as http;
 
 /// Сервис для взаимодействия с локальным Qwen API.
 class QwenApiService {
-  final String baseUrl;
+  String baseUrl;
   final http.Client _client;
 
   QwenApiService({
-    this.baseUrl = 'http://127.0.0.1:5000',
+    this.baseUrl = 'http://10.0.2.2:5000',  // 10.0.2.2 for Android emulator, will fallback to 127.0.0.1
     http.Client? client,
   }) : _client = client ?? http.Client();
 
   /// Проверка доступности API.
   Future<bool> isAvailable() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
+    // Try both addresses: emulator (10.0.2.2) and localhost (127.0.0.1)
+    final urls = ['http://10.0.2.2:5000/health', 'http://127.0.0.1:5000/health'];
+    
+    for (final url in urls) {
+      try {
+        print('🔍 Checking Qwen API availability at $url...');
+        final response = await _client.get(
+          Uri.parse(url),
+        ).timeout(const Duration(seconds: 3));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        return data['loaded'] == true;
+        print('📡 Health response status: ${response.statusCode}');
+        print('📄 Health response body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final loaded = data['loaded'] == true;
+          if (loaded) {
+            print('✅ Qwen API available at $url');
+            // Update baseUrl to the working one
+            baseUrl = url.replaceAll('/health', '');
+            return true;
+          }
+        }
+      } catch (e) {
+        print('❌ Qwen API not available at $url: $e');
       }
-      return false;
-    } catch (e) {
-      return false;
     }
+    
+    print('❌ Qwen API not available on any address');
+    return false;
   }
 
   /// Отправка запроса к чат-боту с контекстом (RAG).

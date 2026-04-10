@@ -132,8 +132,22 @@ class SpaceApp extends StatelessWidget {
       title: 'Sportsense',
       debugShowCheckedModeBanner: false,
       themeMode: themeNotifier.mode,
-      theme: ThemeData.light().copyWith(scaffoldBackgroundColor: Colors.white),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4A90E2),
+          brightness: Brightness.light,
+          background: const Color(0xFFF8F9FA),
+        ),
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
+        useMaterial3: true,
+      ).copyWith(scaffoldBackgroundColor: Colors.white),
+      darkTheme: ThemeData.dark().copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4A90E2),
+          brightness: Brightness.dark,
+        ),
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+      ),
       home: HomeScreen(
         vectorDbManager: vectorDbManager,
         queryVectorizer: queryVectorizer,
@@ -891,6 +905,57 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage(String text) async {
     if (text.isEmpty || _chats.isEmpty) return;
+
+    // Специальные команды (только UI)
+    if (text == 'COMMAND-HEY') {
+      setState(() {
+        currentChat.messages.add(ChatMessage(text: text, isUser: true));
+      });
+      await Future.delayed(const Duration(milliseconds: 300));
+      final info = '''
+*Список доступных команд:*
+- TEXT-IDLE: демонстрация длительной печати (~25 секунд)
+- BANANA-HEY: банановый отклик
+- COMMAND-HEY: показать это сообщение
+''';
+      if (mounted) {
+        setState(() {
+          currentChat.messages.add(ChatMessage(
+              text: info, isUser: false, textColor: const Color(0xFF7C4DFF)));
+        });
+      }
+      return;
+    }
+
+    if (text == 'BANANA-HEY') {
+      setState(() {
+        currentChat.messages.add(ChatMessage(text: text, isUser: true));
+      });
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (mounted) {
+        setState(() {
+          currentChat.messages.add(ChatMessage(
+              text: '🍌 БАНАН! 🍌', isUser: false, textColor: const Color(0xFFFFD700)));
+        });
+      }
+      return;
+    }
+
+    if (text == 'TEXT-IDLE') {
+      setState(() {
+        currentChat.messages.add(ChatMessage(text: text, isUser: true));
+      });
+      await Future.delayed(const Duration(seconds: 3));
+      final reply = 'Это пример генерируемого текста. Он появляется постепенно, словно AI печатает его прямо сейчас.';
+      final perChar = Duration(milliseconds: 25000 ~/ reply.length);
+      if (mounted) {
+        setState(() {
+          currentChat.messages.add(ChatMessage(
+              text: reply, isUser: false, textColor: const Color(0xFF7C4DFF)));
+        });
+      }
+      return;
+    }
 
     // Сохраняем сообщение пользователя в SQLite
     if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {

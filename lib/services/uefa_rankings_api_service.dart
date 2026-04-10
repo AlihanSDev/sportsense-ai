@@ -4,25 +4,39 @@ import 'package:http/http.dart' as http;
 /// Сервис для получения данных UEFA Rankings через Python API.
 /// Использует Playwright для рендеринга JavaScript.
 class UefaRankingsApiService {
-  final String baseUrl;
+  String baseUrl;
   final http.Client _client;
 
   UefaRankingsApiService({
-    this.baseUrl = 'http://127.0.0.1:5001',
+    this.baseUrl = 'http://10.0.2.2:5001',  // 10.0.2.2 for Android emulator
     http.Client? client,
   }) : _client = client ?? http.Client();
 
   /// Проверка доступности API.
   Future<bool> isAvailable() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
+    // Try both addresses: emulator (10.0.2.2) and localhost (127.0.0.1)
+    final urls = ['http://10.0.2.2:5001/health', 'http://127.0.0.1:5001/health'];
+    
+    for (final url in urls) {
+      try {
+        print('🔍 Checking UEFA API availability at $url...');
+        final response = await _client.get(
+          Uri.parse(url),
+        ).timeout(const Duration(seconds: 3));
+        
+        if (response.statusCode == 200) {
+          print('✅ UEFA API available at $url');
+          // Update baseUrl to the working one
+          baseUrl = url.replaceAll('/health', '');
+          return true;
+        }
+      } catch (e) {
+        print('❌ UEFA API not available at $url: $e');
+      }
     }
+    
+    print('❌ UEFA API not available on any address');
+    return false;
   }
 
   /// Получение данных рейтинга (с кэшем).
