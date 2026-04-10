@@ -557,6 +557,8 @@ class _ChatScreenState extends State<ChatScreen> {
   User? _currentUser;
   String _username = '';
   bool _isInitializing = true;  // Флаг инициализации
+  bool _isGenerating = false;   // Флаг генерации ответа
+  bool _stopRequested = false;  // Флаг остановки
 
   ChatSession? get _currentChatOrNull => _chats.isNotEmpty ? _chats[_currentChatIndex] : null;
   ChatSession get currentChat => _chats.isNotEmpty ? _chats[_currentChatIndex] : ChatSession(id: '0', title: '', messages: []);
@@ -924,6 +926,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.isEmpty || _chats.isEmpty) return;
 
+    // Если уже генерируем — останавливаем
+    if (_isGenerating) {
+      setState(() {
+        _stopRequested = true;
+      });
+      return;
+    }
+
     // Специальные команды (только UI)
     if (text == 'COMMAND-HEY') {
       setState(() {
@@ -965,7 +975,6 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       await Future.delayed(const Duration(seconds: 3));
       final reply = 'Это пример генерируемого текста. Он появляется постепенно, словно AI печатает его прямо сейчас.';
-      final perChar = Duration(milliseconds: 25000 ~/ reply.length);
       if (mounted) {
         setState(() {
           currentChat.messages.add(ChatMessage(
@@ -990,6 +999,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       currentChat.messages.add(ChatMessage(text: text, isUser: true));
+      _isGenerating = true;
+      _stopRequested = false;
     });
 
     // Очищаем поле ввода сразу, не ждём ответа
@@ -1000,13 +1011,31 @@ class _ChatScreenState extends State<ChatScreen> {
 
     String ragContext = '';
 
+    if (_stopRequested) { _cancelGeneration(); return; }
+
     if (relevance >= 2.0) {
       await widget.uefaParser.parseAndSaveRankings();
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
+    if (_stopRequested) { _cancelGeneration(); return; }
+
     if (relevance >= 1.0) {
       ragContext = await widget.rankingsSearch.getRagContext(text, limit: 10);
+    }
+
+    if (_stopRequested) { _cancelGeneration(); return; }
+
+    // Добавляем сообщение-заполнитель с анимацией "печатает..."
+    final botMsgIndex = currentChat.messages.length;
+    if (mounted) {
+      setState(() {
+        currentChat.messages.add(ChatMessage(
+          text: '',
+          isUser: false,
+          textColor: textColor,
+        ));
+      });
     }
 
     String botResponse;
@@ -1016,35 +1045,76 @@ class _ChatScreenState extends State<ChatScreen> {
         context: ragContext.isNotEmpty ? ragContext : null,
         maxTokens: 1024,
       );
-      botResponse =
-          qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
+      if (_stopRequested) { _cancelGeneration(); return; }
+      botResponse = qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
     } else {
+      // Имитация постепенной генерации
       botResponse = 'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
       if (ragContext.isNotEmpty) botResponse += '\n\n$ragContext';
+
+      // Анимация посимвольного появления
+      for (int i = 1; i <= botResponse.length; i++) {
+        if (_stopRequested) { _cancelGeneration(); return; }
+        if (mounted) {
+          setState(() {
+            currentChat.messages[botMsgIndex] = ChatMessage(
+              text: botResponse.substring(0, i),
+              isUser: false,
+              textColor: textColor,
+            );
+          });
+        }
+        await Future.delayed(const Duration(milliseconds: 15));
+      }
+      setState(() { _isGenerating = false; });
+      return;
     }
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (_stopRequested) { _cancelGeneration(); return; }
 
-    if (mounted && _chats.isNotEmpty) {
-      setState(() {
-        currentChat.messages.add(
-          ChatMessage(text: botResponse, isUser: false, textColor: textColor),
-        );
-      });
-
-      // Сохраняем ответ бота в SQLite
-      if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
-        final chatId = int.parse(currentChat.id!);
-        _db.addMessage(
-          chatId: chatId,
-          text: botResponse,
-          isUser: false,
-        ).catchError((e) {
-          print('Ошибка сохранения ответа: $e');
-          return null;
+    // Анимация посимвольного появления ответа LLM
+    for (int i = 1; i <= botResponse.length; i++) {
+      if (_stopRequested) { _cancelGeneration(); return; }
+      if (mounted) {
+        setState(() {
+          currentChat.messages[botMsgIndex] = ChatMessage(
+            text: botResponse.substring(0, i),
+            isUser: false,
+            textColor: textColor,
+          );
         });
       }
+      await Future.delayed(const Duration(milliseconds: 12));
     }
+
+    // Сохраняем ответ бота в SQLite
+    if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
+      final chatId = int.parse(currentChat.id!);
+      _db.addMessage(
+        chatId: chatId,
+        text: botResponse,
+        isUser: false,
+      ).catchError((e) {
+        print('Ошибка сохранения ответа: $e');
+        return null;
+      });
+    }
+
+    setState(() { _isGenerating = false; });
+  }
+
+  void _cancelGeneration() {
+    if (currentChat.messages.isNotEmpty) {
+      final lastMsg = currentChat.messages.last;
+      if (!lastMsg.isUser && lastMsg.text.isEmpty) {
+        // Удаляем пустое сообщение-заполнитель
+        currentChat.messages.removeLast();
+      }
+    }
+    setState(() {
+      _isGenerating = false;
+      _stopRequested = false;
+    });
   }
 
   @override
@@ -1152,8 +1222,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? const Center(child: Text('Загрузка чата...', style: TextStyle(color: Colors.white54)))
                     : ListView.builder(
                         controller: ScrollController(),
-                        itemCount: currentChat.messages.length,
+                        itemCount: currentChat.messages.length + (_isGenerating ? 1 : 0),
                         itemBuilder: (context, index) {
+                          // Показываем индикатор "печатает..."
+                          if (_isGenerating && index == currentChat.messages.length) {
+                            return _TypingIndicator();
+                          }
                           final msg = currentChat.messages[index];
                           return Align(
                             alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -1164,7 +1238,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                 color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
+                              child: msg.text.isEmpty && !msg.isUser
+                                  ? _TypingIndicator()
+                                  : Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
                             ),
                           );
                         },
@@ -1178,17 +1254,36 @@ class _ChatScreenState extends State<ChatScreen> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
+                        enabled: !_isGenerating,
                         decoration: InputDecoration(
-                          hintText: tr('Введите запрос для аналитики', 'Enter an analysis request'),
-                          hintStyle: const TextStyle(color: Colors.white54),
+                          hintText: _isGenerating
+                              ? tr('ИИ генерирует ответ...', 'AI is generating...')
+                              : tr('Введите запрос для аналитики', 'Enter an analysis request'),
+                          hintStyle: TextStyle(
+                            color: _isGenerating ? Colors.white.withOpacity(0.3) : Colors.white54,
+                          ),
                         ),
                         style: const TextStyle(color: Colors.white),
                         onSubmitted: (_) => _sendMessage(_controller.text),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () => _sendMessage(_controller.text),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _isGenerating
+                          ? IconButton(
+                              key: const ValueKey('stop'),
+                              icon: const Icon(Icons.stop_rounded, color: Color(0xFFEF5350)),
+                              onPressed: () => _sendMessage(''),
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xFFEF5350).withOpacity(0.15),
+                                shape: const CircleBorder(),
+                              ),
+                            )
+                          : IconButton(
+                              key: const ValueKey('send'),
+                              icon: const Icon(Icons.send_rounded, color: Colors.white),
+                              onPressed: () => _sendMessage(_controller.text),
+                            ),
                     ),
                   ],
                 ),
@@ -1256,6 +1351,85 @@ class _ChatBottomDock extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Анимированный индикатор "печатает..."
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with TickerProviderStateMixin {
+  late final List<AnimationController> _controllers;
+  late final List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(3, (i) {
+      final c = AnimationController(
+        duration: const Duration(milliseconds: 600),
+        vsync: this,
+      );
+      c.repeat(reverse: true);
+      c.forward();
+      // Задержка для каждой точки
+      Future.delayed(Duration(milliseconds: i * 200), () {
+        if (mounted) c.forward();
+      });
+      return c;
+    });
+    _animations = _controllers.map((c) {
+      return Tween<double>(begin: 0.3, end: 1.0).animate(
+        CurvedAnimation(parent: c, curve: Curves.easeInOut),
+      );
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            return AnimatedBuilder(
+              animation: _animations[i],
+              builder: (context, _) {
+                return Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(_animations[i].value * 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+      ),
     );
   }
 }
