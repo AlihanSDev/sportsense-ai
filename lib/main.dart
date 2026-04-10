@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ======================= СЕРВИСЫ =======================
 import 'services/theme_notifier.dart';
@@ -98,7 +99,15 @@ class ChatMessage {
 // ======================= MAIN =======================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Загрузка переменных окружения из .env
+  try {
+    await dotenv.load(fileName: '.env');
+    print('[ENV] ✅ .env загружен');
+  } catch (e) {
+    print('[ENV] ⚠️ .env не найден, используются значения по умолчанию');
+  }
+
   // Инициализация базы данных
   initDatabase();
 
