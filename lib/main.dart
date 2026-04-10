@@ -37,7 +37,7 @@ const int QDRANT_PORT = 6333;
 enum AppTheme { dark, light, sportsense }
 
 class ThemeNotifier extends ChangeNotifier {
-  AppTheme _theme = AppTheme.sportsense;
+  AppTheme _theme = AppTheme.dark;
   AppTheme get theme => _theme;
   bool get isDark => _theme != AppTheme.light;
   bool get isSportsense => _theme == AppTheme.sportsense;
