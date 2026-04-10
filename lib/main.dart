@@ -1026,7 +1026,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (_stopRequested) { _cancelGeneration(); return; }
 
-    // Добавляем сообщение-заполнитель с анимацией "печатает..."
+    // Добавляем пустое сообщение бота, которое будем заполнять
     final botMsgIndex = currentChat.messages.length;
     if (mounted) {
       setState(() {
@@ -1222,12 +1222,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? const Center(child: Text('Загрузка чата...', style: TextStyle(color: Colors.white54)))
                     : ListView.builder(
                         controller: ScrollController(),
-                        itemCount: currentChat.messages.length + (_isGenerating ? 1 : 0),
+                        itemCount: currentChat.messages.length,
                         itemBuilder: (context, index) {
-                          // Показываем индикатор "печатает..."
-                          if (_isGenerating && index == currentChat.messages.length) {
-                            return _TypingIndicator();
-                          }
                           final msg = currentChat.messages[index];
                           return Align(
                             alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
