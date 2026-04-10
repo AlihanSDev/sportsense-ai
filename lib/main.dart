@@ -2022,85 +2022,50 @@ class _BottomDock extends StatelessWidget {
         final isDark = themeNotifier.isDark;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              // Панель навигации
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.4)
-                      : Colors.white.withOpacity(0.85),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.black.withOpacity(0.4)
+                  : Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Главная
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelect(0),
+                    child: _DockItemContent(
+                      icon: items[0].icon,
+                      label: items[0].label,
+                      selected: selectedIndex == 0,
+                      isDark: isDark,
+                    ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    // Главная
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => onSelect(0),
-                        child: _DockItemContent(
-                          icon: items[0].icon,
-                          label: items[0].label,
-                          selected: selectedIndex == 0,
-                          isDark: isDark,
-                        ),
-                      ),
+                // Матчи
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelect(1),
+                    child: _DockItemContent(
+                      icon: items[1].icon,
+                      label: items[1].label,
+                      selected: selectedIndex == 1,
+                      isDark: isDark,
                     ),
-                    // Матчи
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => onSelect(1),
-                        child: _DockItemContent(
-                          icon: items[1].icon,
-                          label: items[1].label,
-                          selected: selectedIndex == 1,
-                          isDark: isDark,
-                        ),
-                      ),
-                    ),
-                    // Пустое место для кнопки
-                    const Expanded(child: SizedBox.shrink()),
-                    // Турниры
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => onSelect(2),
-                        child: _DockItemContent(
-                          icon: items[2].icon,
-                          label: items[2].label,
-                          selected: selectedIndex == 2,
-                          isDark: isDark,
-                        ),
-                      ),
-                    ),
-                    // Сохранённое
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => onSelect(3),
-                        child: _DockItemContent(
-                          icon: items[3].icon,
-                          label: items[3].label,
-                          selected: selectedIndex == 3,
-                          isDark: isDark,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              // Круглая кнопка AI по центру
-              Positioned(
-                top: -24,
-                child: GestureDetector(
+                // Круглая кнопка AI
+                GestureDetector(
                   onTap: onOpenChat,
                   child: Container(
-                    width: 52,
-                    height: 52,
+                    width: 44,
+                    height: 44,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
@@ -2110,17 +2075,41 @@ class _BottomDock extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF7C4DFF).withOpacity(0.4),
-                          blurRadius: 14,
-                          spreadRadius: 2,
+                          color: const Color(0xFF7C4DFF).withOpacity(0.3),
+                          blurRadius: 10,
+                          spreadRadius: 1,
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
+                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
                   ),
                 ),
-              ),
-            ],
+                // Турниры
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelect(2),
+                    child: _DockItemContent(
+                      icon: items[2].icon,
+                      label: items[2].label,
+                      selected: selectedIndex == 2,
+                      isDark: isDark,
+                    ),
+                  ),
+                ),
+                // Сохранённое
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelect(3),
+                    child: _DockItemContent(
+                      icon: items[3].icon,
+                      label: items[3].label,
+                      selected: selectedIndex == 3,
+                      isDark: isDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
