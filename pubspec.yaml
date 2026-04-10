@@ -38,7 +38,6 @@ dependencies:
   http: ^1.6.0
   flutter_dotenv: ^6.0.0
   html: ^0.15.6
-  shared_preferences: ^2.2.2
   puppeteer: ^3.20.0
   path: ^1.9.0
   shared_preferences: ^2.2.3
