@@ -46,19 +46,27 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Stack(
       children: [
-        // Молочный фон с синим оттенком
+        // Фон: тёмный или светлый в зависимости от темы
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8F9FA), // Молочный цвет сверху
-                Color(0xFFE8F0FF), // Светло-синий
-                Color(0xFFD6E6FF), // Голубой
-              ],
+              colors: isDark
+                  ? const [
+                      Color(0xFF0B0B12), // Тёмный сверху
+                      Color(0xFF0F1520), // Тёмно-синий
+                      Color(0xFF0A0E17), // Ещё темнее
+                    ]
+                  : const [
+                      Color(0xFFF8F9FA), // Молочный цвет сверху
+                      Color(0xFFE8F0FF), // Светло-синий
+                      Color(0xFFD6E6FF), // Голубой
+                    ],
             ),
           ),
         ),
@@ -70,13 +78,14 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
             return CustomPaint(
               painter: HoneycombPainter(
                 animation: _honeycombController.value,
+                isDark: isDark,
               ),
               size: Size.infinite,
             );
           },
         ),
 
-        // Анимированные звёзды (теперь с более мягкими цветами)
+        // Анимированные звёзды
         AnimatedBuilder(
           animation: _starController,
           builder: (context, child) {
@@ -84,19 +93,21 @@ class _SpaceBackgroundState extends State<SpaceBackground> with TickerProviderSt
               painter: StarFieldPainter(
                 stars: _stars,
                 animation: _starController.value,
+                isDark: isDark,
               ),
               size: Size.infinite,
             );
           },
         ),
 
-        // Анимированные облака/туманности (в новых цветах)
+        // Анимированные облака/туманности
         AnimatedBuilder(
           animation: _cloudController,
           builder: (context, child) {
             return CustomPaint(
               painter: NebulaPainter(
                 animation: _cloudController.value,
+                isDark: isDark,
               ),
               size: Size.infinite,
             );
@@ -132,11 +143,15 @@ class Star {
 class StarFieldPainter extends CustomPainter {
   final List<Star> stars;
   final double animation;
+  final bool isDark;
 
-  StarFieldPainter({required this.stars, required this.animation});
+  StarFieldPainter({required this.stars, required this.animation, required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Звёзды видны только на тёмном фоне
+    if (!isDark) return;
+    
     for (final star in stars) {
       final twinkle = (math.sin(animation * star.twinkleSpeed * 2 * math.pi + star.phase) + 1) / 2;
       final paint = Paint()
@@ -158,11 +173,15 @@ class StarFieldPainter extends CustomPainter {
 /// Рисовальщик туманностей/облаков
 class NebulaPainter extends CustomPainter {
   final double animation;
+  final bool isDark;
 
-  NebulaPainter({required this.animation});
+  NebulaPainter({required this.animation, required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
+    // На светлом фоне облака более мягкие
+    final baseOpacity = isDark ? 1.0 : 0.4;
+    
     final paint = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
 
     // Фиолетовое облако
@@ -173,7 +192,7 @@ class NebulaPainter extends CustomPainter {
       ),
       radius: 0.8,
       colors: [
-        const Color(0xFF7C4DFF).withOpacity(0.15),
+        const Color(0xFF7C4DFF).withOpacity(0.15 * baseOpacity),
         Colors.transparent,
       ],
     );
@@ -186,7 +205,7 @@ class NebulaPainter extends CustomPainter {
       ),
       radius: 0.7,
       colors: [
-        const Color(0xFF00D4FF).withOpacity(0.1),
+        const Color(0xFF00D4FF).withOpacity(0.1 * baseOpacity),
         Colors.transparent,
       ],
     );
@@ -199,7 +218,7 @@ class NebulaPainter extends CustomPainter {
       ),
       radius: 0.6,
       colors: [
-        const Color(0xFFE040FB).withOpacity(0.08),
+        const Color(0xFFE040FB).withOpacity(0.08 * baseOpacity),
         Colors.transparent,
       ],
     );
@@ -229,15 +248,18 @@ class NebulaPainter extends CustomPainter {
 /// Рисовальщик стилизованных сот
 class HoneycombPainter extends CustomPainter {
   final double animation;
+  final bool isDark;
 
-  HoneycombPainter({required this.animation});
+  HoneycombPainter({required this.animation, required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
-      ..color = const Color(0xFFA7C7FF).withOpacity(0.3);
+      ..color = isDark
+          ? const Color(0xFFA7C7FF).withOpacity(0.3)
+          : const Color(0xFF4A90E2).withOpacity(0.12);
 
     // Размеры шестиугольника
     final hexSize = 40.0;
@@ -254,7 +276,7 @@ class HoneycombPainter extends CustomPainter {
       for (double x = -horizontalSpacing; x < size.width + horizontalSpacing; x += horizontalSpacing) {
         // Смещаем каждую строку
         final adjustedX = x + ((y / verticalSpacing).floor() % 2 == 0 ? 0 : horizontalSpacing / 2);
-        
+
         // Рисуем шестиугольник
         final path = Path();
         for (int i = 0; i < 6; i++) {
@@ -270,9 +292,13 @@ class HoneycombPainter extends CustomPainter {
         path.close();
 
         // Анимация прозрачности
-        final alpha = 0.1 + 0.2 * math.sin((x + y) * 0.02 + animation * 2);
-        paint.color = Color(0xFFA7C7FF).withOpacity(alpha.clamp(0.0, 0.4));
-        
+        final alpha = isDark
+            ? (0.1 + 0.2 * math.sin((x + y) * 0.02 + animation * 2)).clamp(0.0, 0.4)
+            : (0.05 + 0.08 * math.sin((x + y) * 0.02 + animation * 2)).clamp(0.0, 0.15);
+        paint.color = isDark
+            ? Color(0xFFA7C7FF).withOpacity(alpha)
+            : Color(0xFF4A90E2).withOpacity(alpha);
+
         canvas.drawPath(path, paint);
       }
     }
