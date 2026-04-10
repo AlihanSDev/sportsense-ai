@@ -119,6 +119,21 @@ def health_check():
     })
 
 
+@app.route("/search", methods=["POST"])
+def web_search():
+    """Только поиск без LLM. Возвращает результаты для HF API."""
+    data = request.get_json()
+    if not data or "query" not in data:
+        return jsonify({"error": "Query is required"}), 400
+    query = data["query"]
+    context = search_web(query)
+    return jsonify({
+        "query": query,
+        "web_context": context,
+        "has_results": context != "",
+    })
+
+
 @app.route("/chat", methods=["POST"])
 def chat():
     if llm is None:

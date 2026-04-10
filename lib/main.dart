@@ -1187,22 +1187,22 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  /// Получает контекст из интернета через Python API сервер
+  /// Получает контекст из интернета через Python API сервер (/search endpoint)
   Future<String?> _fetchWebContext(String query) async {
     try {
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/chat'),
+        Uri.parse('http://127.0.0.1:5000/search'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'message': query,
-          'use_search': true,
-          'max_tokens': 10,
-        }),
+        body: jsonEncode({'query': query}),
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['web_context'] as String?;
+        final ctx = data['web_context'] as String?;
+        if (ctx != null && ctx.isNotEmpty) {
+          print('🔍 Web context получен: ${ctx.length} символов');
+        }
+        return ctx;
       }
     } catch (e) {
       print('⚠️ Ошибка получения web контекста: $e');
