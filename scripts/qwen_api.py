@@ -91,7 +91,7 @@ def search_web(query):
         return ""
     try:
         print(f"[SEARCH] Поиск: {query}")
-        results = search.results(query)
+        results = search.results(query, SEARCH_RESULTS)
         if not results:
             print("[SEARCH] Результаты не найдены")
             return ""
