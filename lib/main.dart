@@ -1050,7 +1050,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = themeNotifier.isDark;
 
     // Показываем индикатор загрузки во время инициализации
     if (_isInitializing && _chats.isEmpty) {
@@ -1082,9 +1082,15 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
+                  // Стрелка назад
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
                   Builder(
                     builder: (context) => IconButton(
-                      icon: Icon(Icons.menu, color: Colors.white),
+                      icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                     ),
                   ),
@@ -1092,45 +1098,32 @@ class _ChatScreenState extends State<ChatScreen> {
                   const _LanguageToggle(),
                 ],
               ),
-              const SizedBox(height: 10),
-              // Логотип (белый цвет)
-              Column(
-                children: [
-                  Text(
-                    tr('Центр анализа', 'Analysis Center'),
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: -0.6,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      tr('АНАЛИТИКА ПО ЗАПРОСУ', 'ON-DEMAND ANALYSIS'),
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 6),
+              // Заголовок
+              Text(
+                tr('Центр анализа', 'Analysis Center'),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                  letterSpacing: -0.6,
+                  decoration: TextDecoration.none,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF14B8A6)]),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  tr('АНАЛИТИКА ПО ЗАПРОСУ', 'ON-DEMAND ANALYSIS'),
+                  style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1.2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Чипсы
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: SingleChildScrollView(
@@ -1139,61 +1132,46 @@ class _ChatScreenState extends State<ChatScreen> {
                     children: [
                       _PromptChip(
                         label: tr('Сводка UEFA', 'UEFA snapshot'),
-                        onTap: () => _controller.text =
-                            'Дай краткую сводку по текущему состоянию рейтингов UEFA',
+                        onTap: () => _controller.text = 'Дай краткую сводку по текущему состоянию рейтингов UEFA',
                       ),
                       _PromptChip(
                         label: tr('Сравнить клубы', 'Compare clubs'),
-                        onTap: () => _controller.text =
-                            'Сравни две команды по форме и силе в рейтинге UEFA',
+                        onTap: () => _controller.text = 'Сравни две команды по форме и силе в рейтинге UEFA',
                       ),
                       _PromptChip(
                         label: tr('Профиль игрока', 'Player brief'),
-                        onTap: () => _controller.text =
-                            'Подготовь короткий аналитический профиль игрока',
+                        onTap: () => _controller.text = 'Подготовь короткий аналитический профиль игрока',
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              // Сообщения
               Expanded(
                 child: _chats.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Загрузка чата...',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      )
+                    ? const Center(child: Text('Загрузка чата...', style: TextStyle(color: Colors.white54)))
                     : ListView.builder(
                         controller: ScrollController(),
                         itemCount: currentChat.messages.length,
                         itemBuilder: (context, index) {
                           final msg = currentChat.messages[index];
                           return Align(
-                            alignment: msg.isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
+                            alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                             child: Container(
                               margin: const EdgeInsets.all(8),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: msg.isUser
-                                    ? Colors.blue
-                                    : Colors.white.withOpacity(0.05),
+                                color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
-                                msg.text,
-                                style: TextStyle(
-                                  color: msg.textColor ?? Colors.white,
-                                ),
-                              ),
+                              child: Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
                             ),
                           );
                         },
                       ),
               ),
+              // Поле ввода
               Padding(
                 padding: const EdgeInsets.all(8),
                 child: Row(
@@ -1202,10 +1180,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: TextField(
                         controller: _controller,
                         decoration: InputDecoration(
-                          hintText: tr(
-                            'Введите запрос для аналитики',
-                            'Enter an analysis request',
-                          ),
+                          hintText: tr('Введите запрос для аналитики', 'Enter an analysis request'),
                           hintStyle: const TextStyle(color: Colors.white54),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -1223,6 +1198,164 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
+      // Нижняя панель навигации с круглой кнопкой чата
+      extendBody: true,
+      bottomNavigationBar: _ChatBottomNav(onOpenChat: () {
+        // Уже в чате — ничего не делаем или скроллим вниз
+      }),
+    );
+  }
+}
+
+/// Нижняя панель навигации для экрана чата (как на главном экране + круглая кнопка)
+class _ChatBottomNav extends StatelessWidget {
+  final VoidCallback onOpenChat;
+  const _ChatBottomNav({required this.onOpenChat});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, _) {
+        final isDark = themeNotifier.isDark;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Панель навигации
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Главная (возврат)
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.home_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                tr('Главная', 'Home'),
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Матчи
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sports_soccer_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                tr('Матчи', 'Matches'),
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Пустое место для круглой кнопки
+                    const Expanded(child: SizedBox.shrink()),
+                    // Турниры
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.emoji_events_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                tr('Турниры', 'Tournaments'),
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Сохранённое
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bookmark_rounded, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                tr('Сохранённое', 'Saved'),
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Круглая кнопка чата по центру
+              Positioned(
+                top: -28,
+                child: GestureDetector(
+                  onTap: onOpenChat,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C4DFF).withOpacity(0.4),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 28),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
