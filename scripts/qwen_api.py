@@ -8,6 +8,13 @@ import sys, os, json
 from pathlib import Path
 from datetime import datetime
 
+# Load .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv optional, .env vars still work if set in shell
+
 try:
     from llama_cpp import Llama
 except ImportError:
@@ -36,7 +43,7 @@ PORT = 5000
 SEARCH_RESULTS = 3
 HF_BASE_URL = "https://router.huggingface.co/v1"
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
-HF_MODEL = os.environ.get("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+HF_MODEL = os.environ.get("HF_MODEL", "Qwen/Qwen3.5-9B")
 
 app = Flask(__name__)
 CORS(app)
