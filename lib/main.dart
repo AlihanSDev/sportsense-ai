@@ -559,6 +559,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isInitializing = true;  // Флаг инициализации
   bool _isGenerating = false;   // Флаг генерации ответа
   bool _stopRequested = false;  // Флаг остановки
+  bool _useSearch = false;      // Флаг поиска в интернете
 
   ChatSession? get _currentChatOrNull => _chats.isNotEmpty ? _chats[_currentChatIndex] : null;
   ChatSession get currentChat => _chats.isNotEmpty ? _chats[_currentChatIndex] : ChatSession(id: '0', title: '', messages: []);
@@ -1009,6 +1010,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
 
+    // Автоопределение поиска по триггерным словам
+    final searchTriggers = [
+      'найди в интернете', 'найди в сети', 'поищи в интернете', 'поищи в сети',
+      'search the internet', 'search the web', 'find online', 'look up',
+      'найди онлайн', 'погугли', 'google it', 'search online',
+    ];
+    final shouldSearch = _useSearch || searchTriggers.any((t) => text.toLowerCase().contains(t));
+
     String ragContext = '';
 
     if (_stopRequested) { _cancelGeneration(); return; }
@@ -1044,6 +1053,7 @@ class _ChatScreenState extends State<ChatScreen> {
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
         maxTokens: 1024,
+        useSearch: shouldSearch,
       );
       if (_stopRequested) { _cancelGeneration(); return; }
       botResponse = qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
@@ -1225,6 +1235,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemCount: currentChat.messages.length,
                         itemBuilder: (context, index) {
                           final msg = currentChat.messages[index];
+                          // Показываем индикатор поиска вместо typing когда включён поиск
+                          if (msg.text.isEmpty && !msg.isUser) {
+                            return _useSearch ? const _SearchIndicator() : const _TypingIndicator();
+                          }
                           return Align(
                             alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                             child: Container(
@@ -1234,9 +1248,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: msg.text.isEmpty && !msg.isUser
-                                  ? _TypingIndicator()
-                                  : Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
+                              child: Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
                             ),
                           );
                         },
@@ -1245,41 +1257,97 @@ class _ChatScreenState extends State<ChatScreen> {
               // Поле ввода
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        enabled: !_isGenerating,
-                        decoration: InputDecoration(
-                          hintText: _isGenerating
-                              ? tr('ИИ генерирует ответ...', 'AI is generating...')
-                              : tr('Введите запрос для аналитики', 'Enter an analysis request'),
-                          hintStyle: TextStyle(
-                            color: _isGenerating ? Colors.white.withOpacity(0.3) : Colors.white54,
+                    // Индикатор активного поиска
+                    if (_useSearch)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4A90E2).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.public_rounded, size: 14, color: Color(0xFF4A90E2)),
+                            const SizedBox(width: 6),
+                            Text(
+                              tr('Поиск в интернете включён', 'Web search enabled'),
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF4A90E2)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        // Кнопка браузера для включения поиска
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: _useSearch
+                                ? const Color(0xFF4A90E2).withOpacity(0.2)
+                                : Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _useSearch
+                                  ? const Color(0xFF4A90E2).withOpacity(0.4)
+                                  : Colors.white.withOpacity(0.1),
+                            ),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.public_rounded,
+                              color: _useSearch ? const Color(0xFF4A90E2) : Colors.white54,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _useSearch = !_useSearch;
+                              });
+                            },
+                            tooltip: tr('Поиск в интернете', 'Web search'),
                           ),
                         ),
-                        style: const TextStyle(color: Colors.white),
-                        onSubmitted: (_) => _sendMessage(_controller.text),
-                      ),
-                    ),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: _isGenerating
-                          ? IconButton(
-                              key: const ValueKey('stop'),
-                              icon: const Icon(Icons.stop_rounded, color: Color(0xFFEF5350)),
-                              onPressed: () => _sendMessage(''),
-                              style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xFFEF5350).withOpacity(0.15),
-                                shape: const CircleBorder(),
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            enabled: !_isGenerating,
+                            decoration: InputDecoration(
+                              hintText: _isGenerating
+                                  ? tr('ИИ генерирует ответ...', 'AI is generating...')
+                                  : tr('Введите запрос для аналитики', 'Enter an analysis request'),
+                              hintStyle: TextStyle(
+                                color: _isGenerating ? Colors.white.withOpacity(0.3) : Colors.white54,
                               ),
-                            )
-                          : IconButton(
-                              key: const ValueKey('send'),
-                              icon: const Icon(Icons.send_rounded, color: Colors.white),
-                              onPressed: () => _sendMessage(_controller.text),
                             ),
+                            style: const TextStyle(color: Colors.white),
+                            onSubmitted: (_) => _sendMessage(_controller.text),
+                          ),
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _isGenerating
+                              ? IconButton(
+                                  key: const ValueKey('stop'),
+                                  icon: const Icon(Icons.stop_rounded, color: Color(0xFFEF5350)),
+                                  onPressed: () => _sendMessage(''),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEF5350).withOpacity(0.15),
+                                    shape: const CircleBorder(),
+                                  ),
+                                )
+                              : IconButton(
+                                  key: const ValueKey('send'),
+                                  icon: const Icon(Icons.send_rounded, color: Colors.white),
+                                  onPressed: () => _sendMessage(_controller.text),
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1426,6 +1494,146 @@ class _TypingIndicatorState extends State<_TypingIndicator>
           }),
         ),
       ),
+    );
+  }
+}
+
+/// Анимированный индикатор поиска в интернете
+class _SearchIndicator extends StatefulWidget {
+  const _SearchIndicator();
+
+  @override
+  State<_SearchIndicator> createState() => _SearchIndicatorState();
+}
+
+class _SearchIndicatorState extends State<_SearchIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+    _rotation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.linear),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4A90E2).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _rotation,
+              builder: (context, _) {
+                return Transform.rotate(
+                  angle: _rotation.value * 2 * 3.14159,
+                  child: const Icon(
+                    Icons.public_rounded,
+                    color: Color(0xFF4A90E2),
+                    size: 18,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            Text(
+              tr('Ищу в интернете...', 'Searching the web...'),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF4A90E2),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            _SearchDots(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Три анимированные точки для поиска
+class _SearchDots extends StatefulWidget {
+  const _SearchDots();
+
+  @override
+  State<_SearchDots> createState() => _SearchDotsState();
+}
+
+class _SearchDotsState extends State<_SearchDots> with TickerProviderStateMixin {
+  late final List<AnimationController> _controllers;
+  late final List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(3, (i) {
+      final c = AnimationController(
+        duration: const Duration(milliseconds: 500),
+        vsync: this,
+      );
+      c.repeat(reverse: true);
+      Future.delayed(Duration(milliseconds: i * 160), () {
+        if (mounted) c.forward();
+      });
+      return c;
+    });
+    _animations = _controllers.map((c) {
+      return Tween<double>(begin: 0.2, end: 1.0).animate(
+        CurvedAnimation(parent: c, curve: Curves.easeInOut),
+      );
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _animations[i],
+          builder: (context, _) {
+            return Container(
+              width: 5,
+              height: 5,
+              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A90E2).withOpacity(_animations[i].value * 0.7),
+                shape: BoxShape.circle,
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }

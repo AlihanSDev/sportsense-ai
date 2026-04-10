@@ -50,6 +50,7 @@ class QwenApiService {
     int maxTokens = 1024,
     double temperature = 0.7,
     String? context, // Контекст из векторной базы для RAG
+    bool useSearch = false, // Поиск в интернете через LangChain
   }) async {
     try {
       // Формируем промпт с контекстом для RAG
@@ -70,8 +71,8 @@ User question: $message
         prompt = message;
       }
 
-      print('🤖 Sending request to Qwen API...');
-      
+      print('🤖 Sending request to Qwen API (search=$useSearch)...');
+
       final response = await _client.post(
         Uri.parse('$baseUrl/chat'),
         headers: {'Content-Type': 'application/json'},
@@ -79,6 +80,7 @@ User question: $message
           'message': prompt,
           'max_tokens': maxTokens,
           'temperature': temperature,
+          'use_search': useSearch,
         }),
       ).timeout(const Duration(seconds: 120));
 

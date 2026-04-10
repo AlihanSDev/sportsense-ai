@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Локальный API сервер для Qwen2.5-1.5B-Instruct GGUF.
-Использует llama-cpp-python для запуска модели.
+Локальный API сервер для Qwen2.5-1.5B-Instruct GGUF с поиском в интернете.
+Использует llama-cpp-python для модели и DuckDuckGo для поиска.
 
 Запуск:
     python scripts/qwen_api.py
 
-Установка зависимостей:
+Зависимости:
     pip install llama-cpp-python flask flask-cors
+    pip install langchain langchain-community duckduckgo-search  (для поиска)
 """
 
 import sys
@@ -18,7 +19,6 @@ try:
     from llama_cpp import Llama
 except ImportError:
     print("[ERROR] llama-cpp-python не установлена!")
-    print("Установите командой:")
     print("  pip install llama-cpp-python")
     sys.exit(1)
 
@@ -27,158 +27,208 @@ try:
     from flask_cors import CORS
 except ImportError:
     print("[ERROR] Flask не установлен!")
-    print("Установите командой:")
     print("  pip install flask flask-cors")
     sys.exit(1)
 
+try:
+    from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
 
-# Конфигурация
 MODEL_PATH = "models/qwen/Qwen2.5-1.5B-Instruct-Q5_K_M.gguf"
 HOST = "127.0.0.1"
 PORT = 5000
 MAX_TOKENS = 512
 TEMPERATURE = 0.7
+SEARCH_RESULTS = 3
 
 app = Flask(__name__)
-CORS(app)  # Разрешить CORS запросы
+CORS(app)
 
-# Глобальная переменная для модели
 llm = None
+search = None
 
 
 def load_model():
-    """Загружает модель Qwen."""
     global llm
-    
     model_file = Path(MODEL_PATH)
-    
     if not model_file.exists():
         print(f"[ERROR] Модель не найдена: {MODEL_PATH}")
         print("Сначала запустите: python scripts/download_qwen.py")
         return False
-    
     print(f"[INFO] Загрузка модели: {MODEL_PATH}")
-    print("Это может занять несколько минут...")
-    
     try:
         llm = Llama(
             model_path=str(model_file),
-            n_ctx=2048,  # Контекст 2048 токенов
-            n_threads=4,  # Количество потоков CPU
-            n_gpu_layers=0,  # 0 = только CPU (для ноутбуков без GPU)
+            n_ctx=4096,
+            n_threads=4,
+            n_gpu_layers=0,
             verbose=False,
         )
-        print(f"[OK] Модель загружена успешно!")
+        print("[OK] Модель загружена успешно!")
         return True
     except Exception as e:
         print(f"[ERROR] Ошибка загрузки модели: {e}")
         return False
 
 
-@app.route('/health', methods=['GET'])
+def init_search():
+    global search
+    if LANGCHAIN_AVAILABLE:
+        try:
+            search = DuckDuckGoSearchAPIWrapper(max_results=SEARCH_RESULTS)
+            print("[OK] DuckDuckGo Search инициализирован")
+            return True
+        except Exception as e:
+            print(f"[WARN] Ошибка инициализации поиска: {e}")
+            search = None
+    return False
+
+
+def search_web(query):
+    if search is None:
+        return ""
+    try:
+        print(f"[SEARCH] Поиск: {query}")
+        results = search.results(query)
+        if not results:
+            print("[SEARCH] Результаты не найдены")
+            return ""
+        parts = []
+        for i, r in enumerate(results[:SEARCH_RESULTS], 1):
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            link = r.get("link", "")
+            parts.append(f"[Источник {i}]\nЗаголовок: {title}\n{snippet}\nURL: {link}")
+        print(f"[SEARCH] Найдено {len(results)} результатов")
+        return "\n\n".join(parts)
+    except Exception as e:
+        print(f"[SEARCH] Ошибка поиска: {e}")
+        return ""
+
+
+@app.route("/health", methods=["GET"])
 def health_check():
-    """Проверка доступности API."""
     return jsonify({
-        'status': 'ok',
-        'model': 'Qwen2.5-1.5B-Instruct',
-        'loaded': llm is not None
+        "status": "ok",
+        "model": "Qwen2.5-1.5B-Instruct",
+        "loaded": llm is not None,
+        "search_available": search is not None,
+        "langchain": LANGCHAIN_AVAILABLE,
     })
 
 
-@app.route('/chat', methods=['POST'])
+@app.route("/chat", methods=["POST"])
 def chat():
-    """Обработка запроса к чат-боту."""
     if llm is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-    
+        return jsonify({"error": "Model not loaded"}), 503
     data = request.get_json()
-    
-    if not data or 'message' not in data:
-        return jsonify({'error': 'Message is required'}), 400
-    
-    message = data['message']
-    max_tokens = data.get('max_tokens', MAX_TOKENS)
-    temperature = data.get('temperature', TEMPERATURE)
-    
-    print(f"[REQUEST] Запрос: {message}")
-    
+    if not data or "message" not in data:
+        return jsonify({"error": "Message is required"}), 400
+    message = data["message"]
+    max_tokens = data.get("max_tokens", MAX_TOKENS)
+    temperature = data.get("temperature", TEMPERATURE)
+    use_search = data.get("use_search", False)
+    print(f"[REQUEST] Запрос: {message} (search={use_search})")
     try:
-        # Формируем промпт для Qwen Instruct
-        prompt = f"<|im_start|>system\nТы полезный ассистент Sportsense AI, специализирующийся на спортивной аналитике и данных UEFA.<|im_end|>\n<|im_start|>user\n{message}<|im_end|>\n<|im_start|>assistant\n"
-        
-        # Генерируем ответ
+        web_context = ""
+        if use_search and search is not None:
+            web_context = search_web(message)
+        if web_context:
+            prompt = (
+                f"<<system>>\n"
+                f"Ты Sportsense AI. Используй информацию из интернета для ответа.\n\n"
+                f"Контекст из интернета:\n{web_context}\n\n"
+                f"Ответь на вопрос пользователя, опираясь на эти данные. "
+                f"Если источники противоречат друг другу — укажи это.\n"
+                f"<<user>>\n{message}\n"
+                f"<<assistant>>\n"
+            )
+        else:
+            prompt = (
+                f"<<system>>\n"
+                f"Ты полезный ассистент Sportsense AI, специализирующийся на спортивной аналитике.\n"
+                f"<<user>>\n{message}\n"
+                f"<<assistant>>\n"
+            )
         output = llm(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=['<|im_end|>', '<|im_start|>'],
+            stop=["<<assistant>>", "<<user>>"],
             echo=False,
         )
-        
-        response_text = output['choices'][0]['text'].strip()
-        
-        print(f"[RESPONSE] Ответ: {response_text}")
-        
+        response_text = output["choices"][0]["text"].strip()
+        print(f"[RESPONSE] {response_text}")
         return jsonify({
-            'response': response_text,
-            'model': 'Qwen2.5-1.5B-Instruct',
-            'tokens_used': output['usage']['total_tokens']
+            "response": response_text,
+            "model": "Qwen2.5-1.5B-Instruct",
+            "tokens_used": output["usage"]["total_tokens"],
+            "search_used": use_search and web_context != "",
+            "search_results": len(web_context.split("[Source")) - 1 if web_context else 0,
         })
-        
     except Exception as e:
         print(f"[ERROR] Ошибка генерации: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/generate', methods=['POST'])
+@app.route("/generate", methods=["POST"])
 def generate():
-    """Генерация текста (без системного промпта)."""
     if llm is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-    
+        return jsonify({"error": "Model not loaded"}), 503
     data = request.get_json()
-    
-    if not data or 'prompt' not in data:
-        return jsonify({'error': 'Prompt is required'}), 400
-    
-    prompt = data['prompt']
-    max_tokens = data.get('max_tokens', MAX_TOKENS)
-    
+    if not data or "prompt" not in data:
+        return jsonify({"error": "Prompt is required"}), 400
+    prompt = data["prompt"]
+    max_tokens = data.get("max_tokens", MAX_TOKENS)
     try:
-        output = llm(
-            prompt,
-            max_tokens=max_tokens,
-            echo=False,
-        )
-        
+        output = llm(prompt, max_tokens=max_tokens, echo=False)
         return jsonify({
-            'text': output['choices'][0]['text'],
-            'tokens': output['usage']['total_tokens']
+            "text": output["choices"][0]["text"],
+            "tokens": output["usage"]["total_tokens"],
         })
-        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 
-if __name__ == '__main__':
+@app.route("/generate_title", methods=["POST"])
+def generate_title():
+    if llm is None:
+        return jsonify({"error": "Model not loaded"}), 503
+    data = request.get_json()
+    if not data or "message" not in data:
+        return jsonify({"error": "Message is required"}), 400
+    message = data["message"]
+    try:
+        prompt = (
+            f"<<system>>\n"
+            f"Сгенерируй короткое название чата (макс 5 слов) для этого сообщения. "
+            f"Ответь только названием, без кавычек и объяснений.\n"
+            f"<<user>>\n{message}\n"
+            f"<<assistant>>\n"
+        )
+        output = llm(prompt, max_tokens=30, temperature=0.7, stop=["<<assistant>>"], echo=False)
+        title = output["choices"][0]["text"].strip().replace('"', '').strip()
+        return jsonify({"title": title})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
     print("=" * 60)
     print("[Sportsense AI - Qwen2.5-1.5B Local API Server]")
     print("=" * 60)
-    
-    # Загрузка модели
     if not load_model():
         sys.exit(1)
-    
-    # Запуск сервера
+    init_search()
     print(f"\n[WEB] Запуск сервера на http://{HOST}:{PORT}")
     print("Endpoints:")
     print("  GET  /health  - проверка доступности")
-    print("  POST /chat    - запрос к чат-боту")
+    print("  POST /chat    - запрос к чат-боту (use_search=true для поиска)")
     print("  POST /generate - генерация текста")
+    print("  POST /generate_title - генерация названия чата")
     print("\nНажмите Ctrl+C для остановки")
     print("=" * 60)
-    
-    # Отключаем dotenv для избежания ошибок на Windows
-    os.environ['FLASK_ENV'] = 'production'
-    
+    os.environ["FLASK_ENV"] = "production"
     app.run(host=HOST, port=PORT, debug=False)
