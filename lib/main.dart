@@ -285,13 +285,11 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-        child: _BottomDock(
-          items: navItems,
-          selectedIndex: _selectedTab,
-          onSelect: (index) => setState(() => _selectedTab = index),
-        ),
+      bottomNavigationBar: _BottomDock(
+        items: navItems,
+        selectedIndex: _selectedTab,
+        onSelect: (index) => setState(() => _selectedTab = index),
+        onOpenChat: () => widget.onOpenAssistant(),
       ),
     );
   }
@@ -501,36 +499,6 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
             spacing: 12,
             runSpacing: 12,
             children: statusItems.map((item) => _StatusPill(item: item)).toList(),
-          ),
-          const SizedBox(height: 24),
-          // Круглая кнопка AI
-          GestureDetector(
-            onTap: () => widget.onOpenAssistant(),
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF7C4DFF).withOpacity(0.35),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF4A90E2).withOpacity(0.2),
-                    blurRadius: 30,
-                    spreadRadius: 8,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 32),
-            ),
           ),
         ],
       ),
@@ -2037,11 +2005,13 @@ class _BottomDock extends StatelessWidget {
   final List<_NavItem> items;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final VoidCallback onOpenChat;
 
   const _BottomDock({
     required this.items,
     required this.selectedIndex,
     required this.onSelect,
+    required this.onOpenChat,
   });
 
   @override
@@ -2050,62 +2020,149 @@ class _BottomDock extends StatelessWidget {
       listenable: themeNotifier,
       builder: (context, _) {
         final isDark = themeNotifier.isDark;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.black.withOpacity(0.4)
-                : Colors.white.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
-            ),
-          ),
-          child: Row(
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final selected = index == selectedIndex;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onSelect(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? (isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF4A90E2).withOpacity(0.15))
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item.icon,
-                          color: selected
-                              ? (isDark ? Colors.white : const Color(0xFF4A90E2))
-                              : (isDark ? Colors.white.withOpacity(0.55) : Colors.black38),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Панель навигации
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.4)
+                      : Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Главная
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onSelect(0),
+                        child: _DockItemContent(
+                          icon: items[0].icon,
+                          label: items[0].label,
+                          selected: selectedIndex == 0,
+                          isDark: isDark,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          item.label,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                            color: selected
-                                ? (isDark ? Colors.white : const Color(0xFF4A90E2))
-                                : (isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
-                          ),
+                      ),
+                    ),
+                    // Матчи
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onSelect(1),
+                        child: _DockItemContent(
+                          icon: items[1].icon,
+                          label: items[1].label,
+                          selected: selectedIndex == 1,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                    // Пустое место для кнопки
+                    const Expanded(child: SizedBox.shrink()),
+                    // Турниры
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onSelect(2),
+                        child: _DockItemContent(
+                          icon: items[2].icon,
+                          label: items[2].label,
+                          selected: selectedIndex == 2,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                    // Сохранённое
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onSelect(3),
+                        child: _DockItemContent(
+                          icon: items[3].icon,
+                          label: items[3].label,
+                          selected: selectedIndex == 3,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Круглая кнопка AI по центру
+              Positioned(
+                top: -24,
+                child: GestureDetector(
+                  onTap: onOpenChat,
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF7C4DFF), Color(0xFF4A90E2)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C4DFF).withOpacity(0.4),
+                          blurRadius: 14,
+                          spreadRadius: 2,
                         ),
                       ],
                     ),
+                    child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
                   ),
                 ),
-              );
-            }),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+class _DockItemContent extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool isDark;
+  const _DockItemContent({required this.icon, required this.label, required this.selected, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: selected
+                ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                : (isDark ? Colors.white.withOpacity(0.55) : Colors.black38),
+            size: 22,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected
+                  ? (isDark ? Colors.white : const Color(0xFF4A90E2))
+                  : (isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
