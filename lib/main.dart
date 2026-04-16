@@ -1125,7 +1125,6 @@ class _ChatScreenState extends State<ChatScreen> {
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
         maxTokens: 1024,
-        useSearch: shouldSearch,
       );
       if (_stopRequested) {
         _cancelGeneration();
