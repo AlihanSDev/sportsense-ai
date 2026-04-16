@@ -3,29 +3,46 @@ import 'package:http/http.dart' as http;
 
 /// Сервис для взаимодействия с локальным Qwen API.
 class QwenApiService {
-  final String baseUrl;
+  String baseUrl;
   final http.Client _client;
 
   QwenApiService({
-    this.baseUrl = 'http://127.0.0.1:5000',
+    this.baseUrl = 'http://10.0.2.2:5000',  // 10.0.2.2 for Android emulator, will fallback to 127.0.0.1
     http.Client? client,
   }) : _client = client ?? http.Client();
 
   /// Проверка доступности API.
   Future<bool> isAvailable() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
+    // Try both addresses: emulator (10.0.2.2) and localhost (127.0.0.1)
+    final urls = ['http://10.0.2.2:5000/health', 'http://127.0.0.1:5000/health'];
+    
+    for (final url in urls) {
+      try {
+        print('🔍 Checking Qwen API availability at $url...');
+        final response = await _client.get(
+          Uri.parse(url),
+        ).timeout(const Duration(seconds: 3));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        return data['loaded'] == true;
+        print('📡 Health response status: ${response.statusCode}');
+        print('📄 Health response body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final loaded = data['loaded'] == true;
+          if (loaded) {
+            print('✅ Qwen API available at $url');
+            // Update baseUrl to the working one
+            baseUrl = url.replaceAll('/health', '');
+            return true;
+          }
+        }
+      } catch (e) {
+        print('❌ Qwen API not available at $url: $e');
       }
-      return false;
-    } catch (e) {
-      return false;
     }
+    
+    print('❌ Qwen API not available on any address');
+    return false;
   }
 
   /// Отправка запроса к чат-боту с контекстом (RAG).
@@ -33,6 +50,7 @@ class QwenApiService {
     int maxTokens = 1024,
     double temperature = 0.7,
     String? context, // Контекст из векторной базы для RAG
+    bool useSearch = false, // Поиск в интернете через LangChain
   }) async {
     try {
       // Формируем промпт с контекстом для RAG
@@ -53,8 +71,8 @@ User question: $message
         prompt = message;
       }
 
-      print('🤖 Sending request to Qwen API...');
-      
+      print('🤖 Sending request to Qwen API (search=$useSearch)...');
+
       final response = await _client.post(
         Uri.parse('$baseUrl/chat'),
         headers: {'Content-Type': 'application/json'},
@@ -62,17 +80,31 @@ User question: $message
           'message': prompt,
           'max_tokens': maxTokens,
           'temperature': temperature,
+          'use_search': useSearch,
         }),
       ).timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        final sourcesList = <SearchSource>[];
+        if (data['sources'] != null) {
+          for (final s in data['sources'] as List) {
+            sourcesList.add(SearchSource(
+              title: s['title'] as String? ?? '',
+              url: s['url'] as String? ?? '',
+            ));
+          }
+        }
         final result = QwenChatResponse(
           response: data['response'] as String,
           model: data['model'] as String,
           tokensUsed: data['tokens_used'] as int,
+          sources: sourcesList,
         );
-        print('✅ Qwen response received (${result.tokensUsed} tokens)');
+        print('✅ Qwen response received (${result.tokensUsed} tokens, ${sourcesList.length} sources)');
+        for (final s in sourcesList) {
+          print('   📎 Source: ${s.title} -> ${s.url}');
+        }
         return result;
       } else {
         print('❌ API error: ${response.statusCode}');
@@ -119,21 +151,30 @@ User question: $message
   }
 }
 
+/// Источник из поиска в интернете
+class SearchSource {
+  final String title;
+  final String url;
+  SearchSource({required this.title, required this.url});
+}
+
 /// Ответ от Qwen API на запрос чата.
 class QwenChatResponse {
   final String response;
   final String model;
   final int tokensUsed;
+  final List<SearchSource> sources;
 
   QwenChatResponse({
     required this.response,
     required this.model,
     required this.tokensUsed,
+    this.sources = const [],
   });
 
   @override
   String toString() {
-    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
+    return 'QwenChatResponse(model: $model, tokens: $tokensUsed, sources: ${sources.length}, response: "${response.substring(0, response.length.clamp(0, 50))}...")';
   }
 }
 

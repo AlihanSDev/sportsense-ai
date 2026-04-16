@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""Builds qwen_api.py with HF Router + LangChain search integration."""
+import os
+
+content = r'''#!/usr/bin/env python3
 """
 Sportsense AI API Server.
 - Local Qwen 1.5B (llama-cpp-python)
@@ -7,13 +11,6 @@ Sportsense AI API Server.
 import sys, os, json
 from pathlib import Path
 from datetime import datetime
-
-# Load .env file
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # python-dotenv optional, .env vars still work if set in shell
 
 try:
     from llama_cpp import Llama
@@ -43,7 +40,7 @@ PORT = 5000
 SEARCH_RESULTS = 3
 HF_BASE_URL = "https://router.huggingface.co/v1"
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
-HF_MODEL = os.environ.get("HF_MODEL", "Qwen/Qwen3.5-9B")
+HF_MODEL = os.environ.get("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
 app = Flask(__name__)
 CORS(app)
@@ -266,3 +263,9 @@ if __name__ == "__main__":
     print("=" * 60)
     os.environ["FLASK_ENV"] = "production"
     app.run(host=HOST, port=PORT, debug=False)
+'''
+
+path = os.path.join(os.path.dirname(__file__), "qwen_api.py")
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+print(f"Written {len(content)} bytes to {path}")
