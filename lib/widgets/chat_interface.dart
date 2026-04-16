@@ -268,7 +268,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 ),
                 decoration: BoxDecoration(
                   color: message.isUser
-                      ? const Color(0xFF2B2B2B)
+                      ? const Color(0xFF1F1F1F)
                       : Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(

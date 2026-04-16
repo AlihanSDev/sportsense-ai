@@ -108,18 +108,18 @@ class SpaceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       themeMode: themeNotifier.mode,
       theme: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        primaryColor: const Color(0xFF4A90E2),
+        scaffoldBackgroundColor: const Color(0xFFEBEEF2),
+        primaryColor: const Color(0xFF3A7FD0),
         colorScheme: ColorScheme.light(
-          primary: const Color(0xFF4A90E2),
-          secondary: const Color(0xFF5BA3F5),
-          surface: Colors.white,
+          primary: const Color(0xFF3A7FD0),
+          secondary: const Color(0xFF4A92E3),
+          surface: const Color(0xFFFAFAFA),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
           onSurface: const Color(0xFF1A1A2E),
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
+          backgroundColor: Color(0xFFFAFAFA),
           foregroundColor: Color(0xFF1A1A2E),
           elevation: 0,
           iconTheme: IconThemeData(color: Color(0xFF1A1A2E)),
@@ -130,7 +130,7 @@ class SpaceApp extends StatelessWidget {
           ),
         ),
         cardTheme: const CardThemeData(
-          color: Colors.white,
+          color: Color(0xFFFAFAFA),
           elevation: 3,
           shadowColor: Color(0x1A000000),
           shape: RoundedRectangleBorder(
@@ -139,24 +139,24 @@ class SpaceApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: const Color(0xFFFAFAFA),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFFE0E4E8)),
+            borderSide: const BorderSide(color: Color(0xFFD0D8E0)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFFE0E4E8)),
+            borderSide: const BorderSide(color: Color(0xFFD0D8E0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFF4A90E2), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF3A7FD0), width: 2),
           ),
-          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+          hintStyle: const TextStyle(color: Color(0xFF8A91A0)),
         ),
         textTheme: const TextTheme(
           bodyLarge: TextStyle(color: Color(0xFF1A1A2E)),
@@ -164,32 +164,32 @@ class SpaceApp extends StatelessWidget {
           titleMedium: TextStyle(color: Color(0xFF1A1A2E)),
         ),
         iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
-        dividerColor: const Color(0xFFE0E4E8),
+        dividerColor: const Color(0xFFD0D8E0),
         listTileTheme: const ListTileThemeData(
           iconColor: Color(0xFF1A1A2E),
           textColor: Color(0xFF1A1A2E),
-          selectedTileColor: Color(0x144A90E2),
+          selectedTileColor: Color(0x143A7FD0),
         ),
         drawerTheme: const DrawerThemeData(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          backgroundColor: Color(0xFFFAFAFA),
+          surfaceTintColor: Color(0xFFFAFAFA),
         ),
       ),
       darkTheme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B0B12),
+        scaffoldBackgroundColor: const Color(0xFF050509),
         colorScheme: ColorScheme.dark(
-          primary: const Color(0xFF4A90E2),
-          secondary: const Color(0xFF5BA3F5),
-          surface: const Color(0xFF1A1A26),
+          primary: const Color(0xFF3A7FD0),
+          secondary: const Color(0xFF4A92E3),
+          surface: const Color(0xFF0E0E14),
           onSurface: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0B0B12),
+          backgroundColor: Color(0xFF050509),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         cardTheme: const CardThemeData(
-          color: Color(0xFF1A1A26),
+          color: Color(0xFF0E0E14),
           elevation: 3,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -197,24 +197,24 @@ class SpaceApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF1A1A26),
+          fillColor: const Color(0xFF0E0E14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFF2A2A36)),
+            borderSide: const BorderSide(color: Color(0xFF1E1E2A)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFF2A2A36)),
+            borderSide: const BorderSide(color: Color(0xFF1E1E2A)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFF4A90E2), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF3A7FD0), width: 2),
           ),
-          hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+          hintStyle: const TextStyle(color: Color(0xFF5A626A)),
         ),
         drawerTheme: const DrawerThemeData(
-          backgroundColor: Color(0xFF0B0B12),
-          surfaceTintColor: Color(0xFF0B0B12),
+          backgroundColor: Color(0xFF050509),
+          surfaceTintColor: Color(0xFF050509),
         ),
       ),
       home: ChatScreen(
@@ -477,7 +477,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF14141F) : const Color(0xFFEBF4FF),
+              color: isDark ? const Color(0xFF0F0F19) : const Color(0xFFDBEBFF),
             ),
             child: Column(
               children: [
@@ -485,7 +485,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4A90E2),
+                    color: const Color(0xFF3A7FD0),
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: isDark ? Colors.white : Colors.white,
@@ -544,7 +544,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                   selected: index == _currentChatIndex,
-                  selectedTileColor: Colors.blue.withOpacity(0.1),
+                  selectedTileColor: const Color(0xFF3A7FD0).withOpacity(0.15),
                   onTap: () => _switchChat(index),
                 );
               },
@@ -564,17 +564,23 @@ class _ChatScreenState extends State<ChatScreen> {
           const Divider(),
           if (!_isLoggedIn)
             ListTile(
-              leading: const Icon(Icons.app_registration, color: Colors.blue),
+              leading: const Icon(
+                Icons.app_registration,
+                color: Color(0xFF3A7FD0),
+              ),
               title: const Text(
                 "Регистрация / Вход",
-                style: TextStyle(color: Colors.blue),
+                style: TextStyle(color: Color(0xFF3A7FD0)),
               ),
               onTap: _showRegistrationDialog,
             ),
           if (_isLoggedIn)
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text("Выйти", style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.logout, color: Color(0xFFB33D3D)),
+              title: const Text(
+                "Выйти",
+                style: TextStyle(color: Color(0xFFB33D3D)),
+              ),
               onTap: _logout,
             ),
           ListTile(
@@ -812,7 +818,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           Container(
                             margin: const EdgeInsets.only(left: 4),
                             decoration: const BoxDecoration(
-                              color: Color(0xFF4A90E2),
+                              color: Color(0xFF3A7FD0),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -865,7 +871,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(
               isDark ? "Сейчас: тёмная" : "Сейчас: светлая",
               style: TextStyle(
-                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                color: isDark ? Colors.white54 : const Color(0xFF5A626A),
               ),
             ),
             trailing: Switch(
@@ -877,19 +883,19 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: Icon(
               Icons.info_outline,
-              color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+              color: isDark ? Colors.white54 : const Color(0xFF5A626A),
             ),
             title: Text(
               "Sportsense AI Assistant",
               style: TextStyle(
-                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                color: isDark ? Colors.white54 : const Color(0xFF5A626A),
                 fontWeight: FontWeight.w500,
               ),
             ),
             subtitle: Text(
               "Версия 1.0.0",
               style: TextStyle(
-                color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+                color: isDark ? Colors.white38 : const Color(0xFF8A91A0),
               ),
             ),
           ),

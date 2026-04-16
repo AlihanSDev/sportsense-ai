@@ -53,9 +53,9 @@ class _SpaceBackgroundState extends State<SpaceBackground>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF0B0B12),
-                      Color(0xFF14141F),
-                      Color(0xFF1A1A26),
+                      Color(0xFF050509),
+                      Color(0xFF0F0F19),
+                      Color(0xFF0E0E14),
                     ],
                   )
                 : const LinearGradient(
@@ -189,7 +189,7 @@ class CloudPainter extends CustomPainter {
           -0.2 + math.cos(animation * 0.15) * 0.1,
         ),
         radius: 0.9,
-        colors: [const Color(0xFF8B7DD8).withOpacity(0.08), Colors.transparent],
+        colors: [const Color(0xFF7A6FC8).withOpacity(0.12), Colors.transparent],
       );
 
       // Мягкое синее облако (справа)
@@ -199,7 +199,7 @@ class CloudPainter extends CustomPainter {
           0.3 + math.sin(animation * 0.12) * 0.1,
         ),
         radius: 0.8,
-        colors: [const Color(0xFF7A9BCB).withOpacity(0.07), Colors.transparent],
+        colors: [const Color(0xFF6A8BBB).withOpacity(0.11), Colors.transparent],
       );
 
       // Тёплое облако (снизу)
@@ -209,7 +209,7 @@ class CloudPainter extends CustomPainter {
           0.5 + math.cos(animation * 0.1) * 0.2,
         ),
         radius: 1.0,
-        colors: [const Color(0xFFB89E97).withOpacity(0.05), Colors.transparent],
+        colors: [const Color(0xFFA88E87).withOpacity(0.09), Colors.transparent],
       );
 
       // Лёгкое серое облако (центр)
@@ -219,7 +219,7 @@ class CloudPainter extends CustomPainter {
           math.sin(animation * 0.2) * 0.2,
         ),
         radius: 0.7,
-        colors: [const Color(0xFFA0A0B0).withOpacity(0.04), Colors.transparent],
+        colors: [const Color(0xFF909090).withOpacity(0.08), Colors.transparent],
       );
 
       final rect = Rect.fromLTWH(0, 0, size.width, size.height);
@@ -232,14 +232,13 @@ class CloudPainter extends CustomPainter {
       canvas.drawRect(rect, Paint()..shader = warmGradient.createShader(rect));
       canvas.drawRect(rect, Paint()..shader = grayGradient.createShader(rect));
     } else {
-      // Светлые облака для белой темы
       final lightBlueGradient = RadialGradient(
         center: Alignment(
           -0.2 + math.sin(animation * 0.2) * 0.1,
           -0.3 + math.cos(animation * 0.15) * 0.1,
         ),
         radius: 0.9,
-        colors: [const Color(0xFFB3D4F0).withOpacity(0.3), Colors.transparent],
+        colors: [const Color(0xFF9FC4E0).withOpacity(0.4), Colors.transparent],
       );
 
       final lightPurpleGradient = RadialGradient(
@@ -248,7 +247,7 @@ class CloudPainter extends CustomPainter {
           0.2 + math.sin(animation * 0.12) * 0.1,
         ),
         radius: 0.8,
-        colors: [const Color(0xFFD4C4F0).withOpacity(0.25), Colors.transparent],
+        colors: [const Color(0xFFC4B4E0).withOpacity(0.35), Colors.transparent],
       );
 
       final lightWarmGradient = RadialGradient(
@@ -257,7 +256,7 @@ class CloudPainter extends CustomPainter {
           0.6 + math.cos(animation * 0.1) * 0.2,
         ),
         radius: 1.0,
-        colors: [const Color(0xFFF0E0D4).withOpacity(0.2), Colors.transparent],
+        colors: [const Color(0xFFE0D0C4).withOpacity(0.3), Colors.transparent],
       );
 
       final rect = Rect.fromLTWH(0, 0, size.width, size.height);
