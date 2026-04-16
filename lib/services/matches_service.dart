@@ -85,6 +85,7 @@ class MatchFeed {
 
 class MatchesService {
   static const _baseUrl = 'https://www.thesportsdb.com/api/v1/json/123';
+  static const upcomingWindowDays = 14;
   static const priorityLeagueIds = {'4480', '4481', '4328', '4335', '4332'};
 
   final http.Client _client;
@@ -93,7 +94,10 @@ class MatchesService {
 
   Future<MatchFeed> fetchMatchFeed() async {
     final now = DateTime.now();
-    final dates = [now, now.add(const Duration(days: 1))];
+    final dates = List.generate(
+      upcomingWindowDays,
+      (index) => now.add(Duration(days: index)),
+    );
     final events = <MatchItem>[];
 
     for (final date in dates) {

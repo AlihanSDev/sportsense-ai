@@ -2962,7 +2962,9 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
   static const String _allLeaguesKey = '__all__';
 
   late Future<MatchFeed> _matchesFuture;
+  final TextEditingController _clubSearchController = TextEditingController();
   String _selectedLeagueId = _allLeaguesKey;
+  String _clubSearchQuery = '';
 
   @override
   void initState() {
@@ -2975,6 +2977,12 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
       _matchesFuture = MatchesService().fetchMatchFeed();
     });
     await _matchesFuture;
+  }
+
+  @override
+  void dispose() {
+    _clubSearchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -3003,8 +3011,8 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
         const SizedBox(height: 8),
         Text(
           tr(
-            'События загружаются по текущей дате из футбольного расписания.',
-            'Events are loaded for the current date from the football schedule feed.',
+            'Загружаем ближайшие футбольные матчи на следующие две недели.',
+            'Loading upcoming football matches for the next two weeks.',
           ),
           style: GoogleFonts.inter(
             fontSize: 14,
@@ -3048,8 +3056,8 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               return _SectionPanel(
                 title: tr('Матчей не найдено', 'No matches found'),
                 subtitle: tr(
-                  'На сегодня и завтра футбольных событий не найдено.',
-                  'No football events were found for today and tomorrow.',
+                  'На ближайшие две недели футбольных событий не найдено.',
+                  'No football events were found for the next two weeks.',
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -3065,20 +3073,166 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               );
             }
 
-            final filteredMatches = _selectedLeagueId == _allLeaguesKey
-                ? allMatches
-                : allMatches
-                      .where((match) => match.leagueId == _selectedLeagueId)
-                      .toList();
+            final effectiveLeagueId =
+                _selectedLeagueId == _allLeaguesKey ||
+                    leagues.any((league) => league.id == _selectedLeagueId)
+                ? _selectedLeagueId
+                : _allLeaguesKey;
+            final normalizedClubQuery = _clubSearchQuery.trim().toLowerCase();
+
+            final filteredMatches = allMatches.where((match) {
+              final matchesLeague =
+                  effectiveLeagueId == _allLeaguesKey ||
+                  match.leagueId == effectiveLeagueId;
+              final matchesClub =
+                  normalizedClubQuery.isEmpty ||
+                  match.homeTeam.toLowerCase().contains(normalizedClubQuery) ||
+                  match.awayTeam.toLowerCase().contains(normalizedClubQuery);
+              return matchesLeague && matchesClub;
+            }).toList();
 
             final visibleMatches = filteredMatches.isEmpty
                 ? allMatches
                 : filteredMatches;
+            final filtersActive =
+                effectiveLeagueId != _allLeaguesKey ||
+                normalizedClubQuery.isNotEmpty;
+            final selectedLeagueName = effectiveLeagueId == _allLeaguesKey
+                ? tr('Все лиги', 'All leagues')
+                : (() {
+                    for (final league in leagues) {
+                      if (league.id == effectiveLeagueId) return league.name;
+                    }
+                    return tr('Выбрать лигу', 'Choose league');
+                  })();
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (leagues.isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _GhostButton(
+                      label: selectedLeagueName,
+                      icon: Icons.tune_rounded,
+                      onTap: () async {
+                        final selectedLeagueId =
+                            await showModalBottomSheet<String>(
+                              context: context,
+                              backgroundColor: const Color(0xFF10233A),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(28),
+                                ),
+                              ),
+                              builder: (context) {
+                                return SafeArea(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          20,
+                                          18,
+                                          20,
+                                          8,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                tr(
+                                                  'Выбор лиги',
+                                                  'Choose league',
+                                                ),
+                                                style: GoogleFonts.spaceGrotesk(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: ListView(
+                                          shrinkWrap: true,
+                                          children: [
+                                            ListTile(
+                                              title: Text(
+                                                tr('Все матчи', 'All matches'),
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight:
+                                                      effectiveLeagueId ==
+                                                          _allLeaguesKey
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                ),
+                                              ),
+                                              trailing:
+                                                  effectiveLeagueId ==
+                                                      _allLeaguesKey
+                                                  ? const Icon(
+                                                      Icons.check_rounded,
+                                                      color: Colors.white,
+                                                    )
+                                                  : null,
+                                              onTap: () {
+                                                Navigator.of(context).pop(
+                                                  _allLeaguesKey,
+                                                );
+                                              },
+                                            ),
+                                            ...leagues.map(
+                                              (league) => ListTile(
+                                                title: Text(
+                                                  league.name,
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        effectiveLeagueId ==
+                                                            league.id
+                                                        ? FontWeight.w700
+                                                        : FontWeight.w500,
+                                                  ),
+                                                ),
+                                                trailing:
+                                                    effectiveLeagueId ==
+                                                        league.id
+                                                    ? const Icon(
+                                                        Icons.check_rounded,
+                                                        color: Colors.white,
+                                                      )
+                                                    : null,
+                                                onTap: () {
+                                                  Navigator.of(
+                                                    context,
+                                                  ).pop(league.id);
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+
+                        if (selectedLeagueId != null) {
+                          setState(() {
+                            _selectedLeagueId = selectedLeagueId;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                /* if (false && leagues.isNotEmpty) ...[
                   SizedBox(
                     height: 40,
                     child: ListView(
@@ -3086,7 +3240,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                       children: [
                         _LeagueChip(
                           label: tr('Все матчи', 'All matches'),
-                          selected: _selectedLeagueId == _allLeaguesKey,
+                          selected: effectiveLeagueId == _allLeaguesKey,
                           onTap: () {
                             setState(() {
                               _selectedLeagueId = _allLeaguesKey;
@@ -3096,7 +3250,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                         ...leagues.map(
                           (league) => _LeagueChip(
                             label: league.name,
-                            selected: _selectedLeagueId == league.id,
+                            selected: effectiveLeagueId == league.id,
                             onTap: () {
                               setState(() {
                                 _selectedLeagueId = league.id;
@@ -3108,15 +3262,75 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                ], */
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.08),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _clubSearchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      icon: const Icon(
+                        Icons.search_rounded,
+                        color: Colors.white70,
+                      ),
+                      hintText: tr(
+                        'Поиск по клубу',
+                        'Search by club',
+                      ),
+                      hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.54),
+                      ),
+                      suffixIcon: _clubSearchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _clubSearchController.clear();
+                                  _clubSearchQuery = '';
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white70,
+                              ),
+                              tooltip: tr('Очистить', 'Clear'),
+                            ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _clubSearchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (_clubSearchQuery.trim().isNotEmpty) ...[
+                  Text(
+                    tr(
+                      'Фильтр по клубу: ${_clubSearchQuery.trim()}',
+                      'Club filter: ${_clubSearchQuery.trim()}',
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.68),
+                    ),
+                  ),
                 ],
-                if (filteredMatches.isEmpty &&
-                    _selectedLeagueId != _allLeaguesKey)
+                if (filteredMatches.isEmpty && filtersActive)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       tr(
-                        'В выбранной лиге матчей не найдено, показываем все доступные события.',
-                        'No matches were found in the selected league, showing all available events.',
+                        'По выбранным фильтрам матчи не найдены, показываем все доступные события.',
+                        'No matches were found for the selected filters, showing all available events.',
                       ),
                       style: GoogleFonts.inter(
                         fontSize: 13,
