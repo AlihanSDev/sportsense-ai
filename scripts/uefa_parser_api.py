@@ -20,8 +20,8 @@ from flask_cors import CORS
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
-    print("ERROR: Playwright not installed!")
-    print("Install with: pip install playwright && playwright install")
+    print("❌ Playwright не установлен!")
+    print("Установите: pip install playwright && playwright install")
     sys.exit(1)
 
 app = Flask(__name__)
@@ -31,10 +31,6 @@ CORS(app)
 _rankings_cache = None
 _cache_timestamp = None
 _CACHE_TTL = 3600  # 1 час
-
-# Конфигурация сервера
-HOST = "0.0.0.0"  # Listen on all interfaces for emulator access
-PORT = 5001
 
 
 def parse_uefa_rankings():
@@ -59,41 +55,41 @@ def parse_uefa_rankings():
         page = context.new_page()
         
         try:
-            print(f"Loading page: {url}")
+            print(f"🌐 Загрузка страницы: {url}")
             page.goto(url, wait_until="networkidle", timeout=60000)
             
-            print("Waiting for table to load...")
-            # Wait for table container to appear
+            print("⏳ Ожидание загрузки таблицы...")
+            # Ждём появления контейнера таблицы
             page.wait_for_selector('div.ag-center-cols-container', timeout=30000)
             
-            # Additional delay for data rendering
-            print("Waiting for data rendering...")
+            # Дополнительная задержка для рендеринга данных
+            print("⏳ Ожидание рендеринга данных...")
             time.sleep(5)
             
-            # Get page content
+            # Получаем контент страницы
             content = page.content()
-            print(f"HTML size: {len(content)} bytes")
+            print(f"📦 Размер HTML: {len(content)} байт")
             
-            # Find table rows
+            # Ищем строки таблицы
             rows = page.query_selector_all('div[role="row"]')
-            print(f"Found rows with role='row': {len(rows)}")
+            print(f"🔍 Найдено строк с role='row': {len(rows)}")
             
-            # Alternatively: search in container
+            # Альтернативно: ищем в контейнере
             grid_container = page.query_selector('div.ag-center-cols-container')
             if grid_container:
-                print("Found ag-center-cols-container")
+                print("✅ Найден ag-center-cols-container")
                 container_rows = grid_container.query_selector_all('div[role="row"]')
-                print(f"   Found rows in container: {len(container_rows)}")
+                print(f"   Найдено строк в контейнере: {len(container_rows)}")
                 if len(container_rows) > len(rows):
                     rows = container_rows
             
-            # If still no rows, try different selector
+            # Если всё ещё нет строк, пробуем другой селектор
             if len(rows) == 0:
-                print("No rows found, trying alternative search...")
+                print("⚠️ Не найдено строк, пробуем альтернативный поиск...")
                 rows = page.query_selector_all('div.ag-row')
-                print(f"   Found rows with ag-row: {len(rows)}")
+                print(f"   Найдено строк с ag-row: {len(rows)}")
             
-            print(f"\nExtracting data from {len(rows)} rows...")
+            print(f"\n📊 Извлечение данных из {len(rows)} строк...")
             
             for i, row in enumerate(rows):
                 row_data = {}
@@ -125,12 +121,12 @@ def parse_uefa_rankings():
                     rankings.append(row_data)
                     association = row_data.get('association', row_data.get('col_0', 'Unknown'))
                     points = row_data.get('points', row_data.get('col_3', 'N/A'))
-                    print(f"   [OK] Row {i+1}: {association} (points: {points})")
+                    print(f"   ✓ Row {i+1}: {association} (points: {points})")
             
-            print(f"\nTotal extracted {len(rankings)} records")
-
+            print(f"\n✅ Всего извлечено {len(rankings)} записей")
+            
         except Exception as e:
-            print(f"Parsing error: {e}")
+            print(f"❌ Ошибка парсинга: {e}")
             import traceback
             traceback.print_exc()
         finally:
@@ -155,11 +151,11 @@ def get_rankings():
     """Получение данных рейтинга."""
     global _rankings_cache, _cache_timestamp
     
-    # Check cache
+    # Проверяем кэш
     if _rankings_cache is not None and _cache_timestamp is not None:
         age = (datetime.now() - _cache_timestamp).total_seconds()
         if age < _CACHE_TTL:
-            print(f"Returning from cache (age: {age:.0f} sec)")
+            print(f"📦 Возвращаем из кэша (возраст: {age:.0f} сек)")
             return jsonify({
                 'status': 'ok',
                 'source': 'cache',
@@ -167,15 +163,15 @@ def get_rankings():
                 'count': len(_rankings_cache),
                 'timestamp': _cache_timestamp.isoformat()
             })
-
-    # Parse fresh
-    print("Parsing UEFA Rankings...")
+    
+    # Парсим заново
+    print("🔍 Парсинг UEFA Rankings...")
     rankings = parse_uefa_rankings()
     
     if rankings:
         _rankings_cache = rankings
         _cache_timestamp = datetime.now()
-        print(f"Found {len(rankings)} records")
+        print(f"✅ Найдено {len(rankings)} записей")
         
         return jsonify({
             'status': 'ok',
@@ -198,13 +194,13 @@ def get_fresh_rankings():
     """Получение свежих данных (без кэша)."""
     global _rankings_cache, _cache_timestamp
     
-    print(">>> Force parsing UEFA Rankings...")
+    print("🔄 Принудительный парсинг UEFA Rankings...")
     rankings = parse_uefa_rankings()
     
     if rankings:
         _rankings_cache = rankings
         _cache_timestamp = datetime.now()
-        print(f"[SUCCESS] Found {len(rankings)} records")
+        print(f"✅ Найдено {len(rankings)} записей")
         
         return jsonify({
             'status': 'ok',
@@ -224,16 +220,16 @@ def get_fresh_rankings():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("UEFA Rankings Parser API Server")
+    print("🏆 UEFA Rankings Parser API Server")
     print("=" * 60)
     print()
-    print("Starting on http://127.0.0.1:5001")
+    print("🌐 Запуск на http://127.0.0.1:5001")
     print("Endpoints:")
-    print("  GET /health     - health check")
-    print("  GET /rankings   - get data (with cache)")
-    print("  GET /rankings/fresh - get fresh data")
+    print("  GET /health     - проверка доступности")
+    print("  GET /rankings   - получить данные (с кэшем)")
+    print("  GET /rankings/fresh - получить свежие данные")
     print()
-    print("Press Ctrl+C to stop")
+    print("Нажмите Ctrl+C для остановки")
     print("=" * 60)
     
-    app.run(host=HOST, port=PORT, debug=False)
+    app.run(host='127.0.0.1', port=5001, debug=False)

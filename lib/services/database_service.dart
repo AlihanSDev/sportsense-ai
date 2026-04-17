@@ -30,7 +30,7 @@ void _initNativeDatabase() {
 /// Это обёртка, которая делегирует вызовы к конкретной реализации
 class DatabaseService implements DatabaseServiceInterface {
   static DatabaseServiceInterface? _instance;
-  
+
   /// Получить экземпляр сервиса (фабричный метод)
   factory DatabaseService() {
     if (_instance == null) {
@@ -43,9 +43,9 @@ class DatabaseService implements DatabaseServiceInterface {
     // Возвращаем обёртку, которая делегирует вызовы
     return DatabaseService._(_instance!);
   }
-  
+
   final DatabaseServiceInterface _delegate;
-  
+
   /// Приватный конструктор
   DatabaseService._(this._delegate);
 
@@ -57,10 +57,8 @@ class DatabaseService implements DatabaseServiceInterface {
   }) => _delegate.registerUser(name: name, email: email, password: password);
 
   @override
-  Future<User?> loginUser({
-    required String email,
-    required String password,
-  }) => _delegate.loginUser(email: email, password: password);
+  Future<User?> loginUser({required String email, required String password}) =>
+      _delegate.loginUser(email: email, password: password);
 
   @override
   Future<bool> userExists(String email) => _delegate.userExists(email);
@@ -78,7 +76,8 @@ class DatabaseService implements DatabaseServiceInterface {
   }) => _delegate.createChat(userId: userId, title: title);
 
   @override
-  Future<List<ChatSessionDB>> getUserChats(int userId) => _delegate.getUserChats(userId);
+  Future<List<ChatSessionDB>> getUserChats(int userId) =>
+      _delegate.getUserChats(userId);
 
   @override
   Future<void> deleteChat(int chatId) => _delegate.deleteChat(chatId);
@@ -91,16 +90,38 @@ class DatabaseService implements DatabaseServiceInterface {
   }) => _delegate.addMessage(chatId: chatId, text: text, isUser: isUser);
 
   @override
-  Future<List<ChatMessageDB>> getChatMessages(int chatId) => _delegate.getChatMessages(chatId);
+  Future<List<ChatMessageDB>> getChatMessages(int chatId) =>
+      _delegate.getChatMessages(chatId);
 
   @override
-  Future<void> clearChatMessages(int chatId) => _delegate.clearChatMessages(chatId);
+  Future<void> clearChatMessages(int chatId) =>
+      _delegate.clearChatMessages(chatId);
 
   @override
-  Future<bool> updateChatTitle({
-    required int chatId,
+  Future<bool> updateChatTitle({required int chatId, required String title}) =>
+      _delegate.updateChatTitle(chatId: chatId, title: title);
+
+  @override
+  Future<SavedItem?> saveItem({
+    required int userId,
     required String title,
-  }) => _delegate.updateChatTitle(chatId: chatId, title: title);
+    required String subtitle,
+    required String type,
+    String? metadata,
+  }) => _delegate.saveItem(
+    userId: userId,
+    title: title,
+    subtitle: subtitle,
+    type: type,
+    metadata: metadata,
+  );
+
+  @override
+  Future<List<SavedItem>> getUserSavedItems(int userId) =>
+      _delegate.getUserSavedItems(userId);
+
+  @override
+  Future<void> deleteSavedItem(int itemId) => _delegate.deleteSavedItem(itemId);
 
   @override
   Future<void> close() => _delegate.close();
@@ -113,10 +134,12 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
   final Map<int, User> _users = {};
   final Map<int, ChatSessionDB> _chats = {};
   final Map<int, ChatMessageDB> _messages = {};
-  
+  final Map<int, SavedItem> _savedItems = {};
+
   int _nextUserId = 1;
   int _nextChatId = 1;
   int _nextMessageId = 1;
+  int _nextSavedItemId = 1;
 
   DatabaseServiceNative() {
     print('Используется in-memory база данных для нативной платформы');
@@ -130,7 +153,9 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
   }) async {
     try {
       // Проверяем, существует ли пользователь с таким email
-      final existingUser = _users.values.where((u) => u.email == email).firstOrNull;
+      final existingUser = _users.values
+          .where((u) => u.email == email)
+          .firstOrNull;
       if (existingUser != null) {
         print('Пользователь с таким email уже существует');
         return null;
@@ -161,9 +186,9 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
   }) async {
     try {
       final passwordHash = hashPassword(password);
-      final user = _users.values.where(
-        (u) => u.email == email && u.passwordHash == passwordHash,
-      ).firstOrNull;
+      final user = _users.values
+          .where((u) => u.email == email && u.passwordHash == passwordHash)
+          .firstOrNull;
 
       if (user != null) {
         print('Пользователь вошел: ${user.email}');
@@ -228,9 +253,7 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
   @override
   Future<List<ChatSessionDB>> getUserChats(int userId) async {
     try {
-      return _chats.values
-          .where((chat) => chat.userId == userId)
-          .toList()
+      return _chats.values.where((chat) => chat.userId == userId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print('Ошибка получения чатов: $e');
@@ -275,9 +298,7 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
   @override
   Future<List<ChatMessageDB>> getChatMessages(int chatId) async {
     try {
-      return _messages.values
-          .where((msg) => msg.chatId == chatId)
-          .toList()
+      return _messages.values.where((msg) => msg.chatId == chatId).toList()
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     } catch (e) {
       print('Ошибка получения сообщений: $e');
@@ -306,7 +327,7 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
         print('Чат не найден: $chatId');
         return false;
       }
-      
+
       final updatedChat = chat.copyWith(title: title);
       _chats[chatId] = updatedChat;
       print('Название чата обновлено: $chatId -> $title');
@@ -314,6 +335,55 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
     } catch (e) {
       print('Ошибка обновления названия чата: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<SavedItem?> saveItem({
+    required int userId,
+    required String title,
+    required String subtitle,
+    required String type,
+    String? metadata,
+  }) async {
+    try {
+      final item = SavedItem(
+        id: _nextSavedItemId++,
+        userId: userId,
+        title: title,
+        subtitle: subtitle,
+        type: type,
+        metadata: metadata,
+        createdAt: DateTime.now(),
+      );
+
+      _savedItems[item.id!] = item;
+      print('Элемент сохранен: ${item.title}');
+      return item;
+    } catch (e) {
+      print('Ошибка сохранения элемента: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<List<SavedItem>> getUserSavedItems(int userId) async {
+    try {
+      return _savedItems.values.where((item) => item.userId == userId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      print('Ошибка получения сохраненных элементов: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> deleteSavedItem(int itemId) async {
+    try {
+      _savedItems.remove(itemId);
+      print('Элемент удален: $itemId');
+    } catch (e) {
+      print('Ошибка удаления элемента: $e');
     }
   }
 
@@ -327,8 +397,10 @@ class DatabaseServiceNative implements DatabaseServiceInterface {
     _users.clear();
     _chats.clear();
     _messages.clear();
+    _savedItems.clear();
     _nextUserId = 1;
     _nextChatId = 1;
     _nextMessageId = 1;
+    _nextSavedItemId = 1;
   }
 }

@@ -3,15 +3,17 @@ import 'database_models.dart';
 /// Веб-совместимый сервис базы данных (хранение в памяти)
 class DatabaseServiceWeb implements DatabaseServiceInterface {
   static final DatabaseServiceWeb _instance = DatabaseServiceWeb._internal();
-  
+
   // Хранилище данных в памяти
   final Map<int, User> _users = {};
   final Map<int, ChatSessionDB> _chats = {};
   final Map<int, ChatMessageDB> _messages = {};
-  
+  final Map<int, SavedItem> _savedItems = {};
+
   int _nextUserId = 1;
   int _nextChatId = 1;
   int _nextMessageId = 1;
+  int _nextSavedItemId = 1;
 
   DatabaseServiceWeb._internal();
 
@@ -29,7 +31,9 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   }) async {
     try {
       // Проверяем, существует ли пользователь с таким email
-      final existingUser = _users.values.where((u) => u.email == email).firstOrNull;
+      final existingUser = _users.values
+          .where((u) => u.email == email)
+          .firstOrNull;
       if (existingUser != null) {
         print('Пользователь с таким email уже существует');
         return null;
@@ -60,9 +64,9 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   }) async {
     try {
       final passwordHash = hashPassword(password);
-      final user = _users.values.where(
-        (u) => u.email == email && u.passwordHash == passwordHash,
-      ).firstOrNull;
+      final user = _users.values
+          .where((u) => u.email == email && u.passwordHash == passwordHash)
+          .firstOrNull;
 
       if (user != null) {
         print('Пользователь вошел: ${user.email}');
@@ -129,9 +133,7 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   @override
   Future<List<ChatSessionDB>> getUserChats(int userId) async {
     try {
-      return _chats.values
-          .where((chat) => chat.userId == userId)
-          .toList()
+      return _chats.values.where((chat) => chat.userId == userId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print('Ошибка получения чатов: $e');
@@ -179,9 +181,7 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   @override
   Future<List<ChatMessageDB>> getChatMessages(int chatId) async {
     try {
-      return _messages.values
-          .where((msg) => msg.chatId == chatId)
-          .toList()
+      return _messages.values.where((msg) => msg.chatId == chatId).toList()
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     } catch (e) {
       print('Ошибка получения сообщений: $e');
@@ -210,7 +210,7 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
         print('Чат не найден: $chatId');
         return false;
       }
-      
+
       final updatedChat = chat.copyWith(title: title);
       _chats[chatId] = updatedChat;
       print('Название чата обновлено: $chatId -> $title');
@@ -218,6 +218,55 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
     } catch (e) {
       print('Ошибка обновления названия чата: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<SavedItem?> saveItem({
+    required int userId,
+    required String title,
+    required String subtitle,
+    required String type,
+    String? metadata,
+  }) async {
+    try {
+      final item = SavedItem(
+        id: _nextSavedItemId++,
+        userId: userId,
+        title: title,
+        subtitle: subtitle,
+        type: type,
+        metadata: metadata,
+        createdAt: DateTime.now(),
+      );
+
+      _savedItems[item.id!] = item;
+      print('Элемент сохранен: ${item.title}');
+      return item;
+    } catch (e) {
+      print('Ошибка сохранения элемента: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<List<SavedItem>> getUserSavedItems(int userId) async {
+    try {
+      return _savedItems.values.where((item) => item.userId == userId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      print('Ошибка получения сохраненных элементов: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> deleteSavedItem(int itemId) async {
+    try {
+      _savedItems.remove(itemId);
+      print('Элемент удален: $itemId');
+    } catch (e) {
+      print('Ошибка удаления элемента: $e');
     }
   }
 
@@ -231,8 +280,10 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
     _users.clear();
     _chats.clear();
     _messages.clear();
+    _savedItems.clear();
     _nextUserId = 1;
     _nextChatId = 1;
     _nextMessageId = 1;
+    _nextSavedItemId = 1;
   }
 }

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ======================= СЕРВИСЫ =======================
 import 'services/theme_notifier.dart';
@@ -13,7 +10,6 @@ import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
 import 'services/uefa_parser.dart';
 import 'services/qwen_api_service.dart';
-import 'services/huggingface_api_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_rankings_api_service.dart';
 import 'services/database_service.dart';
@@ -58,55 +54,40 @@ class LanguageNotifier extends ChangeNotifier {
 
 final languageNotifier = LanguageNotifier();
 
-String tr(String ru, String en) =>
-    languageNotifier.isRussian ? ru : en;
+String tr(String ru, String en) => languageNotifier.isRussian ? ru : en;
 
 /// Получить цвет текста в зависимости от темы
 Color onSurface(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF1A1A2E);
+    ? Colors.white
+    : const Color(0xFF1A1A2E);
 
 Color onSurfaceSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white.withOpacity(0.72)
-        : const Color(0xFF6B7280);
+    ? Colors.white.withOpacity(0.72)
+    : const Color(0xFF6B7280);
 
 Color surfaceContainer(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white.withOpacity(0.08)
-        : Colors.black.withOpacity(0.04);
+    ? Colors.white.withOpacity(0.08)
+    : Colors.black.withOpacity(0.04);
 
 Color surfaceBorder(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Colors.white.withOpacity(0.12)
-        : Colors.black.withOpacity(0.08);
+    ? Colors.white.withOpacity(0.12)
+    : Colors.black.withOpacity(0.08);
 
 // ======================= MODELS =======================
 class ChatMessage {
   final String text;
   final bool isUser;
   final Color? textColor;
-  final List<SearchSource> sources;
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    this.textColor,
-    this.sources = const [],
-  });
+  ChatMessage({required this.text, required this.isUser, this.textColor});
 }
 
 // ======================= MAIN =======================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Загрузка переменных окружения из .env
-  try {
-    await dotenv.load(fileName: '.env');
-    print('[ENV] ✅ .env загружен');
-  } catch (e) {
-    print('[ENV] ⚠️ .env не найден, используются значения по умолчанию');
-  }
 
   // Инициализация базы данных
   initDatabase();
@@ -126,11 +107,9 @@ void main() async {
           queryVectorizer: appState['queryVectorizer'],
           uefaParser: appState['uefaParser'],
           qwenApi: appState['qwenApi'],
-          hfApi: appState['hfApi'],
           rankingsSearch: appState['rankingsSearch'],
           rankingsApiAvailable: appState['rankingsApiAvailable'],
           qwenAvailable: appState['qwenAvailable'],
-          hfAvailable: appState['hfAvailable'],
         );
       },
     ),
@@ -143,11 +122,9 @@ class SpaceApp extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
-  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
-  final bool hfAvailable;
 
   const SpaceApp({
     super.key,
@@ -155,11 +132,9 @@ class SpaceApp extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
-    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
-    required this.hfAvailable,
   });
 
   @override
@@ -189,11 +164,9 @@ class SpaceApp extends StatelessWidget {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
-        hfApi: hfApi,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: rankingsApiAvailable,
         qwenAvailable: qwenAvailable,
-        hfAvailable: hfAvailable,
       ),
     );
   }
@@ -205,11 +178,9 @@ class HomeScreen extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
-  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
-  final bool hfAvailable;
 
   const HomeScreen({
     super.key,
@@ -217,11 +188,9 @@ class HomeScreen extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
-    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
-    required this.hfAvailable,
   });
 
   void _openAssistant(BuildContext context, {String? draft}) {
@@ -233,11 +202,9 @@ class HomeScreen extends StatelessWidget {
           queryVectorizer: queryVectorizer,
           uefaParser: uefaParser,
           qwenApi: qwenApi,
-          hfApi: hfApi,
           rankingsSearch: rankingsSearch,
           rankingsApiAvailable: rankingsApiAvailable,
           qwenAvailable: qwenAvailable,
-          hfAvailable: hfAvailable,
           initialDraft: draft,
         ),
       ),
@@ -285,16 +252,28 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
       ),
       _StatusItem(
         label: tr('AI-анализ', 'AI analysis'),
-        value: widget.qwenAvailable ? tr('готов', 'ready') : tr('ожидание', 'standby'),
+        value: widget.qwenAvailable
+            ? tr('готов', 'ready')
+            : tr('ожидание', 'standby'),
         active: widget.qwenAvailable,
       ),
-      _StatusItem(label: tr('Режим', 'Mode'), value: tr('матчдэй', 'matchday'), active: true),
+      _StatusItem(
+        label: tr('Режим', 'Mode'),
+        value: tr('матчдэй', 'matchday'),
+        active: true,
+      ),
     ];
 
     final navItems = [
       _NavItem(label: tr('Главная', 'Home'), icon: Icons.home_rounded),
-      _NavItem(label: tr('Матчи', 'Matches'), icon: Icons.sports_soccer_rounded),
-      _NavItem(label: tr('Турниры', 'Tournaments'), icon: Icons.emoji_events_rounded),
+      _NavItem(
+        label: tr('Матчи', 'Matches'),
+        icon: Icons.sports_soccer_rounded,
+      ),
+      _NavItem(
+        label: tr('Турниры', 'Tournaments'),
+        icon: Icons.emoji_events_rounded,
+      ),
       _NavItem(label: tr('Сохраненное', 'Saved'), icon: Icons.bookmark_rounded),
     ];
 
@@ -330,9 +309,18 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtitles = [
       tr('Ваш футбольный центр управления.', 'Your football command center.'),
-      tr('Живой матчдэй с быстрым контекстом.', 'Live matchday view with quick context.'),
-      tr('Турниры, интриги и движение по сетке.', 'Competitions, race tables and storylines.'),
-      tr('Сохранённые клубы, игроки и быстрые сводки.', 'Saved clubs, players and briefing shortcuts.'),
+      tr(
+        'Живой матчдэй с быстрым контекстом.',
+        'Live matchday view with quick context.',
+      ),
+      tr(
+        'Турниры, интриги и движение по сетке.',
+        'Competitions, race tables and storylines.',
+      ),
+      tr(
+        'Сохранённые клубы, игроки и быстрые сводки.',
+        'Saved clubs, players and briefing shortcuts.',
+      ),
     ];
 
     return Row(
@@ -438,14 +426,26 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
             ? const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF102A43), Color(0xFF1E5F74), Color(0xFF3BA99C)],
+                colors: [
+                  Color(0xFF102A43),
+                  Color(0xFF1E5F74),
+                  Color(0xFF3BA99C),
+                ],
               )
             : const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF4A90E2), Color(0xFF357ABD), Color(0xFF3BA99C)],
+                colors: [
+                  Color(0xFF4A90E2),
+                  Color(0xFF357ABD),
+                  Color(0xFF3BA99C),
+                ],
               ),
-        border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06)),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.12)
+              : Colors.black.withOpacity(0.06),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF3BA99C).withOpacity(isDark ? 0.18 : 0.12),
@@ -460,7 +460,9 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.14) : Colors.white.withOpacity(0.25),
+              color: isDark
+                  ? Colors.white.withOpacity(0.14)
+                  : Colors.white.withOpacity(0.25),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -501,19 +503,19 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 label: _selectedTab == 1
                     ? tr('Открыть превью матча', 'Open Match Preview')
                     : _selectedTab == 2
-                        ? tr('Открыть турнирную сводку', 'Open Tournament Brief')
-                        : _selectedTab == 3
-                            ? tr('Открыть сохранённую сводку', 'Open Saved Briefing')
-                            : tr('Открыть центр анализа', 'Open Analysis Center'),
+                    ? tr('Открыть турнирную сводку', 'Open Tournament Brief')
+                    : _selectedTab == 3
+                    ? tr('Открыть сохранённую сводку', 'Open Saved Briefing')
+                    : tr('Открыть центр анализа', 'Open Analysis Center'),
                 icon: Icons.north_east_rounded,
                 onTap: () => widget.onOpenAssistant(
                   draft: _selectedTab == 1
                       ? 'Подготовь краткий предматчевый разбор двух команд'
                       : _selectedTab == 2
-                          ? 'Дай турнирную сводку и ключевые движения клубов'
-                          : _selectedTab == 3
-                              ? 'Сделай короткую сводку по сохраненным клубам и игрокам'
-                              : null,
+                      ? 'Дай турнирную сводку и ключевые движения клубов'
+                      : _selectedTab == 3
+                      ? 'Сделай короткую сводку по сохраненным клубам и игрокам'
+                      : null,
                 ),
               ),
               _GhostButton(
@@ -530,7 +532,9 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: statusItems.map((item) => _StatusPill(item: item)).toList(),
+            children: statusItems
+                .map((item) => _StatusPill(item: item))
+                .toList(),
           ),
         ],
       ),
@@ -557,11 +561,9 @@ class ChatScreen extends StatefulWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
-  final HuggingFaceApiService hfApi;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
-  final bool hfAvailable;
   final String? initialDraft;
 
   const ChatScreen({
@@ -570,11 +572,9 @@ class ChatScreen extends StatefulWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
-    required this.hfApi,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
-    required this.hfAvailable,
     this.initialDraft,
   });
 
@@ -592,13 +592,16 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoggedIn = false;
   User? _currentUser;
   String _username = '';
-  bool _isInitializing = true;  // Флаг инициализации
-  bool _isGenerating = false;   // Флаг генерации ответа
-  bool _stopRequested = false;  // Флаг остановки
-  bool _useSearch = false;      // Флаг поиска в интернете
+  bool _isInitializing = true; // Флаг инициализации
+  bool _isGenerating = false; // Флаг генерации ответа
+  bool _stopRequested = false; // Флаг остановки
+  bool _useSearch = false; // Флаг поиска в интернете
 
-  ChatSession? get _currentChatOrNull => _chats.isNotEmpty ? _chats[_currentChatIndex] : null;
-  ChatSession get currentChat => _chats.isNotEmpty ? _chats[_currentChatIndex] : ChatSession(id: '0', title: '', messages: []);
+  ChatSession? get _currentChatOrNull =>
+      _chats.isNotEmpty ? _chats[_currentChatIndex] : null;
+  ChatSession get currentChat => _chats.isNotEmpty
+      ? _chats[_currentChatIndex]
+      : ChatSession(id: '0', title: '', messages: []);
 
   @override
   void initState() {
@@ -606,10 +609,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _uefaSearchManager = UefaSearchManager();
     _uefaSearchManager.initialize();
     _uefaSearchManager.addListener(_onUefaSearchChanged);
-    
+
     // Запускаем инициализацию и создаём чат сразу
     _createNewChat();
-    _checkAuth();  // Асинхронная проверка, не блокирует
+    _checkAuth(); // Асинхронная проверка, не блокирует
   }
 
   /// Проверка авторизации при запуске
@@ -655,7 +658,8 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!widget.rankingsApiAvailable) {
           chat.messages.add(
             ChatMessage(
-              text: '⚠️ UEFA Rankings API недоступен.\nЗапустите: python scripts/uefa_parser_api.py',
+              text:
+                  '⚠️ UEFA Rankings API недоступен.\nЗапустите: python scripts/uefa_parser_api.py',
               isUser: false,
               textColor: const Color(0xFFB37B7B),
             ),
@@ -665,7 +669,8 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!widget.qwenAvailable) {
           chat.messages.add(
             ChatMessage(
-              text: '⚠️ Qwen API недоступен.\nЗапустите: python scripts/qwen_api.py',
+              text:
+                  '⚠️ Qwen API недоступен.\nЗапустите: python scripts/qwen_api.py',
               isUser: false,
               textColor: const Color(0xFFB37B7B),
             ),
@@ -690,11 +695,13 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _chats.clear();
           for (final chat in chats) {
-            _chats.add(ChatSession(
-              id: chat.id.toString(),
-              title: chat.title,
-              messages: [],
-            ));
+            _chats.add(
+              ChatSession(
+                id: chat.id.toString(),
+                title: chat.title,
+                messages: [],
+              ),
+            );
           }
           _currentChatIndex = 0;
         });
@@ -723,10 +730,7 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           chat.messages.clear();
           for (final msg in messages) {
-            chat.messages.add(ChatMessage(
-              text: msg.text,
-              isUser: msg.isUser,
-            ));
+            chat.messages.add(ChatMessage(text: msg.text, isUser: msg.isUser));
           }
         });
       }
@@ -755,18 +759,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Если пользователь авторизован, сохраняем чат в SQLite
     if (_isLoggedIn && _currentUser != null) {
-      _db.createChat(
-        userId: _currentUser!.id!,
-        title: newChat.title,
-      ).then((savedChat) {
-        if (savedChat != null && mounted) {
-          setState(() {
-            newChat.id = savedChat.id.toString();
+      _db
+          .createChat(userId: _currentUser!.id!, title: newChat.title)
+          .then((savedChat) {
+            if (savedChat != null && mounted) {
+              setState(() {
+                newChat.id = savedChat.id.toString();
+              });
+            }
+          })
+          .catchError((e) {
+            print('Ошибка сохранения чата: $e');
           });
-        }
-      }).catchError((e) {
-        print('Ошибка сохранения чата: $e');
-      });
     }
 
     setState(() {
@@ -985,8 +989,13 @@ class _ChatScreenState extends State<ChatScreen> {
 ''';
       if (mounted) {
         setState(() {
-          currentChat.messages.add(ChatMessage(
-              text: info, isUser: false, textColor: const Color(0xFF7C4DFF)));
+          currentChat.messages.add(
+            ChatMessage(
+              text: info,
+              isUser: false,
+              textColor: const Color(0xFF7C4DFF),
+            ),
+          );
         });
       }
       return;
@@ -999,8 +1008,13 @@ class _ChatScreenState extends State<ChatScreen> {
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) {
         setState(() {
-          currentChat.messages.add(ChatMessage(
-              text: '🍌 БАНАН! 🍌', isUser: false, textColor: const Color(0xFFFFD700)));
+          currentChat.messages.add(
+            ChatMessage(
+              text: '🍌 БАНАН! 🍌',
+              isUser: false,
+              textColor: const Color(0xFFFFD700),
+            ),
+          );
         });
       }
       return;
@@ -1011,24 +1025,29 @@ class _ChatScreenState extends State<ChatScreen> {
         currentChat.messages.add(ChatMessage(text: text, isUser: true));
       });
       await Future.delayed(const Duration(seconds: 3));
-      final reply = 'Это пример генерируемого текста. Он появляется постепенно, словно AI печатает его прямо сейчас.';
+      final reply =
+          'Это пример генерируемого текста. Он появляется постепенно, словно AI печатает его прямо сейчас.';
       if (mounted) {
         setState(() {
-          currentChat.messages.add(ChatMessage(
-              text: reply, isUser: false, textColor: const Color(0xFF7C4DFF)));
+          currentChat.messages.add(
+            ChatMessage(
+              text: reply,
+              isUser: false,
+              textColor: const Color(0xFF7C4DFF),
+            ),
+          );
         });
       }
       return;
     }
 
     // Сохраняем сообщение пользователя в SQLite
-    if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
+    if (_isLoggedIn &&
+        _currentUser != null &&
+        currentChat.id != null &&
+        currentChat.id != '0') {
       final chatId = int.parse(currentChat.id!);
-      _db.addMessage(
-        chatId: chatId,
-        text: text,
-        isUser: true,
-      ).catchError((e) {
+      _db.addMessage(chatId: chatId, text: text, isUser: true).catchError((e) {
         print('Ошибка сохранения сообщения: $e');
         return null;
       });
@@ -1048,74 +1067,84 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Автоопределение поиска по триггерным словам
     final searchTriggers = [
-      'найди в интернете', 'найди в сети', 'поищи в интернете', 'поищи в сети',
-      'search the internet', 'search the web', 'find online', 'look up',
-      'найди онлайн', 'погугли', 'google it', 'search online',
+      'найди в интернете',
+      'найди в сети',
+      'поищи в интернете',
+      'поищи в сети',
+      'search the internet',
+      'search the web',
+      'find online',
+      'look up',
+      'найди онлайн',
+      'погугли',
+      'google it',
+      'search online',
     ];
-    final shouldSearch = _useSearch || searchTriggers.any((t) => text.toLowerCase().contains(t));
-    print('🔍 Web search: shouldSearch=$shouldSearch (button=$_useSearch, triggers matched)');
+    final shouldSearch =
+        _useSearch || searchTriggers.any((t) => text.toLowerCase().contains(t));
 
     String ragContext = '';
 
-    if (_stopRequested) { _cancelGeneration(); return; }
+    if (_stopRequested) {
+      _cancelGeneration();
+      return;
+    }
 
     if (relevance >= 2.0) {
       await widget.uefaParser.parseAndSaveRankings();
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    if (_stopRequested) { _cancelGeneration(); return; }
+    if (_stopRequested) {
+      _cancelGeneration();
+      return;
+    }
 
     if (relevance >= 1.0) {
       ragContext = await widget.rankingsSearch.getRagContext(text, limit: 10);
     }
 
-    if (_stopRequested) { _cancelGeneration(); return; }
+    if (_stopRequested) {
+      _cancelGeneration();
+      return;
+    }
 
     // Добавляем пустое сообщение бота, которое будем заполнять
     final botMsgIndex = currentChat.messages.length;
     if (mounted) {
       setState(() {
-        currentChat.messages.add(ChatMessage(
-          text: '',
-          isUser: false,
-          textColor: textColor,
-        ));
+        currentChat.messages.add(
+          ChatMessage(text: '', isUser: false, textColor: textColor),
+        );
       });
     }
 
     String botResponse;
-    List<SearchSource> botSources = [];
-
-    // Приоритет: HuggingFace (Qwen 3.5 9B) > локальная Qwen 1.5B > заглушка
-    if (widget.hfAvailable) {
-      // HuggingFace API — напрямую к HF Router, без Python сервера
-      final hfResponse = await widget.hfApi.chat(
-        text,
-        maxTokens: 512,
-        temperature: 0.7,
-        context: ragContext.isNotEmpty ? ragContext : null,
-      );
-      if (_stopRequested) { _cancelGeneration(); return; }
-      botResponse = hfResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
-    } else if (widget.qwenAvailable) {
+    if (widget.qwenAvailable) {
       final qwenResponse = await widget.qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
         maxTokens: 1024,
-        useSearch: shouldSearch,
       );
-      if (_stopRequested) { _cancelGeneration(); return; }
-      botResponse = qwenResponse?.response ?? 'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
-      botSources = qwenResponse?.sources ?? [];
+      if (_stopRequested) {
+        _cancelGeneration();
+        return;
+      }
+      botResponse =
+          qwenResponse?.response ??
+          'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
     } else {
       // Имитация постепенной генерации
-      botResponse = 'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
+      botResponse =
+          'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
       if (ragContext.isNotEmpty) botResponse += '\n\n$ragContext';
 
       // Анимация посимвольного появления
       for (int i = 1; i <= botResponse.length; i++) {
-        if (_stopRequested) { _cancelGeneration(); return; }
+        if (_stopRequested) {
+          _cancelGeneration();
+          return;
+        }
         if (mounted) {
           setState(() {
             currentChat.messages[botMsgIndex] = ChatMessage(
@@ -1127,22 +1156,29 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         await Future.delayed(const Duration(milliseconds: 15));
       }
-      setState(() { _isGenerating = false; });
+      setState(() {
+        _isGenerating = false;
+      });
       return;
     }
 
-    if (_stopRequested) { _cancelGeneration(); return; }
+    if (_stopRequested) {
+      _cancelGeneration();
+      return;
+    }
 
     // Анимация посимвольного появления ответа LLM
     for (int i = 1; i <= botResponse.length; i++) {
-      if (_stopRequested) { _cancelGeneration(); return; }
+      if (_stopRequested) {
+        _cancelGeneration();
+        return;
+      }
       if (mounted) {
         setState(() {
           currentChat.messages[botMsgIndex] = ChatMessage(
             text: botResponse.substring(0, i),
             isUser: false,
             textColor: textColor,
-            sources: botSources,
           );
         });
       }
@@ -1150,19 +1186,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     // Сохраняем ответ бота в SQLite
-    if (_isLoggedIn && _currentUser != null && currentChat.id != null && currentChat.id != '0') {
+    if (_isLoggedIn &&
+        _currentUser != null &&
+        currentChat.id != null &&
+        currentChat.id != '0') {
       final chatId = int.parse(currentChat.id!);
-      _db.addMessage(
-        chatId: chatId,
-        text: botResponse,
-        isUser: false,
-      ).catchError((e) {
-        print('Ошибка сохранения ответа: $e');
-        return null;
-      });
+      _db
+          .addMessage(chatId: chatId, text: botResponse, isUser: false)
+          .catchError((e) {
+            print('Ошибка сохранения ответа: $e');
+            return null;
+          });
     }
 
-    setState(() { _isGenerating = false; });
+    setState(() {
+      _isGenerating = false;
+    });
   }
 
   void _cancelGeneration() {
@@ -1215,13 +1254,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   // Стрелка назад
                   IconButton(
-                    icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 4),
                   Builder(
                     builder: (context) => IconButton(
-                      icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
+                      icon: Icon(
+                        Icons.menu_rounded,
+                        color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                      ),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                     ),
                   ),
@@ -1243,14 +1288,24 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF14B8A6)]),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   tr('АНАЛИТИКА ПО ЗАПРОСУ', 'ON-DEMAND ANALYSIS'),
-                  style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1.2),
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1263,15 +1318,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     children: [
                       _PromptChip(
                         label: tr('Сводка UEFA', 'UEFA snapshot'),
-                        onTap: () => _controller.text = 'Дай краткую сводку по текущему состоянию рейтингов UEFA',
+                        onTap: () => _controller.text =
+                            'Дай краткую сводку по текущему состоянию рейтингов UEFA',
                       ),
                       _PromptChip(
                         label: tr('Сравнить клубы', 'Compare clubs'),
-                        onTap: () => _controller.text = 'Сравни две команды по форме и силе в рейтинге UEFA',
+                        onTap: () => _controller.text =
+                            'Сравни две команды по форме и силе в рейтинге UEFA',
                       ),
                       _PromptChip(
                         label: tr('Профиль игрока', 'Player brief'),
-                        onTap: () => _controller.text = 'Подготовь короткий аналитический профиль игрока',
+                        onTap: () => _controller.text =
+                            'Подготовь короткий аналитический профиль игрока',
                       ),
                     ],
                   ),
@@ -1281,7 +1339,12 @@ class _ChatScreenState extends State<ChatScreen> {
               // Сообщения
               Expanded(
                 child: _chats.isEmpty
-                    ? const Center(child: Text('Загрузка чата...', style: TextStyle(color: Colors.white54)))
+                    ? const Center(
+                        child: Text(
+                          'Загрузка чата...',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
                     : ListView.builder(
                         controller: ScrollController(),
                         itemCount: currentChat.messages.length,
@@ -1289,9 +1352,31 @@ class _ChatScreenState extends State<ChatScreen> {
                           final msg = currentChat.messages[index];
                           // Показываем индикатор поиска вместо typing когда включён поиск
                           if (msg.text.isEmpty && !msg.isUser) {
-                            return _useSearch ? const _SearchIndicator() : const _TypingIndicator();
+                            return _useSearch
+                                ? const _SearchIndicator()
+                                : const _TypingIndicator();
                           }
-                          return _MessageBubble(msg: msg);
+                          return Align(
+                            alignment: msg.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: msg.isUser
+                                    ? Colors.blue
+                                    : Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                msg.text,
+                                style: TextStyle(
+                                  color: msg.textColor ?? Colors.white,
+                                ),
+                              ),
+                            ),
+                          );
                         },
                       ),
               ),
@@ -1304,20 +1389,35 @@ class _ChatScreenState extends State<ChatScreen> {
                     if (_useSearch)
                       Container(
                         margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF4A90E2).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.3)),
+                          border: Border.all(
+                            color: const Color(0xFF4A90E2).withOpacity(0.3),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.public_rounded, size: 14, color: Color(0xFF4A90E2)),
+                            const Icon(
+                              Icons.public_rounded,
+                              size: 14,
+                              color: Color(0xFF4A90E2),
+                            ),
                             const SizedBox(width: 6),
                             Text(
-                              tr('Поиск в интернете включён', 'Web search enabled'),
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF4A90E2)),
+                              tr(
+                                'Поиск в интернете включён',
+                                'Web search enabled',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF4A90E2),
+                              ),
                             ),
                           ],
                         ),
@@ -1342,7 +1442,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: IconButton(
                             icon: Icon(
                               Icons.public_rounded,
-                              color: _useSearch ? const Color(0xFF4A90E2) : Colors.white54,
+                              color: _useSearch
+                                  ? const Color(0xFF4A90E2)
+                                  : Colors.white54,
                               size: 20,
                             ),
                             onPressed: () {
@@ -1359,10 +1461,18 @@ class _ChatScreenState extends State<ChatScreen> {
                             enabled: !_isGenerating,
                             decoration: InputDecoration(
                               hintText: _isGenerating
-                                  ? tr('ИИ генерирует ответ...', 'AI is generating...')
-                                  : tr('Введите запрос для аналитики', 'Enter an analysis request'),
+                                  ? tr(
+                                      'ИИ генерирует ответ...',
+                                      'AI is generating...',
+                                    )
+                                  : tr(
+                                      'Введите запрос для аналитики',
+                                      'Enter an analysis request',
+                                    ),
                               hintStyle: TextStyle(
-                                color: _isGenerating ? Colors.white.withOpacity(0.3) : Colors.white54,
+                                color: _isGenerating
+                                    ? Colors.white.withOpacity(0.3)
+                                    : Colors.white54,
                               ),
                             ),
                             style: const TextStyle(color: Colors.white),
@@ -1374,17 +1484,26 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: _isGenerating
                               ? IconButton(
                                   key: const ValueKey('stop'),
-                                  icon: const Icon(Icons.stop_rounded, color: Color(0xFFEF5350)),
+                                  icon: const Icon(
+                                    Icons.stop_rounded,
+                                    color: Color(0xFFEF5350),
+                                  ),
                                   onPressed: () => _sendMessage(''),
                                   style: IconButton.styleFrom(
-                                    backgroundColor: const Color(0xFFEF5350).withOpacity(0.15),
+                                    backgroundColor: const Color(
+                                      0xFFEF5350,
+                                    ).withOpacity(0.15),
                                     shape: const CircleBorder(),
                                   ),
                                 )
                               : IconButton(
                                   key: const ValueKey('send'),
-                                  icon: const Icon(Icons.send_rounded, color: Colors.white),
-                                  onPressed: () => _sendMessage(_controller.text),
+                                  icon: const Icon(
+                                    Icons.send_rounded,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () =>
+                                      _sendMessage(_controller.text),
                                 ),
                         ),
                       ],
@@ -1418,10 +1537,14 @@ class _ChatBottomDock extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.85),
+              color: isDark
+                  ? Colors.black.withOpacity(0.4)
+                  : Colors.white.withOpacity(0.85),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.06),
               ),
             ),
             child: Row(
@@ -1459,79 +1582,6 @@ class _ChatBottomDock extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  final ChatMessage msg;
-  const _MessageBubble({required this.msg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.all(8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: msg.isUser ? Colors.blue : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(msg.text, style: TextStyle(color: msg.textColor ?? Colors.white)),
-            if (msg.sources.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              const Divider(color: Colors.white24, height: 1),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.link_rounded, size: 14, color: Color(0xFF4A90E2)),
-                  const SizedBox(width: 4),
-                  Text(
-                    tr('Источники', 'Sources'),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4A90E2)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              ...msg.sources.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: InkWell(
-                  onTap: () {
-                    // TODO: open URL
-                    print('Source URL: ${s.url}');
-                  },
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '• ',
-                        style: const TextStyle(color: Color(0xFF4A90E2), fontSize: 12),
-                      ),
-                      Expanded(
-                        child: Text(
-                          s.title.isNotEmpty ? s.title : s.url,
-                          style: const TextStyle(
-                            color: Color(0xFF4A90E2),
-                            fontSize: 11,
-                            decoration: TextDecoration.underline,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Анимированный индикатор "печатает..."
 class _TypingIndicator extends StatefulWidget {
   const _TypingIndicator();
@@ -1562,9 +1612,10 @@ class _TypingIndicatorState extends State<_TypingIndicator>
       return c;
     });
     _animations = _controllers.map((c) {
-      return Tween<double>(begin: 0.3, end: 1.0).animate(
-        CurvedAnimation(parent: c, curve: Curves.easeInOut),
-      );
+      return Tween<double>(
+        begin: 0.3,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut));
     }).toList();
   }
 
@@ -1631,9 +1682,10 @@ class _SearchIndicatorState extends State<_SearchIndicator>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
-    _rotation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.linear),
-    );
+    _rotation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
   }
 
   @override
@@ -1696,7 +1748,8 @@ class _SearchDots extends StatefulWidget {
   State<_SearchDots> createState() => _SearchDotsState();
 }
 
-class _SearchDotsState extends State<_SearchDots> with TickerProviderStateMixin {
+class _SearchDotsState extends State<_SearchDots>
+    with TickerProviderStateMixin {
   late final List<AnimationController> _controllers;
   late final List<Animation<double>> _animations;
 
@@ -1715,9 +1768,10 @@ class _SearchDotsState extends State<_SearchDots> with TickerProviderStateMixin 
       return c;
     });
     _animations = _controllers.map((c) {
-      return Tween<double>(begin: 0.2, end: 1.0).animate(
-        CurvedAnimation(parent: c, curve: Curves.easeInOut),
-      );
+      return Tween<double>(
+        begin: 0.2,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut));
     }).toList();
   }
 
@@ -1740,7 +1794,9 @@ class _SearchDotsState extends State<_SearchDots> with TickerProviderStateMixin 
               height: 5,
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A90E2).withOpacity(_animations[i].value * 0.7),
+                color: const Color(
+                  0xFF4A90E2,
+                ).withOpacity(_animations[i].value * 0.7),
                 shape: BoxShape.circle,
               ),
             );
@@ -1756,7 +1812,12 @@ class _ChatNavItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final bool isDark;
-  const _ChatNavItem({required this.icon, required this.label, required this.onTap, required this.isDark});
+  const _ChatNavItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1766,11 +1827,19 @@ class _ChatNavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38, size: 22),
+            Icon(
+              icon,
+              color: isDark ? Colors.white.withOpacity(0.55) : Colors.black38,
+              size: 22,
+            ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54),
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white.withOpacity(0.6) : Colors.black54,
+              ),
             ),
           ],
         ),
@@ -1810,7 +1879,10 @@ class SettingsScreen extends StatelessWidget {
                     theme: AppTheme.dark,
                     current: themeNotifier.theme,
                     title: tr('Тёмная', 'Dark'),
-                    subtitle: tr('Классический космос со звёздами', 'Classic space with stars'),
+                    subtitle: tr(
+                      'Классический космос со звёздами',
+                      'Classic space with stars',
+                    ),
                     gradient: const [Color(0xFF0B0B12), Color(0xFF1A1A26)],
                     accent: const Color(0xFF8B7DD8),
                     onTap: () => themeNotifier.setTheme(AppTheme.dark),
@@ -1820,7 +1892,10 @@ class SettingsScreen extends StatelessWidget {
                     theme: AppTheme.sportsense,
                     current: themeNotifier.theme,
                     title: 'Sportsense',
-                    subtitle: tr('Тёмный с геометрическими деталями', 'Dark with geometric details'),
+                    subtitle: tr(
+                      'Тёмный с геометрическими деталями',
+                      'Dark with geometric details',
+                    ),
                     gradient: const [Color(0xFF0B0B12), Color(0xFF14141F)],
                     accent: const Color(0xFFA7C7FF),
                     showHoneycomb: true,
@@ -1831,7 +1906,10 @@ class SettingsScreen extends StatelessWidget {
                     theme: AppTheme.light,
                     current: themeNotifier.theme,
                     title: tr('Светлая', 'Light'),
-                    subtitle: tr('Молочный фон с голубыми сотами', 'Milk-white with blue honeycombs'),
+                    subtitle: tr(
+                      'Молочный фон с голубыми сотами',
+                      'Milk-white with blue honeycombs',
+                    ),
                     gradient: const [Color(0xFFF8F9FA), Color(0xFFD6E6FF)],
                     accent: const Color(0xFF4A90E2),
                     onTap: () => themeNotifier.setTheme(AppTheme.light),
@@ -1954,7 +2032,9 @@ class _ThemeCard extends StatelessWidget {
                             width: 1.5,
                             height: 1.5,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.4 + (i % 3) * 0.2),
+                              color: Colors.white.withOpacity(
+                                0.4 + (i % 3) * 0.2,
+                              ),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -1983,7 +2063,9 @@ class _ThemeCard extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isDarkTheme ? Colors.white : const Color(0xFF1A1A2E),
+                      color: isDarkTheme
+                          ? Colors.white
+                          : const Color(0xFF1A1A2E),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -2008,12 +2090,18 @@ class _ThemeCard extends StatelessWidget {
                 color: isSelected ? accent : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? accent : (isDarkTheme ? Colors.white30 : Colors.black26),
+                  color: isSelected
+                      ? accent
+                      : (isDarkTheme ? Colors.white30 : Colors.black26),
                   width: 1.5,
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ],
@@ -2175,8 +2263,9 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent =
-        item.active ? const Color(0xFF34D399) : const Color(0xFFF97316);
+    final accent = item.active
+        ? const Color(0xFF34D399)
+        : const Color(0xFFF97316);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -2522,7 +2611,9 @@ class _BottomDock extends StatelessWidget {
                   : Colors.white.withOpacity(0.85),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.06),
               ),
             ),
             child: Row(
@@ -2560,13 +2651,21 @@ class _BottomDock extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                      color: isDark
+                          ? Colors.white.withOpacity(0.12)
+                          : Colors.black.withOpacity(0.08),
                       border: Border.all(
-                        color: isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12),
+                        color: isDark
+                            ? Colors.white.withOpacity(0.15)
+                            : Colors.black.withOpacity(0.12),
                         width: 1,
                       ),
                     ),
-                    child: const Icon(Icons.sports_soccer_rounded, color: Colors.white54, size: 22),
+                    child: const Icon(
+                      Icons.sports_soccer_rounded,
+                      color: Colors.white54,
+                      size: 22,
+                    ),
                   ),
                 ),
                 // Турниры
@@ -2607,7 +2706,12 @@ class _DockItemContent extends StatelessWidget {
   final String label;
   final bool selected;
   final bool isDark;
-  const _DockItemContent({required this.icon, required this.label, required this.selected, required this.isDark});
+  const _DockItemContent({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2651,29 +2755,41 @@ class _OverviewTab extends StatelessWidget {
     final quickActions = [
       _QuickActionData(
         title: tr('Индекс силы клуба', 'Club Power Index'),
-        subtitle: tr('Отслеживайте форму, сдвиги рейтинга и сезонный импульс.', 'Track form, ranking shifts and season momentum.'),
+        subtitle: tr(
+          'Отслеживайте форму, сдвиги рейтинга и сезонный импульс.',
+          'Track form, ranking shifts and season momentum.',
+        ),
         icon: Icons.stacked_line_chart_rounded,
         colors: const [Color(0xFF1746A2), Color(0xFF5F9DF7)],
         onTap: () => onOpenAssistant(
-          draft: 'Покажи ключевые изменения в рейтингах UEFA за последний период',
+          draft:
+              'Покажи ключевые изменения в рейтингах UEFA за последний период',
         ),
       ),
       _QuickActionData(
         title: tr('Сравнение команд', 'Team Comparison'),
-        subtitle: tr('Сравните два клуба перед важным матчем.', 'Compare two clubs before a decisive fixture.'),
+        subtitle: tr(
+          'Сравните два клуба перед важным матчем.',
+          'Compare two clubs before a decisive fixture.',
+        ),
         icon: Icons.compare_arrows_rounded,
         colors: const [Color(0xFF0F766E), Color(0xFF34D399)],
         onTap: () => onOpenAssistant(
-          draft: 'Сравни две команды по силе и текущему положению в рейтингах UEFA',
+          draft:
+              'Сравни две команды по силе и текущему положению в рейтингах UEFA',
         ),
       ),
       _QuickActionData(
         title: tr('Радар игрока', 'Player Radar'),
-        subtitle: tr('Откройте короткий скаутский профиль.', 'Open a concise scouting-style briefing.'),
+        subtitle: tr(
+          'Откройте короткий скаутский профиль.',
+          'Open a concise scouting-style briefing.',
+        ),
         icon: Icons.radar_rounded,
         colors: const [Color(0xFF9A3412), Color(0xFFF59E0B)],
         onTap: () => onOpenAssistant(
-          draft: 'Сделай краткий аналитический профиль игрока и его сильных сторон',
+          draft:
+              'Сделай краткий аналитический профиль игрока и его сильных сторон',
         ),
       ),
     ];
@@ -2846,7 +2962,9 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
   static const String _allLeaguesKey = '__all__';
 
   late Future<MatchFeed> _matchesFuture;
+  final TextEditingController _clubSearchController = TextEditingController();
   String _selectedLeagueId = _allLeaguesKey;
+  String _clubSearchQuery = '';
 
   @override
   void initState() {
@@ -2859,6 +2977,12 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
       _matchesFuture = MatchesService().fetchMatchFeed();
     });
     await _matchesFuture;
+  }
+
+  @override
+  void dispose() {
+    _clubSearchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -2887,8 +3011,8 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
         const SizedBox(height: 8),
         Text(
           tr(
-            'События загружаются по текущей дате из футбольного расписания.',
-            'Events are loaded for the current date from the football schedule feed.',
+            'Загружаем ближайшие футбольные матчи на следующие две недели.',
+            'Loading upcoming football matches for the next two weeks.',
           ),
           style: GoogleFonts.inter(
             fontSize: 14,
@@ -2905,7 +3029,10 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
 
             if (snapshot.hasError) {
               return _SectionPanel(
-                title: tr('Не удалось загрузить матчи', 'Could not load matches'),
+                title: tr(
+                  'Не удалось загрузить матчи',
+                  'Could not load matches',
+                ),
                 subtitle: tr(
                   'Проверьте соединение или повторите обновление позже.',
                   'Check the connection or try refreshing again later.',
@@ -2929,8 +3056,8 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               return _SectionPanel(
                 title: tr('Матчей не найдено', 'No matches found'),
                 subtitle: tr(
-                  'На сегодня и завтра футбольных событий не найдено.',
-                  'No football events were found for today and tomorrow.',
+                  'На ближайшие две недели футбольных событий не найдено.',
+                  'No football events were found for the next two weeks.',
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -2946,19 +3073,166 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               );
             }
 
-            final filteredMatches = _selectedLeagueId == _allLeaguesKey
-                ? allMatches
-                : allMatches
-                    .where((match) => match.leagueId == _selectedLeagueId)
-                    .toList();
+            final effectiveLeagueId =
+                _selectedLeagueId == _allLeaguesKey ||
+                    leagues.any((league) => league.id == _selectedLeagueId)
+                ? _selectedLeagueId
+                : _allLeaguesKey;
+            final normalizedClubQuery = _clubSearchQuery.trim().toLowerCase();
 
-            final visibleMatches =
-                filteredMatches.isEmpty ? allMatches : filteredMatches;
+            final filteredMatches = allMatches.where((match) {
+              final matchesLeague =
+                  effectiveLeagueId == _allLeaguesKey ||
+                  match.leagueId == effectiveLeagueId;
+              final matchesClub =
+                  normalizedClubQuery.isEmpty ||
+                  match.homeTeam.toLowerCase().contains(normalizedClubQuery) ||
+                  match.awayTeam.toLowerCase().contains(normalizedClubQuery);
+              return matchesLeague && matchesClub;
+            }).toList();
+
+            final visibleMatches = filteredMatches.isEmpty
+                ? allMatches
+                : filteredMatches;
+            final filtersActive =
+                effectiveLeagueId != _allLeaguesKey ||
+                normalizedClubQuery.isNotEmpty;
+            final selectedLeagueName = effectiveLeagueId == _allLeaguesKey
+                ? tr('Все лиги', 'All leagues')
+                : (() {
+                    for (final league in leagues) {
+                      if (league.id == effectiveLeagueId) return league.name;
+                    }
+                    return tr('Выбрать лигу', 'Choose league');
+                  })();
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (leagues.isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _GhostButton(
+                      label: selectedLeagueName,
+                      icon: Icons.tune_rounded,
+                      onTap: () async {
+                        final selectedLeagueId =
+                            await showModalBottomSheet<String>(
+                              context: context,
+                              backgroundColor: const Color(0xFF10233A),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(28),
+                                ),
+                              ),
+                              builder: (context) {
+                                return SafeArea(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          20,
+                                          18,
+                                          20,
+                                          8,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                tr(
+                                                  'Выбор лиги',
+                                                  'Choose league',
+                                                ),
+                                                style: GoogleFonts.spaceGrotesk(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: ListView(
+                                          shrinkWrap: true,
+                                          children: [
+                                            ListTile(
+                                              title: Text(
+                                                tr('Все матчи', 'All matches'),
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight:
+                                                      effectiveLeagueId ==
+                                                          _allLeaguesKey
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                ),
+                                              ),
+                                              trailing:
+                                                  effectiveLeagueId ==
+                                                      _allLeaguesKey
+                                                  ? const Icon(
+                                                      Icons.check_rounded,
+                                                      color: Colors.white,
+                                                    )
+                                                  : null,
+                                              onTap: () {
+                                                Navigator.of(context).pop(
+                                                  _allLeaguesKey,
+                                                );
+                                              },
+                                            ),
+                                            ...leagues.map(
+                                              (league) => ListTile(
+                                                title: Text(
+                                                  league.name,
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        effectiveLeagueId ==
+                                                            league.id
+                                                        ? FontWeight.w700
+                                                        : FontWeight.w500,
+                                                  ),
+                                                ),
+                                                trailing:
+                                                    effectiveLeagueId ==
+                                                        league.id
+                                                    ? const Icon(
+                                                        Icons.check_rounded,
+                                                        color: Colors.white,
+                                                      )
+                                                    : null,
+                                                onTap: () {
+                                                  Navigator.of(
+                                                    context,
+                                                  ).pop(league.id);
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+
+                        if (selectedLeagueId != null) {
+                          setState(() {
+                            _selectedLeagueId = selectedLeagueId;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                /* if (false && leagues.isNotEmpty) ...[
                   SizedBox(
                     height: 40,
                     child: ListView(
@@ -2966,7 +3240,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                       children: [
                         _LeagueChip(
                           label: tr('Все матчи', 'All matches'),
-                          selected: _selectedLeagueId == _allLeaguesKey,
+                          selected: effectiveLeagueId == _allLeaguesKey,
                           onTap: () {
                             setState(() {
                               _selectedLeagueId = _allLeaguesKey;
@@ -2976,7 +3250,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                         ...leagues.map(
                           (league) => _LeagueChip(
                             label: league.name,
-                            selected: _selectedLeagueId == league.id,
+                            selected: effectiveLeagueId == league.id,
                             onTap: () {
                               setState(() {
                                 _selectedLeagueId = league.id;
@@ -2988,14 +3262,75 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                ], */
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.08),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _clubSearchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      icon: const Icon(
+                        Icons.search_rounded,
+                        color: Colors.white70,
+                      ),
+                      hintText: tr(
+                        'Поиск по клубу',
+                        'Search by club',
+                      ),
+                      hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.54),
+                      ),
+                      suffixIcon: _clubSearchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _clubSearchController.clear();
+                                  _clubSearchQuery = '';
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white70,
+                              ),
+                              tooltip: tr('Очистить', 'Clear'),
+                            ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _clubSearchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (_clubSearchQuery.trim().isNotEmpty) ...[
+                  Text(
+                    tr(
+                      'Фильтр по клубу: ${_clubSearchQuery.trim()}',
+                      'Club filter: ${_clubSearchQuery.trim()}',
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.68),
+                    ),
+                  ),
                 ],
-                if (filteredMatches.isEmpty && _selectedLeagueId != _allLeaguesKey)
+                if (filteredMatches.isEmpty && filtersActive)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       tr(
-                        'В выбранной лиге матчей не найдено, показываем все доступные события.',
-                        'No matches were found in the selected league, showing all available events.',
+                        'По выбранным фильтрам матчи не найдены, показываем все доступные события.',
+                        'No matches were found for the selected filters, showing all available events.',
                       ),
                       style: GoogleFonts.inter(
                         fontSize: 13,
@@ -3082,7 +3417,8 @@ class _TournamentsTab extends StatelessWidget {
             child: _TournamentTile(
               data: item,
               onTap: () => onOpenAssistant(
-                draft: 'Дай сводку по турниру ${item.name} и ключевым изменениям',
+                draft:
+                    'Дай сводку по турниру ${item.name} и ключевым изменениям',
               ),
             ),
           ),
@@ -3116,30 +3452,135 @@ class _TournamentsTab extends StatelessWidget {
   }
 }
 
-class _SavedTab extends StatelessWidget {
+class _SavedTab extends StatefulWidget {
   final void Function({String? draft}) onOpenAssistant;
 
   const _SavedTab({required this.onOpenAssistant});
 
   @override
+  State<_SavedTab> createState() => _SavedTabState();
+}
+
+class _SavedTabState extends State<_SavedTab> {
+  final DatabaseService _db = DatabaseService();
+  List<SavedItem> _savedItems = [];
+  bool _isLoading = true;
+  User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedItems();
+  }
+
+  Future<void> _loadSavedItems() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      _currentUser = await _db.getCurrentUser();
+
+      if (_currentUser != null) {
+        final items = await _db.getUserSavedItems(_currentUser!.id!);
+        if (mounted) {
+          setState(() {
+            _savedItems = items;
+          });
+        }
+      }
+    } catch (e) {
+      print('Ошибка загрузки сохраненных элементов: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type) {
+      case 'club':
+        return Icons.shield_rounded;
+      case 'player':
+        return Icons.person_rounded;
+      case 'monitor':
+        return Icons.query_stats_rounded;
+      default:
+        return Icons.bookmark_rounded;
+    }
+  }
+
+  Future<void> _deleteItem(SavedItem item) async {
+    try {
+      await _db.deleteSavedItem(item.id!);
+      await _loadSavedItems();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.title} удален из сохраненных')),
+        );
+      }
+    } catch (e) {
+      print('Ошибка удаления: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final savedItems = [
-      const _WatchlistItemData(
-        title: 'Manchester City',
-        subtitle: 'Club brief shortcut',
-        icon: Icons.shield_rounded,
-      ),
-      const _WatchlistItemData(
-        title: 'Jude Bellingham',
-        subtitle: 'Player radar snapshot',
-        icon: Icons.person_rounded,
-      ),
-      const _WatchlistItemData(
-        title: 'UEFA ranking monitor',
-        subtitle: 'Weekly trend summary',
-        icon: Icons.query_stats_rounded,
-      ),
-    ];
+    if (_isLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('Сохранено на потом', 'Saved for later'),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ],
+      );
+    }
+
+    if (_currentUser == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('Сохранено на потом', 'Saved for later'),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tr(
+              'Войдите в аккаунт, чтобы сохранять клубы, игроков и мониторинги.',
+              'Sign in to save clubs, players and monitors.',
+            ),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.68),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Icon(
+              Icons.bookmark_border_rounded,
+              size: 64,
+              color: Colors.white.withOpacity(0.3),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3164,36 +3605,74 @@ class _SavedTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        ...savedItems.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _WatchlistTile(
-              data: item,
-              onTap: () => onOpenAssistant(
-                draft: 'Подготовь обновленную сводку по ${item.title}',
+        if (_savedItems.isEmpty)
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 32),
+                Icon(
+                  Icons.bookmark_border_rounded,
+                  size: 64,
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  tr('Пока ничего не сохранено', 'Nothing saved yet'),
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tr(
+                    'Сохраняйте клубы, игроков и мониторинги для быстрого доступа',
+                    'Save clubs, players and monitors for quick access',
+                  ),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.4),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ..._savedItems.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _SavedItemTile(
+                item: item,
+                icon: _getIconForType(item.type),
+                onTap: () => widget.onOpenAssistant(
+                  draft: 'Подготовь обновленную сводку по ${item.title}',
+                ),
+                onDelete: () => _deleteItem(item),
               ),
             ),
           ),
-        ),
         _SectionPanel(
-          title: 'Library shortcuts',
-          subtitle:
-              'Use saved entities as persistent starting points instead of typing repeated prompts.',
+          title: tr('Быстрые действия', 'Quick Actions'),
+          subtitle: tr(
+            'Используйте сохраненные элементы как отправные точки для анализа',
+            'Use saved items as starting points for analysis',
+          ),
           child: Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
               _GhostButton(
-                label: 'Club form brief',
+                label: tr('Сводка по клубу', 'Club form brief'),
                 icon: Icons.article_rounded,
-                onTap: () => onOpenAssistant(
+                onTap: () => widget.onOpenAssistant(
                   draft: 'Сделай сводку по текущей форме сохраненного клуба',
                 ),
               ),
               _GhostButton(
-                label: 'Player outlook',
+                label: tr('Прогноз игрока', 'Player outlook'),
                 icon: Icons.radar_rounded,
-                onTap: () => onOpenAssistant(
+                onTap: () => widget.onOpenAssistant(
                   draft: 'Подготовь краткий outlook по сохраненному игроку',
                 ),
               ),
@@ -3321,14 +3800,10 @@ class _LeagueChip extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: selected
-                ? Colors.white
-                : Colors.white.withOpacity(0.08),
+            color: selected ? Colors.white : Colors.white.withOpacity(0.08),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected
-                  ? Colors.white
-                  : Colors.white.withOpacity(0.08),
+              color: selected ? Colors.white : Colors.white.withOpacity(0.08),
             ),
           ),
           child: Text(
@@ -3336,9 +3811,7 @@ class _LeagueChip extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: selected
-                  ? const Color(0xFF102A43)
-                  : Colors.white,
+              color: selected ? const Color(0xFF102A43) : Colors.white,
             ),
           ),
         ),
@@ -3375,10 +3848,7 @@ class _LiveMatchCard extends StatelessWidget {
   final MatchItem match;
   final VoidCallback onPreview;
 
-  const _LiveMatchCard({
-    required this.match,
-    required this.onPreview,
-  });
+  const _LiveMatchCard({required this.match, required this.onPreview});
 
   @override
   Widget build(BuildContext context) {
@@ -3579,7 +4049,10 @@ class _MatchCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: data.accent.withOpacity(0.18),
                   borderRadius: BorderRadius.circular(16),
@@ -3740,23 +4213,18 @@ class _TournamentTile extends StatelessWidget {
   }
 }
 
-class _WatchlistItemData {
-  final String title;
-  final String subtitle;
+class _SavedItemTile extends StatelessWidget {
+  final SavedItem item;
   final IconData icon;
-
-  const _WatchlistItemData({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-}
-
-class _WatchlistTile extends StatelessWidget {
-  final _WatchlistItemData data;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
-  const _WatchlistTile({required this.data, required this.onTap});
+  const _SavedItemTile({
+    required this.item,
+    required this.icon,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3781,7 +4249,7 @@ class _WatchlistTile extends StatelessWidget {
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(data.icon, color: Colors.white),
+                child: Icon(icon, color: Colors.white),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -3789,7 +4257,7 @@ class _WatchlistTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      data.title,
+                      item.title,
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -3798,7 +4266,7 @@ class _WatchlistTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      data.subtitle,
+                      item.subtitle,
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.7),
@@ -3806,6 +4274,10 @@ class _WatchlistTile extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_rounded, color: Colors.white54),
+                onPressed: onDelete,
               ),
               const Icon(Icons.chevron_right_rounded, color: Colors.white),
             ],
@@ -3876,24 +4348,14 @@ Future<Map<String, dynamic>?> _initializeAppState() async {
     final qwenApi = QwenApiService(baseUrl: QWEN_API_URL);
     final qwenAvailable = await qwenApi.isAvailable();
 
-    final hfApi = HuggingFaceApiService();
-    final hfAvailable = await hfApi.initialize();
-    if (hfAvailable) {
-      print('✅ HuggingFace API (Mistral 7B) доступен');
-    } else {
-      print('⚠️ HuggingFace API недоступен — проверьте HF_TOKEN в .env');
-    }
-
     return {
       'vectorDbManager': vectorDbManager,
       'queryVectorizer': queryVectorizer,
       'uefaParser': uefaParser,
       'qwenApi': qwenApi,
-      'hfApi': hfApi,
       'rankingsSearch': rankingsSearch,
       'rankingsApiAvailable': rankingsApiAvailable,
       'qwenAvailable': qwenAvailable,
-      'hfAvailable': hfAvailable,
     };
   } catch (e, stackTrace) {
     print('❌ Ошибка инициализации: $e\n$stackTrace');

@@ -154,6 +154,71 @@ class ChatSessionDB {
   }
 }
 
+/// Модель сохраненного элемента (клуб, игрок, мониторинг)
+class SavedItem {
+  final int? id;
+  final int? userId;
+  final String title;
+  final String subtitle;
+  final String type; // 'club', 'player', 'monitor'
+  final String? metadata; // JSON с дополнительными данными
+  final DateTime createdAt;
+
+  SavedItem({
+    this.id,
+    this.userId,
+    required this.title,
+    required this.subtitle,
+    required this.type,
+    this.metadata,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'subtitle': subtitle,
+      'type': type,
+      'metadata': metadata,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
+  factory SavedItem.fromMap(Map<String, dynamic> map) {
+    return SavedItem(
+      id: map['id'],
+      userId: map['user_id'],
+      title: map['title'],
+      subtitle: map['subtitle'],
+      type: map['type'],
+      metadata: map['metadata'],
+      createdAt: DateTime.parse(map['created_at']),
+    );
+  }
+
+  SavedItem copyWith({
+    int? id,
+    int? userId,
+    String? title,
+    String? subtitle,
+    String? type,
+    String? metadata,
+    DateTime? createdAt,
+  }) {
+    return SavedItem(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      type: type ?? this.type,
+      metadata: metadata ?? this.metadata,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
 /// Абстрактный интерфейс для сервиса базы данных
 abstract class DatabaseServiceInterface {
   Future<User?> registerUser({
@@ -161,42 +226,48 @@ abstract class DatabaseServiceInterface {
     required String email,
     required String password,
   });
-  
-  Future<User?> loginUser({
-    required String email,
-    required String password,
-  });
-  
+
+  Future<User?> loginUser({required String email, required String password});
+
   Future<bool> userExists(String email);
-  
+
   Future<User?> getCurrentUser();
-  
+
   Future<void> logout();
-  
+
   Future<ChatSessionDB?> createChat({
     required int userId,
     required String title,
   });
-  
+
   Future<List<ChatSessionDB>> getUserChats(int userId);
-  
+
   Future<void> deleteChat(int chatId);
-  
+
   Future<ChatMessageDB?> addMessage({
     required int chatId,
     required String text,
     required bool isUser,
   });
-  
+
   Future<List<ChatMessageDB>> getChatMessages(int chatId);
-  
+
   Future<void> clearChatMessages(int chatId);
-  
-  Future<bool> updateChatTitle({
-    required int chatId,
+
+  Future<bool> updateChatTitle({required int chatId, required String title});
+
+  Future<SavedItem?> saveItem({
+    required int userId,
     required String title,
+    required String subtitle,
+    required String type,
+    String? metadata,
   });
-  
+
+  Future<List<SavedItem>> getUserSavedItems(int userId);
+
+  Future<void> deleteSavedItem(int itemId);
+
   Future<void> close();
 }
 

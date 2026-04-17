@@ -1,244 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math' as math;
 import 'uefa_search_indicator.dart';
-
-/// Анимированный сгусток с эффектом лавовой лампы
-class AnimatedLavaLamp extends StatefulWidget {
-  final bool isTyping;
-  final double size;
-
-  const AnimatedLavaLamp({
-    super.key,
-    required this.isTyping,
-    this.size = 40.0,
-  });
-
-  @override
-  State<AnimatedLavaLamp> createState() => _AnimatedLavaLampState();
-}
-
-class _AnimatedLavaLampState extends State<AnimatedLavaLamp> with TickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late AnimationController _morphController;
-  late AnimationController _lightningController;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _morphAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    // контроллер пульсации: плавно расширяется и сужается
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    // контроллер морфинга контура: двигается туда‑обратно, чтобы не было скачка
-    _morphController = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _lightningController = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine),
-    );
-
-    _morphAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _morphController, curve: Curves.linear),
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant AnimatedLavaLamp oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    
-    // Если состояние печати изменилось, перезапускаем анимацию молнии
-    if (widget.isTyping != oldWidget.isTyping) {
-      if (widget.isTyping) {
-        // Запускаем анимацию молнии
-        _lightningController.forward(from: 0.0);
-      } else {
-        // Останавливаем анимацию молнии
-        _lightningController.reset();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _morphController.dispose();
-    _lightningController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_pulseController, _morphController, _lightningController]),
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size(widget.size, widget.size),
-          painter: LavaLampPainter(
-            pulseValue: _pulseAnimation.value,
-            morphValue: _morphAnimation.value,
-            isTyping: widget.isTyping,
-            lightningValue: _lightningController.value,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class LavaLampPainter extends CustomPainter {
-  final double pulseValue;
-  final double morphValue;
-  final bool isTyping;
-  final double lightningValue;
-
-  LavaLampPainter({
-    required this.pulseValue,
-    required this.morphValue,
-    required this.isTyping,
-    required this.lightningValue,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Основной градиент сгустка
-    final gradient = RadialGradient(
-      center: Alignment.center,
-      radius: 0.8,
-      colors: [
-        const Color(0xFF7C4DFF).withOpacity(0.8), // Фиолетовый
-        const Color(0xFF00D4FF).withOpacity(0.6), // Голубой
-        const Color(0xFF4A90E2).withOpacity(0.4), // Синий
-        Colors.white.withOpacity(0.2),            // Белый
-      ],
-    );
-
-    // Эффект пульсации, усиливаем при печати
-    double pulseRadius = radius * pulseValue;
-    if (isTyping) {
-      pulseRadius *= 1.1 + 0.05 * math.sin(lightningValue * 2 * math.pi);
-    }
-
-    // Эффект морфинга (лавовой лампы)
-    final path = Path();
-    final points = 8;
-    final baseRadius = pulseRadius;
-    
-    for (int i = 0; i < points; i++) {
-      final angle = (i / points) * 2 * math.pi;
-      // Случайные волны для эффекта лавовой лампы
-      final wave = math.sin(morphValue * 4 + angle * 3) * 10;
-      final noise = math.sin(morphValue * 6 + angle * 5) * 5;
-      final r = baseRadius + wave + noise;
-      
-      final x = center.dx + r * math.cos(angle);
-      final y = center.dy + r * math.sin(angle);
-      
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    // Рисуем основной сгусток
-    final paint = Paint()
-      ..shader = gradient.createShader(Rect.fromCircle(center: center, radius: pulseRadius))
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path, paint);
-
-    // Добавляем внутреннее свечение
-    final innerPaint = Paint()
-      ..color = const Color(0xFFFFFFFF).withOpacity(0.3)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
-
-    canvas.drawCircle(center, pulseRadius * 0.6, innerPaint);
-
-    // Анимация молнии при печати
-    if (isTyping && lightningValue > 0) {
-      final lightningPath = Path();
-      final lightningStart = Offset(center.dx - 10, center.dy - 15);
-      final lightningEnd = Offset(center.dx + 10, center.dy + 15);
-      
-      // Основная линия молнии
-      lightningPath.moveTo(lightningStart.dx, lightningStart.dy);
-      lightningPath.lineTo(center.dx, center.dy - 5);
-      lightningPath.lineTo(center.dx + 5, center.dy + 5);
-      lightningPath.lineTo(lightningEnd.dx, lightningEnd.dy);
-      
-      // Ветвь молнии
-      lightningPath.moveTo(center.dx, center.dy - 5);
-      lightningPath.lineTo(center.dx - 8, center.dy + 2);
-
-      final lightningPaint = Paint()
-        ..color = Colors.white.withOpacity(lightningValue)
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawPath(lightningPath, lightningPaint);
-
-      // Эффект вспышки
-      final flashPaint = Paint()
-        ..color = Colors.white.withOpacity(lightningValue * 0.5)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 15);
-
-      canvas.drawCircle(center, pulseRadius * 0.8, flashPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant LavaLampPainter oldDelegate) {
-    return oldDelegate.pulseValue != pulseValue ||
-           oldDelegate.morphValue != morphValue ||
-           oldDelegate.isTyping != isTyping ||
-           oldDelegate.lightningValue != lightningValue;
-  }
-}
 
 /// Сообщение чата
 class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
-  final Color? textColor; // Цвет текста для бота (зелёный/оранжевый для rankings)
-
-  /// Если указано, то при появлении сообщения будет использоваться именно
-  /// эта длительность между символами. Это позволяет, например, заставить
-  /// текст печататься долго (TEXT-IDLE).
-  final Duration? typingDuration;
+  final Color? textColor;
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
-    this.textColor, // По умолчанию null (используется стандартный цвет)
-    this.typingDuration,
+    this.textColor,
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
-/// Виджет чата в стиле ChatGPT/Qwen/DeepSeek
+/// Чистый, минималистичный чат-интерфейс
 class ChatInterface extends StatefulWidget {
   final List<ChatMessage> messages;
   final Function(String) onSendMessage;
+  final VoidCallback? onClear;
   final bool isLoading;
   final bool showSearch;
   final String? searchError;
@@ -247,6 +30,7 @@ class ChatInterface extends StatefulWidget {
     super.key,
     required this.messages,
     required this.onSendMessage,
+    this.onClear,
     this.isLoading = false,
     this.showSearch = false,
     this.searchError,
@@ -259,16 +43,8 @@ class ChatInterface extends StatefulWidget {
 class _ChatInterfaceState extends State<ChatInterface> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-
-  /// содержимое, отображаемое в пузырьках; для бот-сообщений может
-  /// заполняться постепенно, создавая эффект «набирается текст»
   late List<String> _displayedTexts;
-
-  /// флаги для постепенного появления сообщения (для анимации opacity)
   late List<bool> _fadedIn;
-
-  /// флаги для анимации молнии при печати
-  late List<bool> _isTyping;
 
   @override
   void dispose() {
@@ -277,45 +53,17 @@ class _ChatInterfaceState extends State<ChatInterface> {
     super.dispose();
   }
 
-  /// запускает анимацию печати для нового сообщения бота
-  Future<void> _startTyping(String fullText, {Duration perChar = const Duration(milliseconds: 30)}) async {
-    // Включаем анимацию молнии для последнего сообщения
-    if (_isTyping.isNotEmpty) {
-      _isTyping[_isTyping.length - 1] = true;
-    }
-    
-    // Запускаем анимацию молнии
-    _triggerLightningAnimation();
-    
+  Future<void> _startTyping(String fullText) async {
     for (int i = 1; i <= fullText.length; i++) {
-      await Future.delayed(perChar);
+      await Future.delayed(const Duration(milliseconds: 30));
       if (!mounted) return;
       setState(() {
         _displayedTexts[_displayedTexts.length - 1] = fullText.substring(0, i);
       });
       _scrollToBottom();
     }
-    
-    // Выключаем анимацию молнии после завершения печати
-    if (_isTyping.isNotEmpty) {
-      _isTyping[_isTyping.length - 1] = false;
-    }
   }
 
-  /// запускает анимацию молнии
-  void _triggerLightningAnimation() {
-    if (_isTyping.isNotEmpty) {
-      // Запускаем анимацию молнии для всех сгустков
-      for (int i = 0; i < _isTyping.length; i++) {
-        if (_isTyping[i]) {
-          // Перезапускаем анимацию молнии
-          // Это будет вызвано автоматически при изменении isTyping
-        }
-      }
-    }
-  }
-
-  /// плавное появление пузырька после добавления в список
   void _fadeIn(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -339,10 +87,10 @@ class _ChatInterfaceState extends State<ChatInterface> {
   @override
   void initState() {
     super.initState();
-    // при старте все сообщения уже должны показываться полностью
-    _displayedTexts = widget.messages.map((m) => m.isUser ? m.text : m.text).toList();
+    _displayedTexts = widget.messages
+        .map((m) => m.isUser ? m.text : m.text)
+        .toList();
     _fadedIn = List<bool>.filled(widget.messages.length, true);
-    _isTyping = List<bool>.filled(widget.messages.length, false);
   }
 
   @override
@@ -350,27 +98,16 @@ class _ChatInterfaceState extends State<ChatInterface> {
     super.didUpdateWidget(oldWidget);
 
     if (widget.messages.length > oldWidget.messages.length) {
-      // добавлено новое сообщение (скорее всего от ИИ)
       final newMsg = widget.messages.last;
       _displayedTexts.add(newMsg.text);
       _fadedIn.add(false);
-      _isTyping.add(false);
       _fadeIn(_fadedIn.length - 1);
-      
-      // Если это сообщение бота, запускаем анимацию печати
-      if (!newMsg.isUser) {
-        _startTyping(newMsg.text);
-      }
     } else if (widget.messages.length < oldWidget.messages.length) {
-      // сообщения удалены? просто синхронизируем списки
       _displayedTexts = widget.messages.map((m) => m.text).toList();
       _fadedIn = List<bool>.filled(widget.messages.length, true);
-      _isTyping = List<bool>.filled(widget.messages.length, false);
     } else {
-      // изменение без изменения длины, синхронизируем всё
       _displayedTexts = widget.messages.map((m) => m.text).toList();
       _fadedIn = List<bool>.filled(widget.messages.length, true);
-      _isTyping = List<bool>.filled(widget.messages.length, false);
     }
   }
 
@@ -380,15 +117,8 @@ class _ChatInterfaceState extends State<ChatInterface> {
       color: Colors.transparent,
       child: Column(
         children: [
-          // Заголовок
           _buildHeader(),
-
-          // Список сообщений
-          Expanded(
-            child: _buildMessageList(),
-          ),
-
-          // Поле ввода
+          Expanded(child: _buildMessageList()),
           _buildInputField(),
         ],
       ),
@@ -398,50 +128,74 @@ class _ChatInterfaceState extends State<ChatInterface> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        border: Border(
-          bottom: BorderSide(
-            color: const Color(0xFFE8F0FF),
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.03)),
       child: Row(
         children: [
-          AnimatedLavaLamp(
-            isTyping: false,
-            size: 48.0,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.forum_outlined,
+              color: Colors.white70,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'AI Assistant',
-                style: GoogleFonts.poppins(
+                'AI ASSISTANT',
+                style: GoogleFonts.inter(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF333333),
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
                 ),
               ),
               Text(
-                'Always here to help',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: const Color(0xFF666666),
+                'Всегда готов помочь',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
           ),
+          const Spacer(),
+          if (widget.onClear != null) ...[
+            _buildHeaderAction(
+              icon: Icons.delete_outline,
+              tooltip: 'Очистить чат',
+              onPressed: widget.onClear!,
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: Colors.white70, size: 20),
+        ),
       ),
     );
   }
@@ -450,18 +204,17 @@ class _ChatInterfaceState extends State<ChatInterface> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(20),
-      // always reserve a slot for the search indicator to avoid list reflows
-      itemCount: widget.messages.length
-          + 1
-          + (widget.searchError != null ? 1 : 0)
-          + (widget.isLoading ? 1 : 0),
+      itemCount:
+          widget.messages.length +
+          1 +
+          (widget.searchError != null ? 1 : 0) +
+          (widget.isLoading ? 1 : 0),
       itemBuilder: (context, index) {
         final base = widget.messages.length;
         if (index < base) {
           return _buildMessageBubble(widget.messages[index], index);
         }
         if (index == base) {
-          // indicator slot
           return _buildSearchIndicator(widget.showSearch);
         }
         int offset = 1;
@@ -474,7 +227,6 @@ class _ChatInterfaceState extends State<ChatInterface> {
         if (widget.isLoading && index == base + offset) {
           return _buildLoadingIndicator();
         }
-        // should not reach here normally
         return const SizedBox.shrink();
       },
     );
@@ -485,94 +237,100 @@ class _ChatInterfaceState extends State<ChatInterface> {
       opacity: _fadedIn[index] ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 300),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 20),
         child: Row(
-          mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            AnimatedLavaLamp(
-              isTyping: index < _isTyping.length ? _isTyping[index] : false,
-              size: 40.0,
-            ),
-            const SizedBox(width: 12),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: message.isUser
-                    ? const Color(0xFF4A90E2).withOpacity(0.2)
-                    : Colors.white.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: message.isUser
-                      ? const Color(0xFF4A90E2).withOpacity(0.3)
-                      : const Color(0xFFE8F0FF),
-                  width: 1,
+          mainAxisAlignment: message.isUser
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!message.isUser) ...[
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                child: const Icon(
+                  Icons.support_agent_outlined,
+                  color: Colors.white70,
+                  size: 18,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    // отображаем часть текста, если идет печать
-                    _displayedTexts.length > index ? _displayedTexts[index] : message.text,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      color: message.isUser
-                          ? const Color(0xFF333333)
-                          : (message.textColor ?? const Color(0xFF333333)),
-                      height: 1.5,
-                    ),
+              const SizedBox(width: 12),
+            ],
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: message.isUser
+                      ? const Color(0xFF2B2B2B)
+                      : Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: message.isUser
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.white.withOpacity(0.05),
+                    width: 1,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatTime(message.timestamp),
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: const Color(0xFF666666),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _displayedTexts.length > index
+                          ? _displayedTexts[index]
+                          : message.text,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: message.isUser
+                            ? Colors.white
+                            : (message.textColor ??
+                                  Colors.white.withOpacity(0.9)),
+                        height: 1.5,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (message.isUser) ...[
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFE040FB),
-                    Color(0xFF7C4DFF),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTime(message.timestamp),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: Colors.white38,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.person_outline,
-                color: Colors.white,
-                size: 20,
               ),
             ),
+            if (message.isUser) ...[
+              const SizedBox(width: 12),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white70,
+                  size: 18,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildSearchIndicator(bool visible) {
-    // keep the slot always there; animate size & opacity when shown/hidden
     return AnimatedSize(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -581,13 +339,23 @@ class _ChatInterfaceState extends State<ChatInterface> {
         duration: const Duration(milliseconds: 300),
         child: visible
             ? Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedLavaLamp(
-                      isTyping: false,
-                      size: 40.0,
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.support_agent_outlined,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -604,31 +372,80 @@ class _ChatInterfaceState extends State<ChatInterface> {
   }
 
   Widget _buildSearchError(String message) {
-    // error shown inline after the search indicator
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: UefaErrorIndicator(message: message),
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.support_agent_outlined,
+              color: Colors.white70,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.05),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildLoadingIndicator() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedLavaLamp(
-            isTyping: false,
-            size: 40.0,
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.support_agent_outlined,
+              color: Colors.white70,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withOpacity(0.05),
                 width: 1,
               ),
             ),
@@ -636,9 +453,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildDot(0),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 _buildDot(1),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 _buildDot(2),
               ],
             ),
@@ -649,22 +466,20 @@ class _ChatInterfaceState extends State<ChatInterface> {
   }
 
   Widget _buildDot(int index) {
-    return TweenAnimationBuilder(
+    return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 400 + index * 200),
-      tween: Tween<double>(begin: 0, end: 1),
+      tween: Tween<double>(begin: 0.3, end: 1.0),
       builder: (context, value, child) {
         return Container(
-          width: 8,
-          height: 8,
+          width: 6,
+          height: 6,
           decoration: BoxDecoration(
-            color: const Color(0xFF7C4DFF).withOpacity(0.5 + value * 0.5),
+            color: Colors.white.withOpacity(value * 0.5),
             shape: BoxShape.circle,
           ),
         );
       },
-      onEnd: () {
-        // Restart animation handled by parent rebuild
-      },
+      onEnd: () {},
     );
   }
 
@@ -675,50 +490,42 @@ class _ChatInterfaceState extends State<ChatInterface> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.white.withOpacity(0.1),
-          ],
+          colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
         ),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(24),
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: const Color(0xFFE8F0FF),
+                  color: Colors.white.withOpacity(0.1),
                   width: 1,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
-                        color: const Color(0xFF333333),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w400,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Message AI Assistant...',
-                        hintStyle: GoogleFonts.poppins(
+                        hintText: 'Написать сообщение...',
+                        hintStyle: GoogleFonts.inter(
                           fontSize: 15,
-                          color: const Color(0xFF999999),
+                          color: Colors.white38,
+                          fontWeight: FontWeight.w400,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                          horizontal: 4,
                           vertical: 16,
                         ),
                       ),
@@ -728,14 +535,13 @@ class _ChatInterfaceState extends State<ChatInterface> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {
-                      // Add attachment functionality
-                    },
+                    onPressed: () {},
                     icon: const Icon(
-                      Icons.attach_file,
-                      color: Color(0xFF666666),
+                      Icons.attach_file_outlined,
+                      color: Colors.white38,
                     ),
                     iconSize: 20,
+                    splashRadius: 20,
                   ),
                 ],
               ),
@@ -744,29 +550,15 @@ class _ChatInterfaceState extends State<ChatInterface> {
           const SizedBox(width: 12),
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF4A90E2),
-                  Color(0xFFA7C7FF),
-                ],
-              ),
+              color: Colors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF4A90E2).withOpacity(0.3),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                ),
-              ],
             ),
             child: IconButton(
               onPressed: _sendMessage,
-              icon: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-              ),
-              iconSize: 24,
+              icon: const Icon(Icons.send_outlined, color: Colors.white70),
+              iconSize: 22,
               padding: const EdgeInsets.all(14),
+              splashRadius: 24,
             ),
           ),
         ],
