@@ -5,14 +5,17 @@ import 'package:sportsense/services/vector_db_manager.dart';
 import 'package:sportsense/services/user_query_vectorizer.dart';
 import 'package:sportsense/services/uefa_parser.dart';
 import 'package:sportsense/services/qwen_api_service.dart';
+import 'package:sportsense/services/huggingface_router_service.dart';
+import 'package:sportsense/services/langchain_search_service.dart';
 import 'package:sportsense/services/rankings_vector_search.dart';
 import 'package:sportsense/services/database_service.dart';
 import 'package:sportsense/services/database_models.dart';
 
 void main() {
   group('SavedTab Tests', () {
-    testWidgets('SavedTab shows login prompt when user is not logged in',
-        (WidgetTester tester) async {
+    testWidgets('SavedTab shows login prompt when user is not logged in', (
+      WidgetTester tester,
+    ) async {
       final vectorDbManager = VectorDatabaseManager();
       final queryVectorizer = UserQueryVectorizerService(
         dbManager: vectorDbManager,
@@ -27,6 +30,8 @@ void main() {
           queryVectorizer: queryVectorizer,
           uefaParser: uefaParser,
           qwenApi: qwenApi,
+          hfRouter: HuggingFaceRouterService(apiKey: 'test-token'),
+          langChainSearch: LangChainSearchService(),
           rankingsSearch: rankingsSearch,
           rankingsApiAvailable: false,
           qwenAvailable: false,
@@ -57,8 +62,9 @@ void main() {
       );
     });
 
-    testWidgets('SavedTab shows empty state when no items saved',
-        (WidgetTester tester) async {
+    testWidgets('SavedTab shows empty state when no items saved', (
+      WidgetTester tester,
+    ) async {
       final vectorDbManager = VectorDatabaseManager();
       final queryVectorizer = UserQueryVectorizerService(
         dbManager: vectorDbManager,
@@ -73,6 +79,8 @@ void main() {
           queryVectorizer: queryVectorizer,
           uefaParser: uefaParser,
           qwenApi: qwenApi,
+          hfRouter: HuggingFaceRouterService(apiKey: 'test-token'),
+          langChainSearch: LangChainSearchService(),
           rankingsSearch: rankingsSearch,
           rankingsApiAvailable: false,
           qwenAvailable: false,
@@ -89,7 +97,9 @@ void main() {
       // Проверяем что показывается empty state
       expect(find.text('Пока ничего не сохранено'), findsOneWidget);
       expect(
-        find.text('Сохраняйте клубы, игроков и мониторинги для быстрого доступа'),
+        find.text(
+          'Сохраняйте клубы, игроков и мониторинги для быстрого доступа',
+        ),
         findsOneWidget,
       );
     });

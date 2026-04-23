@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' show sqrt;
 
 /// Локальная векторная база данных для Web.

@@ -25,6 +25,8 @@ class ChatInterface extends StatefulWidget {
   final bool isLoading;
   final bool showSearch;
   final String? searchError;
+  final String? currentModel;
+  final VoidCallback? onModelTap;
 
   const ChatInterface({
     super.key,
@@ -34,6 +36,8 @@ class ChatInterface extends StatefulWidget {
     this.isLoading = false,
     this.showSearch = false,
     this.searchError,
+    this.currentModel,
+    this.onModelTap,
   });
 
   @override
@@ -166,6 +170,8 @@ class _ChatInterfaceState extends State<ChatInterface> {
             ],
           ),
           const Spacer(),
+          if (widget.currentModel != null && widget.onModelTap != null)
+            _buildModelSelector(),
           if (widget.onClear != null) ...[
             _buildHeaderAction(
               icon: Icons.delete_outline,
@@ -195,6 +201,52 @@ class _ChatInterfaceState extends State<ChatInterface> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: Colors.white70, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModelSelector() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onModelTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF6366F1).withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.auto_awesome_outlined,
+                color: Color(0xFF6366F1),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.currentModel ?? 'Модель',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white60,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );

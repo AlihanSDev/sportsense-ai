@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
@@ -10,11 +11,13 @@ import 'services/user_query_vectorizer.dart';
 import 'services/rankings_relevance_service.dart';
 import 'services/uefa_parser.dart';
 import 'services/qwen_api_service.dart';
+import 'services/huggingface_router_service.dart';
 import 'services/rankings_vector_search.dart';
 import 'services/uefa_rankings_api_service.dart';
 import 'services/database_service.dart';
 import 'services/database_models.dart';
 import 'services/matches_service.dart';
+import 'services/langchain_search_service.dart';
 
 // ======================= ВИДЖЕТЫ =======================
 import 'widgets/space_background.dart';
@@ -33,6 +36,10 @@ const String QWEN_API_URL = 'http://127.0.0.1:5000';
 const String UEFA_PARSER_API_URL = 'http://127.0.0.1:8000';
 const String QDRANT_HOST = 'localhost';
 const int QDRANT_PORT = 6333;
+const String LANGCHAIN_SEARCH_API_URL = 'http://127.0.0.1:5002';
+
+const String HF_TOKEN = '';
+const String HF_BASE_URL = 'https://router.huggingface.co/v1';
 
 // ======================= THEME =======================
 // ThemeNotifier и AppTheme импортированы из services/theme_notifier.dart
@@ -82,12 +89,21 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final Color? textColor;
-  ChatMessage({required this.text, required this.isUser, this.textColor});
+  final ChartData? chartData;
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.textColor,
+    this.chartData,
+  });
 }
 
 // ======================= MAIN =======================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Загрузка переменных окружения из .env файла
+  await dotenv.load();
 
   // Инициализация базы данных
   initDatabase();
@@ -107,6 +123,8 @@ void main() async {
           queryVectorizer: appState['queryVectorizer'],
           uefaParser: appState['uefaParser'],
           qwenApi: appState['qwenApi'],
+          hfRouter: appState['hfRouter'],
+          langChainSearch: appState['langChainSearch'],
           rankingsSearch: appState['rankingsSearch'],
           rankingsApiAvailable: appState['rankingsApiAvailable'],
           qwenAvailable: appState['qwenAvailable'],
@@ -122,6 +140,8 @@ class SpaceApp extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceRouterService hfRouter;
+  final LangChainSearchService langChainSearch;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
@@ -132,6 +152,8 @@ class SpaceApp extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfRouter,
+    required this.langChainSearch,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
@@ -164,6 +186,8 @@ class SpaceApp extends StatelessWidget {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
+        hfRouter: hfRouter,
+        langChainSearch: langChainSearch,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: rankingsApiAvailable,
         qwenAvailable: qwenAvailable,
@@ -178,6 +202,8 @@ class HomeScreen extends StatelessWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceRouterService hfRouter;
+  final LangChainSearchService langChainSearch;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
@@ -188,6 +214,8 @@ class HomeScreen extends StatelessWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfRouter,
+    required this.langChainSearch,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
@@ -202,6 +230,8 @@ class HomeScreen extends StatelessWidget {
           queryVectorizer: queryVectorizer,
           uefaParser: uefaParser,
           qwenApi: qwenApi,
+          hfRouter: hfRouter,
+          langChainSearch: langChainSearch,
           rankingsSearch: rankingsSearch,
           rankingsApiAvailable: rankingsApiAvailable,
           qwenAvailable: qwenAvailable,
@@ -561,6 +591,8 @@ class ChatScreen extends StatefulWidget {
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
   final QwenApiService qwenApi;
+  final HuggingFaceRouterService hfRouter;
+  final LangChainSearchService langChainSearch;
   final RankingsVectorSearch rankingsSearch;
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
@@ -572,6 +604,8 @@ class ChatScreen extends StatefulWidget {
     required this.queryVectorizer,
     required this.uefaParser,
     required this.qwenApi,
+    required this.hfRouter,
+    required this.langChainSearch,
     required this.rankingsSearch,
     required this.rankingsApiAvailable,
     required this.qwenAvailable,
@@ -776,192 +810,9 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _chats.add(newChat);
       _currentChatIndex = _chats.length - 1;
+      _isGenerating = false;
+      _stopRequested = false;
     });
-  }
-
-  void _switchChat(int index) {
-    setState(() {
-      _currentChatIndex = index;
-    });
-    Navigator.pop(context);
-    _loadChatMessages(_chats[index]);
-  }
-
-  /// Показ диалога авторизации в новом стиле
-  void _showRegistrationDialog() {
-    showDialog<User>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AuthDialog(
-          onAuthSuccess: (User user) async {
-            setState(() {
-              _currentUser = user;
-              _isLoggedIn = true;
-              _username = user.name;
-            });
-            await _loadUserChats();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Добро пожаловать, ${user.name}!'),
-                backgroundColor: const Color(0xFF7C4DFF),
-              ),
-            );
-          },
-        );
-      },
-    ).then((user) {
-      if (user != null && mounted) {
-        setState(() {
-          _currentUser = user;
-          _isLoggedIn = true;
-          _username = user.name;
-        });
-      }
-    });
-  }
-
-  void _logout() {
-    setState(() {
-      _isLoggedIn = false;
-      _username = '';
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Вы вышли из аккаунта')));
-  }
-
-  Drawer _buildDrawer() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Drawer(
-      backgroundColor: isDark ? Colors.black : Colors.white,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey[900] : Colors.blue[50],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.sports_soccer,
-                      size: 40,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _isLoggedIn ? _username : tr('Гость', 'Guest'),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _isLoggedIn
-                      ? tr('Аккаунт активен', 'Account active')
-                      : tr('Не авторизован', 'Not signed in'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white54 : Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          ListTile(
-            leading: Icon(
-              Icons.chat,
-              color: isDark ? Colors.white : Colors.black,
-            ),
-            title: Text(
-              tr('Чаты', 'Chats'),
-              style: TextStyle(color: isDark ? Colors.white : Colors.black),
-            ),
-            onTap: () {},
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _chats.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(
-                    _chats[index].title,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  selected: index == _currentChatIndex,
-                  selectedTileColor: Colors.blue.withOpacity(0.1),
-                  onTap: () => _switchChat(index),
-                );
-              },
-            ),
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.add_circle,
-              color: isDark ? Colors.white : Colors.black,
-            ),
-            title: Text(
-              tr('Новый чат', 'New chat'),
-              style: TextStyle(color: isDark ? Colors.white : Colors.black),
-            ),
-            onTap: _createNewChat,
-          ),
-          const Divider(),
-          if (!_isLoggedIn)
-            ListTile(
-              leading: const Icon(Icons.app_registration, color: Colors.blue),
-              title: Text(
-                tr('Регистрация / Вход', 'Sign up / Sign in'),
-                style: const TextStyle(color: Colors.blue),
-              ),
-              onTap: _showRegistrationDialog,
-            ),
-          if (_isLoggedIn)
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: Text(
-                tr('Выйти', 'Sign out'),
-                style: const TextStyle(color: Colors.red),
-              ),
-              onTap: _logout,
-            ),
-          ListTile(
-            leading: Icon(
-              Icons.settings,
-              color: isDark ? Colors.white : Colors.black,
-            ),
-            title: Text(
-              tr('Настройки', 'Settings'),
-              style: TextStyle(color: isDark ? Colors.white : Colors.black),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _sendMessage(String text) async {
@@ -972,72 +823,6 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _stopRequested = true;
       });
-      return;
-    }
-
-    // Специальные команды (только UI)
-    if (text == 'COMMAND-HEY') {
-      setState(() {
-        currentChat.messages.add(ChatMessage(text: text, isUser: true));
-      });
-      await Future.delayed(const Duration(milliseconds: 300));
-      final info = '''
-*Список доступных команд:*
-- TEXT-IDLE: демонстрация длительной печати (~25 секунд)
-- BANANA-HEY: банановый отклик
-- COMMAND-HEY: показать это сообщение
-''';
-      if (mounted) {
-        setState(() {
-          currentChat.messages.add(
-            ChatMessage(
-              text: info,
-              isUser: false,
-              textColor: const Color(0xFF7C4DFF),
-            ),
-          );
-        });
-      }
-      return;
-    }
-
-    if (text == 'BANANA-HEY') {
-      setState(() {
-        currentChat.messages.add(ChatMessage(text: text, isUser: true));
-      });
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (mounted) {
-        setState(() {
-          currentChat.messages.add(
-            ChatMessage(
-              text: '🍌 БАНАН! 🍌',
-              isUser: false,
-              textColor: const Color(0xFFFFD700),
-            ),
-          );
-        });
-      }
-      return;
-    }
-
-    if (text == 'TEXT-IDLE') {
-      setState(() {
-        currentChat.messages.add(ChatMessage(text: text, isUser: true));
-      });
-      await Future.delayed(const Duration(seconds: 3));
-      final reply =
-          'Это пример генерируемого текста. Он появляется постепенно, словно AI печатает его прямо сейчас.';
-      if (mounted) {
-        setState(() {
-          currentChat.messages.add(
-            ChatMessage(
-              text: reply,
-              isUser: false,
-              textColor: const Color(0xFF7C4DFF),
-            ),
-          );
-        });
-      }
       return;
     }
 
@@ -1059,36 +844,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _stopRequested = false;
     });
 
-    // Очищаем поле ввода сразу, не ждём ответа
+    // Очищаем поле ввода
     _controller.clear();
 
     final relevance = RankingsRelevanceService.checkRelevance(text);
     final textColor = RankingsRelevanceService.getRelevanceColor(relevance);
-
-    // Автоопределение поиска по триггерным словам
-    final searchTriggers = [
-      'найди в интернете',
-      'найди в сети',
-      'поищи в интернете',
-      'поищи в сети',
-      'search the internet',
-      'search the web',
-      'find online',
-      'look up',
-      'найди онлайн',
-      'погугли',
-      'google it',
-      'search online',
-    ];
-    final shouldSearch =
-        _useSearch || searchTriggers.any((t) => text.toLowerCase().contains(t));
-
-    String ragContext = '';
-
-    if (_stopRequested) {
-      _cancelGeneration();
-      return;
-    }
 
     if (relevance >= 2.0) {
       await widget.uefaParser.parseAndSaveRankings();
@@ -1100,6 +860,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    String ragContext = '';
     if (relevance >= 1.0) {
       ragContext = await widget.rankingsSearch.getRagContext(text, limit: 10);
     }
@@ -1109,7 +870,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // Добавляем пустое сообщение бота, которое будем заполнять
+    // Добавляем пустое сообщение бота
     final botMsgIndex = currentChat.messages.length;
     if (mounted) {
       setState(() {
@@ -1120,7 +881,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     String botResponse;
-    if (widget.qwenAvailable) {
+    // LangChain Search with DuckDuckGo (if enabled and service available)
+    if (_useSearch && widget.langChainSearch != null) {
+      final searchResponse = await widget.langChainSearch.chat(
+        text,
+        useSearch: true,
+        maxTokens: 1024,
+        temperature: 0.7,
+      );
+      if (_stopRequested) {
+        _cancelGeneration();
+        return;
+      }
+      botResponse =
+          searchResponse?.response ??
+          'Ошибка поиска в интернете. Попробуйте ещё раз.';
+    } else if (widget.qwenAvailable) {
       final qwenResponse = await widget.qwenApi.chat(
         text,
         context: ragContext.isNotEmpty ? ragContext : null,
@@ -1131,35 +907,47 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       botResponse =
-          qwenResponse?.response ??
-          'Произошла ошибка при обработке запроса. Попробуйте ещё раз.';
+          qwenResponse?.response ?? 'Произошла ошибка. Попробуйте ещё раз.';
     } else {
-      // Имитация постепенной генерации
-      botResponse =
-          'Спасибо за вопрос! В данный момент я готовлю ответ по вашему запросу: "$text"';
-      if (ragContext.isNotEmpty) botResponse += '\n\n$ragContext';
-
-      // Анимация посимвольного появления
-      for (int i = 1; i <= botResponse.length; i++) {
-        if (_stopRequested) {
-          _cancelGeneration();
-          return;
-        }
-        if (mounted) {
-          setState(() {
-            currentChat.messages[botMsgIndex] = ChatMessage(
-              text: botResponse.substring(0, i),
-              isUser: false,
-              textColor: textColor,
-            );
-          });
-        }
-        await Future.delayed(const Duration(milliseconds: 15));
+      final hfResponse = await widget.hfRouter.chat(
+        text,
+        maxTokens: 1024,
+        context: ragContext.isNotEmpty ? ragContext : null,
+      );
+      if (_stopRequested) {
+        _cancelGeneration();
+        return;
       }
-      setState(() {
-        _isGenerating = false;
-      });
-      return;
+
+      // Показываем thinking (если есть)
+      final reasoning = hfResponse?.reasoning;
+      if (reasoning != null &&
+          reasoning.isNotEmpty &&
+          widget.hfRouter.showThinking) {
+        currentChat.messages.add(
+          ChatMessage(
+            text: '💭 $reasoning',
+            isUser: false,
+            textColor: Colors.white54,
+          ),
+        );
+      }
+
+      // Handle chart
+      final chartData = hfResponse?.chartData;
+      if (chartData != null && currentChat.messages.length > botMsgIndex) {
+        currentChat.messages[botMsgIndex] = ChatMessage(
+          text: '',
+          isUser: false,
+          textColor: textColor,
+          chartData: chartData,
+        );
+        setState(() {});
+      }
+
+      botResponse =
+          hfResponse?.response ??
+          'Ошибка обращения к ИИ. Проверьте HF_TOKEN в .env';
     }
 
     if (_stopRequested) {
@@ -1167,22 +955,14 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // Анимация посимвольного появления ответа LLM
-    for (int i = 1; i <= botResponse.length; i++) {
-      if (_stopRequested) {
-        _cancelGeneration();
-        return;
-      }
-      if (mounted) {
-        setState(() {
-          currentChat.messages[botMsgIndex] = ChatMessage(
-            text: botResponse.substring(0, i),
-            isUser: false,
-            textColor: textColor,
-          );
-        });
-      }
-      await Future.delayed(const Duration(milliseconds: 12));
+    // Обновляем сообщение
+    if (currentChat.messages.length > botMsgIndex) {
+      currentChat.messages[botMsgIndex] = ChatMessage(
+        text: botResponse,
+        isUser: false,
+        textColor: textColor,
+      );
+      setState(() {});
     }
 
     // Сохраняем ответ бота в SQLite
@@ -1204,11 +984,102 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Widget _buildChartWidget(ChartData chart) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            chart.title,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...List.generate(chart.labels.length, (i) {
+            final maxVal = chart.values.reduce((a, b) => a > b ? a : b);
+            final pct = maxVal > 0 ? (chart.values[i] / maxVal) : 0.0;
+            final color = i < chart.colors.length
+                ? _parseColor(chart.colors[i])
+                : const Color(0xFF6366F1);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      chart.labels[i].length > 10
+                          ? '${chart.labels[i].substring(0, 10)}...'
+                          : chart.labels[i],
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: pct,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      chart.values[i].toStringAsFixed(1),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Color _parseColor(String hex) {
+    try {
+      final hexCode = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hexCode', radix: 16));
+    } catch (e) {
+      return const Color(0xFF6366F1);
+    }
+  }
+
   void _cancelGeneration() {
     if (currentChat.messages.isNotEmpty) {
       final lastMsg = currentChat.messages.last;
       if (!lastMsg.isUser && lastMsg.text.isEmpty) {
-        // Удаляем пустое сообщение-заполнитель
         currentChat.messages.removeLast();
       }
     }
@@ -1216,6 +1087,128 @@ class _ChatScreenState extends State<ChatScreen> {
       _isGenerating = false;
       _stopRequested = false;
     });
+  }
+
+  void _showModelSelector() {
+    final isDark = themeNotifier.isDark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white30,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Выберите модель ИИ',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...widget.hfRouter.modelsList.map((e) {
+              final selected = widget.hfRouter.selectedModel == e.key;
+              return ListTile(
+                leading: Icon(
+                  selected ? Icons.check_circle : Icons.circle_outlined,
+                  color: selected ? const Color(0xFF6366F1) : Colors.white38,
+                ),
+                title: Text(
+                  e.value,
+                  style: TextStyle(
+                    color: selected ? const Color(0xFF6366F1) : Colors.white,
+                  ),
+                ),
+                onTap: () {
+                  widget.hfRouter.setModel(e.key);
+                  Navigator.pop(ctx);
+                  setState(() {});
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white24),
+            SwitchListTile(
+              title: const Text(
+                'Показывать рассуждения',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'DeepSeek R1',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              value: widget.hfRouter.showThinking,
+              activeColor: const Color(0xFF6366F1),
+              onChanged: (v) {
+                widget.hfRouter.toggleThinking();
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModelSelector() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _showModelSelector,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF6366F1).withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.auto_awesome_outlined,
+                color: Color(0xFF6366F1),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.hfRouter.selectedModelName,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white60,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1244,7 +1237,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Scaffold(
-      drawer: _buildDrawer(),
       body: SpaceBackground(
         child: SafeArea(
           child: Column(
@@ -1271,6 +1263,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                   const Spacer(),
+                  _buildModelSelector(),
                   const _LanguageToggle(),
                 ],
               ),
@@ -1369,12 +1362,14 @@ class _ChatScreenState extends State<ChatScreen> {
                                     : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
-                                msg.text,
-                                style: TextStyle(
-                                  color: msg.textColor ?? Colors.white,
-                                ),
-                              ),
+                              child: msg.chartData != null
+                                  ? _buildChartWidget(msg.chartData!)
+                                  : Text(
+                                      msg.text,
+                                      style: TextStyle(
+                                        color: msg.textColor ?? Colors.white,
+                                      ),
+                                    ),
                             ),
                           );
                         },
@@ -3180,9 +3175,9 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                                                     )
                                                   : null,
                                               onTap: () {
-                                                Navigator.of(context).pop(
-                                                  _allLeaguesKey,
-                                                );
+                                                Navigator.of(
+                                                  context,
+                                                ).pop(_allLeaguesKey);
                                               },
                                             ),
                                             ...leagues.map(
@@ -3268,9 +3263,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.08),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
                   ),
                   child: TextField(
                     controller: _clubSearchController,
@@ -3281,10 +3274,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                         Icons.search_rounded,
                         color: Colors.white70,
                       ),
-                      hintText: tr(
-                        'Поиск по клубу',
-                        'Search by club',
-                      ),
+                      hintText: tr('Поиск по клубу', 'Search by club'),
                       hintStyle: TextStyle(
                         color: Colors.white.withOpacity(0.54),
                       ),
@@ -4348,14 +4338,23 @@ Future<Map<String, dynamic>?> _initializeAppState() async {
     final qwenApi = QwenApiService(baseUrl: QWEN_API_URL);
     final qwenAvailable = await qwenApi.isAvailable();
 
+    final hfToken = dotenv.env['HF_TOKEN'] ?? '';
+    final hfRouter = HuggingFaceRouterService(apiKey: hfToken);
+
+    final langChainSearch = LangChainSearchService(
+      baseUrl: LANGCHAIN_SEARCH_API_URL,
+    );
+
     return {
       'vectorDbManager': vectorDbManager,
       'queryVectorizer': queryVectorizer,
       'uefaParser': uefaParser,
       'qwenApi': qwenApi,
+      'hfRouter': hfRouter,
       'rankingsSearch': rankingsSearch,
       'rankingsApiAvailable': rankingsApiAvailable,
       'qwenAvailable': qwenAvailable,
+      'langChainSearch': langChainSearch,
     };
   } catch (e, stackTrace) {
     print('❌ Ошибка инициализации: $e\n$stackTrace');

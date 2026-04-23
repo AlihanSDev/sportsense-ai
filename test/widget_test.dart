@@ -5,6 +5,8 @@ import 'package:sportsense/services/vector_db_manager.dart';
 import 'package:sportsense/services/user_query_vectorizer.dart';
 import 'package:sportsense/services/uefa_parser.dart';
 import 'package:sportsense/services/qwen_api_service.dart';
+import 'package:sportsense/services/huggingface_router_service.dart';
+import 'package:sportsense/services/langchain_search_service.dart';
 import 'package:sportsense/services/rankings_vector_search.dart';
 
 void main() {
@@ -15,6 +17,8 @@ void main() {
     );
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final hfRouter = HuggingFaceRouterService(apiKey: 'test-token');
+    final langChainSearch = LangChainSearchService();
     final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
 
     await tester.pumpWidget(
@@ -23,6 +27,8 @@ void main() {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
+        hfRouter: hfRouter,
+        langChainSearch: langChainSearch,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: false,
         qwenAvailable: false,
@@ -41,6 +47,8 @@ void main() {
     );
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final hfRouter = HuggingFaceRouterService(apiKey: 'test-token');
+    final langChainSearch = LangChainSearchService();
     final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
 
     await tester.pumpWidget(
@@ -49,6 +57,8 @@ void main() {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
+        hfRouter: hfRouter,
+        langChainSearch: langChainSearch,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: false,
         qwenAvailable: false,
@@ -66,6 +76,8 @@ void main() {
     );
     final uefaParser = UefaParser(vectorDbManager: vectorDbManager);
     final qwenApi = QwenApiService();
+    final hfRouter = HuggingFaceRouterService(apiKey: 'test-token');
+    final langChainSearch = LangChainSearchService();
     final rankingsSearch = RankingsVectorSearch(dbManager: vectorDbManager);
 
     await tester.pumpWidget(
@@ -74,6 +86,8 @@ void main() {
         queryVectorizer: queryVectorizer,
         uefaParser: uefaParser,
         qwenApi: qwenApi,
+        hfRouter: hfRouter,
+        langChainSearch: langChainSearch,
         rankingsSearch: rankingsSearch,
         rankingsApiAvailable: false,
         qwenAvailable: false,
