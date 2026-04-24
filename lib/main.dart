@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'dart:math' as math;
 
 // ======================= СЕРВИСЫ =======================
@@ -19,10 +21,14 @@ import 'services/database_models.dart';
 import 'services/matches_service.dart';
 import 'services/langchain_search_service.dart';
 
+// ======================= СКРИНТЫ =======================
+import 'screens/auth_screen.dart';
+
 // ======================= ВИДЖЕТЫ =======================
 import 'widgets/space_background.dart';
 import 'widgets/chat_interface.dart';
 import 'widgets/auth_dialog.dart';
+import 'splash_screen.dart';
 
 // ======================= КОНФИГУРАЦИЯ =======================
 const String DEVICE_ID = 'small_phone_cold_boost';
@@ -105,6 +111,12 @@ void main() async {
   // Загрузка переменных окружения из .env файла
   await dotenv.load();
 
+  // Инициализация Supabase
+  await Supabase.initialize(
+    url: 'https://feghsyhayybolrhnzcrb.supabase.co',
+    anonKey: 'sb_publishable_O7r3d9Yc9GnIxsd-_SSr-g_o81TXZCM',
+  );
+
   // Инициализация базы данных
   initDatabase();
 
@@ -118,24 +130,47 @@ void main() async {
     AnimatedBuilder(
       animation: Listenable.merge([themeNotifier, languageNotifier]),
       builder: (context, _) {
-        return SpaceApp(
-          vectorDbManager: appState['vectorDbManager'],
-          queryVectorizer: appState['queryVectorizer'],
-          uefaParser: appState['uefaParser'],
-          qwenApi: appState['qwenApi'],
-          hfRouter: appState['hfRouter'],
-          langChainSearch: appState['langChainSearch'],
-          rankingsSearch: appState['rankingsSearch'],
-          rankingsApiAvailable: appState['rankingsApiAvailable'],
-          qwenAvailable: appState['qwenAvailable'],
+        return MaterialApp(
+          title: 'Sportsense',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeNotifier.mode,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF4A90E2),
+              brightness: Brightness.light,
+              background: const Color(0xFFF8F9FA),
+            ),
+            textTheme: GoogleFonts.poppinsTextTheme(
+              ThemeData.light().textTheme,
+            ),
+            useMaterial3: true,
+          ).copyWith(scaffoldBackgroundColor: Colors.white),
+          darkTheme: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF4A90E2),
+              brightness: Brightness.dark,
+            ),
+            textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+          ),
+          home: SplashWrapper(
+            vectorDbManager: appState['vectorDbManager'],
+            queryVectorizer: appState['queryVectorizer'],
+            uefaParser: appState['uefaParser'],
+            qwenApi: appState['qwenApi'],
+            hfRouter: appState['hfRouter'],
+            langChainSearch: appState['langChainSearch'],
+            rankingsSearch: appState['rankingsSearch'],
+            rankingsApiAvailable: appState['rankingsApiAvailable'],
+            qwenAvailable: appState['qwenAvailable'],
+          ),
         );
       },
     ),
   );
 }
 
-// ======================= APP =======================
-class SpaceApp extends StatelessWidget {
+// ======================= SPLASH WRAPPER =======================
+class SplashWrapper extends StatefulWidget {
   final VectorDatabaseManager vectorDbManager;
   final UserQueryVectorizerService queryVectorizer;
   final UefaParser uefaParser;
@@ -146,7 +181,7 @@ class SpaceApp extends StatelessWidget {
   final bool rankingsApiAvailable;
   final bool qwenAvailable;
 
-  const SpaceApp({
+  const SplashWrapper({
     super.key,
     required this.vectorDbManager,
     required this.queryVectorizer,
@@ -160,39 +195,32 @@ class SpaceApp extends StatelessWidget {
   });
 
   @override
+  State<SplashWrapper> createState() => _SplashWrapperState();
+}
+
+class _SplashWrapperState extends State<SplashWrapper> {
+  bool _splashComplete = false;
+
+  void _onSplashComplete() {
+    if (mounted) setState(() => _splashComplete = true);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sportsense',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeNotifier.mode,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A90E2),
-          brightness: Brightness.light,
-          background: const Color(0xFFF8F9FA),
-        ),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
-        useMaterial3: true,
-      ).copyWith(scaffoldBackgroundColor: Colors.white),
-      darkTheme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A90E2),
-          brightness: Brightness.dark,
-        ),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-      ),
-      home: HomeScreen(
-        vectorDbManager: vectorDbManager,
-        queryVectorizer: queryVectorizer,
-        uefaParser: uefaParser,
-        qwenApi: qwenApi,
-        hfRouter: hfRouter,
-        langChainSearch: langChainSearch,
-        rankingsSearch: rankingsSearch,
-        rankingsApiAvailable: rankingsApiAvailable,
-        qwenAvailable: qwenAvailable,
-      ),
-    );
+    if (_splashComplete) {
+      return HomeScreen(
+        vectorDbManager: widget.vectorDbManager,
+        queryVectorizer: widget.queryVectorizer,
+        uefaParser: widget.uefaParser,
+        qwenApi: widget.qwenApi,
+        hfRouter: widget.hfRouter,
+        langChainSearch: widget.langChainSearch,
+        rankingsSearch: widget.rankingsSearch,
+        rankingsApiAvailable: widget.rankingsApiAvailable,
+        qwenAvailable: widget.qwenAvailable,
+      );
+    }
+    return SplashScreen(onComplete: _onSplashComplete);
   }
 }
 
@@ -269,6 +297,101 @@ class _HomeScreenShell extends StatefulWidget {
 
 class _HomeScreenShellState extends State<_HomeScreenShell> {
   int _selectedTab = 0;
+  bool _isLoggedIn = false;
+  User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId');
+      if (userId != null) {
+        final db = DatabaseService();
+        final user = await db.getUserById(userId);
+        if (mounted) {
+          setState(() {
+            _currentUser = user;
+            _isLoggedIn = user != null;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _currentUser = null;
+            _isLoggedIn = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Auth check error: $e');
+    }
+  }
+
+  Future<void> _openAuth() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+    _checkAuth();
+  }
+
+  Widget _buildUserGreeting(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.08)
+            : Colors.black.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.12)
+              : Colors.black.withOpacity(0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.person,
+            size: 16,
+            color: isDark ? Colors.white70 : Colors.black54,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _currentUser?.name ?? 'Пользователь',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () async {
+              await DatabaseService().logout();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('userId');
+              _checkAuth();
+            },
+            child: Text(
+              'Выйти',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: const Color(0xFFB37B7B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -566,6 +689,30 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 .map((item) => _StatusPill(item: item))
                 .toList(),
           ),
+          // Auth actions
+          if (!_isLoggedIn) ...[
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _PrimaryButton(
+                  label: 'Вход',
+                  icon: Icons.login,
+                  onTap: _openAuth,
+                ),
+                _GhostButton(
+                  label: 'Регистрация',
+                  icon: Icons.person_add,
+                  onTap: _openAuth,
+                ),
+              ],
+            ),
+          ],
+          if (_isLoggedIn) ...[
+            const SizedBox(height: 18),
+            _buildUserGreeting(context),
+          ],
         ],
       ),
     );

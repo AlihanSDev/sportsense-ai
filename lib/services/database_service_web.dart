@@ -102,6 +102,16 @@ class DatabaseServiceWeb implements DatabaseServiceInterface {
   }
 
   @override
+  Future<User?> getUserById(int userId) async {
+    try {
+      return _users[userId];
+    } catch (e) {
+      print('Ошибка получения пользователя по ID: $e');
+      return null;
+    }
+  }
+
+  @override
   Future<void> logout() async {
     // В веб-реализации ничего не делаем
   }

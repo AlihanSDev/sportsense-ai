@@ -27,6 +27,9 @@ class _AuthDialogState extends State<AuthDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Защита от двойного нажатия
+    if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -44,7 +47,11 @@ class _AuthDialogState extends State<AuthDialog> {
         }
       } else {
         final name = _nameController.text.trim();
-        user = await _db.registerUser(name: name, email: email, password: password);
+        user = await _db.registerUser(
+          name: name,
+          email: email,
+          password: password,
+        );
         if (user == null) {
           _errorMessage = 'Не удалось зарегистрироваться';
         }
@@ -152,7 +159,9 @@ class _AuthDialogState extends State<AuthDialog> {
                         });
                       },
                 child: Text(
-                  _isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти',
+                  _isLogin
+                      ? 'Нет аккаунта? Зарегистрироваться'
+                      : 'Уже есть аккаунт? Войти',
                 ),
               ),
             ],

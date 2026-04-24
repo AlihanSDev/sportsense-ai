@@ -43,6 +43,7 @@ dependencies:
   shared_preferences: ^2.2.3
   path_provider: ^2.1.3
   flutter_widget_from_html_core: ^0.15.2
+  supabase_flutter: ^2.12.4
 
 dev_dependencies:
   flutter_test:

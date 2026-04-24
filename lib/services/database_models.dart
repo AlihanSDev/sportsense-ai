@@ -233,6 +233,8 @@ abstract class DatabaseServiceInterface {
 
   Future<User?> getCurrentUser();
 
+  Future<User?> getUserById(int userId);
+
   Future<void> logout();
 
   Future<ChatSessionDB?> createChat({
