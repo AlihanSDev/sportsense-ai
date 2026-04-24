@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 import 'dart:math' as math;
 
 // ======================= СЕРВИСЫ =======================
@@ -2962,6 +2963,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
   static const String _allLeaguesKey = '__all__';
 
   late Future<MatchFeed> _matchesFuture;
+  final DatabaseService _db = DatabaseService();
   final TextEditingController _clubSearchController = TextEditingController();
   String _selectedLeagueId = _allLeaguesKey;
   String _clubSearchQuery = '';
@@ -2977,6 +2979,82 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
       _matchesFuture = MatchesService().fetchMatchFeed();
     });
     await _matchesFuture;
+  }
+
+  Future<void> _saveMatch(MatchItem match) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final currentUser = await _db.getCurrentUser();
+
+    if (currentUser == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Войдите в аккаунт, чтобы сохранять матчи.',
+              'Sign in to save matches.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final savedItems = await _db.getUserSavedItems(currentUser.id!);
+    final alreadySaved = savedItems.any(
+      (item) =>
+          item.type == 'match' &&
+          item.metadata != null &&
+          item.metadata!.contains('"matchId":"${match.id}"'),
+    );
+
+    if (alreadySaved) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Этот матч уже сохранен.', 'This match is already saved.'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final savedItem = await _db.saveItem(
+      userId: currentUser.id!,
+      title: '${match.homeTeam} - ${match.awayTeam}',
+      subtitle:
+          '${match.competition} - ${_formatMatchSummaryDateTime(match.kickoff.toLocal())}',
+      type: 'match',
+      metadata: jsonEncode({
+        'matchId': match.id,
+        'leagueId': match.leagueId,
+        'competition': match.competition,
+        'homeTeam': match.homeTeam,
+        'awayTeam': match.awayTeam,
+        'kickoff': match.kickoff.toIso8601String(),
+        'venue': match.venue,
+        'homeBadge': match.homeBadge,
+        'awayBadge': match.awayBadge,
+        'status': match.status,
+        'homeScore': match.homeScore,
+        'awayScore': match.awayScore,
+      }),
+    );
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          savedItem != null
+              ? tr(
+                  'Матч сохранен во вкладке "Сохраненное".',
+                  'Match saved to the Saved tab.',
+                )
+              : tr(
+                  'Не удалось сохранить матч.',
+                  'Could not save the match.',
+                ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -3345,12 +3423,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: _LiveMatchCard(
                       match: match,
-                      onPreview: () => widget.onOpenAssistant(
-                        draft: tr(
-                          'Сделай предматчевый разбор ${match.homeTeam} против ${match.awayTeam}',
-                          'Create a pre-match briefing for ${match.homeTeam} vs ${match.awayTeam}',
-                        ),
-                      ),
+                      onPreview: () => _saveMatch(match),
                     ),
                   ),
                 ),
@@ -3508,6 +3581,8 @@ class _SavedTabState extends State<_SavedTab> {
         return Icons.person_rounded;
       case 'monitor':
         return Icons.query_stats_rounded;
+      case 'match':
+        return Icons.sports_soccer_rounded;
       default:
         return Icons.bookmark_rounded;
     }
@@ -3920,8 +3995,8 @@ class _LiveMatchCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: _GhostButton(
-              label: tr('Разбор матча', 'Match briefing'),
-              icon: Icons.arrow_forward_rounded,
+              label: tr('Сохранить', 'Save'),
+              icon: Icons.bookmark_add_rounded,
               onTap: onPreview,
             ),
           ),
@@ -3937,6 +4012,14 @@ class _LiveMatchCard extends StatelessWidget {
     final minute = value.minute.toString().padLeft(2, '0');
     return '$day.$month  $hour:$minute';
   }
+}
+
+String _formatMatchSummaryDateTime(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
+  return '$day.$month  $hour:$minute';
 }
 
 class _LiveTeamRow extends StatelessWidget {
