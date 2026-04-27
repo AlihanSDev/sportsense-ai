@@ -86,6 +86,26 @@ class ChatMessage {
   ChatMessage({required this.text, required this.isUser, this.textColor});
 }
 
+class TournamentItem {
+  final String id;
+  final String country;
+  final String flag;
+  final String name;
+  final String firstLetter;
+  final int? leagueId;
+  final int? season;
+
+  const TournamentItem({
+    required this.id,
+    required this.country,
+    required this.flag,
+    required this.name,
+    required this.firstLetter,
+    this.leagueId,
+    this.season,
+  });
+}
+
 // ======================= MAIN =======================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +163,7 @@ class SpaceApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sportsense',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('ru'),
       themeMode: themeNotifier.mode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -2960,107 +2981,33 @@ class _MatchesTabLive extends StatefulWidget {
 }
 
 class _MatchesTabLiveState extends State<_MatchesTabLive> {
-  static const String _allLeaguesKey = '__all__';
-
+  final MatchesService _matchesService = MatchesService();
   late Future<MatchFeed> _matchesFuture;
-  final DatabaseService _db = DatabaseService();
-  final TextEditingController _clubSearchController = TextEditingController();
-  String _selectedLeagueId = _allLeaguesKey;
-  String _clubSearchQuery = '';
+  bool _showLive = false;
 
   @override
   void initState() {
     super.initState();
-    _matchesFuture = MatchesService().fetchMatchFeed();
+    _matchesFuture = _loadMatches();
+  }
+
+  Future<MatchFeed> _loadMatches() {
+    return _matchesService.fetchMatchFeed(liveOnly: _showLive);
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _matchesFuture = MatchesService().fetchMatchFeed();
+      _matchesFuture = _loadMatches();
     });
     await _matchesFuture;
   }
 
-  Future<void> _saveMatch(MatchItem match) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final currentUser = await _db.getCurrentUser();
-
-    if (currentUser == null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              'Войдите в аккаунт, чтобы сохранять матчи.',
-              'Sign in to save matches.',
-            ),
-          ),
-        ),
-      );
-      return;
-    }
-
-    final savedItems = await _db.getUserSavedItems(currentUser.id!);
-    final alreadySaved = savedItems.any(
-      (item) =>
-          item.type == 'match' &&
-          item.metadata != null &&
-          item.metadata!.contains('"matchId":"${match.id}"'),
-    );
-
-    if (alreadySaved) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            tr('Этот матч уже сохранен.', 'This match is already saved.'),
-          ),
-        ),
-      );
-      return;
-    }
-
-    final savedItem = await _db.saveItem(
-      userId: currentUser.id!,
-      title: '${match.homeTeam} - ${match.awayTeam}',
-      subtitle:
-          '${match.competition} - ${_formatMatchSummaryDateTime(match.kickoff.toLocal())}',
-      type: 'match',
-      metadata: jsonEncode({
-        'matchId': match.id,
-        'leagueId': match.leagueId,
-        'competition': match.competition,
-        'homeTeam': match.homeTeam,
-        'awayTeam': match.awayTeam,
-        'kickoff': match.kickoff.toIso8601String(),
-        'venue': match.venue,
-        'homeBadge': match.homeBadge,
-        'awayBadge': match.awayBadge,
-        'status': match.status,
-        'homeScore': match.homeScore,
-        'awayScore': match.awayScore,
-      }),
-    );
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          savedItem != null
-              ? tr(
-                  'Матч сохранен во вкладке "Сохраненное".',
-                  'Match saved to the Saved tab.',
-                )
-              : tr(
-                  'Не удалось сохранить матч.',
-                  'Could not save the match.',
-                ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _clubSearchController.dispose();
-    super.dispose();
+  void _selectMode(bool showLive) {
+    if (_showLive == showLive) return;
+    setState(() {
+      _showLive = showLive;
+      _matchesFuture = _loadMatches();
+    });
   }
 
   @override
@@ -3089,12 +3036,30 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
         const SizedBox(height: 8),
         Text(
           tr(
-            'Загружаем ближайшие футбольные матчи на следующие две недели.',
-            'Loading upcoming football matches for the next two weeks.',
+            'Используем API-FOOTBALL: переключайтесь между сегодняшними матчами и LIVE-событиями.',
+            'Powered by API-FOOTBALL: switch between today fixtures and live events.',
           ),
           style: GoogleFonts.inter(
             fontSize: 14,
             color: Colors.white.withOpacity(0.68),
+          ),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              _LeagueChip(
+                label: tr('Сегодня', 'Today'),
+                selected: !_showLive,
+                onTap: () => _selectMode(false),
+              ),
+              _LeagueChip(
+                label: 'LIVE',
+                selected: _showLive,
+                onTap: () => _selectMode(true),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -3111,10 +3076,7 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
                   'Не удалось загрузить матчи',
                   'Could not load matches',
                 ),
-                subtitle: tr(
-                  'Проверьте соединение или повторите обновление позже.',
-                  'Check the connection or try refreshing again later.',
-                ),
+                subtitle: _matchErrorMessage(snapshot.error),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: _GhostButton(
@@ -3127,15 +3089,19 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
             }
 
             final feed = snapshot.data;
-            final allMatches = feed?.matches ?? const <MatchItem>[];
+            final allMatches = feed?.matches ?? const <FootballMatch>[];
             final leagues = feed?.leagues ?? const <LeagueOption>[];
 
             if (allMatches.isEmpty) {
               return _SectionPanel(
                 title: tr('Матчей не найдено', 'No matches found'),
                 subtitle: tr(
-                  'На ближайшие две недели футбольных событий не найдено.',
-                  'No football events were found for the next two weeks.',
+                  _showLive
+                      ? 'Сейчас live-матчей не найдено.'
+                      : 'На сегодня футбольных матчей не найдено.',
+                  _showLive
+                      ? 'No live football matches were found right now.'
+                      : 'No football matches were found for today.',
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -3151,282 +3117,48 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
               );
             }
 
-            final effectiveLeagueId =
-                _selectedLeagueId == _allLeaguesKey ||
-                    leagues.any((league) => league.id == _selectedLeagueId)
-                ? _selectedLeagueId
-                : _allLeaguesKey;
-            final normalizedClubQuery = _clubSearchQuery.trim().toLowerCase();
-
-            final filteredMatches = allMatches.where((match) {
-              final matchesLeague =
-                  effectiveLeagueId == _allLeaguesKey ||
-                  match.leagueId == effectiveLeagueId;
-              final matchesClub =
-                  normalizedClubQuery.isEmpty ||
-                  match.homeTeam.toLowerCase().contains(normalizedClubQuery) ||
-                  match.awayTeam.toLowerCase().contains(normalizedClubQuery);
-              return matchesLeague && matchesClub;
-            }).toList();
-
-            final visibleMatches = filteredMatches.isEmpty
-                ? allMatches
-                : filteredMatches;
-            final filtersActive =
-                effectiveLeagueId != _allLeaguesKey ||
-                normalizedClubQuery.isNotEmpty;
-            final selectedLeagueName = effectiveLeagueId == _allLeaguesKey
-                ? tr('Все лиги', 'All leagues')
-                : (() {
-                    for (final league in leagues) {
-                      if (league.id == effectiveLeagueId) return league.name;
-                    }
-                    return tr('Выбрать лигу', 'Choose league');
-                  })();
+            final groupedMatches = <String, List<FootballMatch>>{};
+            for (final match in allMatches) {
+              final leagueKey = '${match.leagueId}';
+              groupedMatches
+                  .putIfAbsent(leagueKey, () => <FootballMatch>[])
+                  .add(match);
+            }
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (leagues.isNotEmpty) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: _GhostButton(
-                      label: selectedLeagueName,
-                      icon: Icons.tune_rounded,
-                      onTap: () async {
-                        final selectedLeagueId =
-                            await showModalBottomSheet<String>(
-                              context: context,
-                              backgroundColor: const Color(0xFF10233A),
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(28),
+                ...leagues.map((league) {
+                  final matches =
+                      groupedMatches[league.id] ?? const <FootballMatch>[];
+                  if (matches.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: _LeagueMatchesSection(
+                      title: league.name,
+                      country: matches.first.country,
+                      children: matches
+                          .map(
+                            (match) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _LiveMatchCard(
+                                match: match,
+                                onPreview: () => widget.onOpenAssistant(
+                                  draft: tr(
+                                    'Сделай предматчевый разбор ${match.homeTeam} против ${match.awayTeam}',
+                                    'Create a pre-match briefing for ${match.homeTeam} vs ${match.awayTeam}',
+                                  ),
                                 ),
                               ),
-                              builder: (context) {
-                                return SafeArea(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          20,
-                                          18,
-                                          20,
-                                          8,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                tr(
-                                                  'Выбор лиги',
-                                                  'Choose league',
-                                                ),
-                                                style: GoogleFonts.spaceGrotesk(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Flexible(
-                                        child: ListView(
-                                          shrinkWrap: true,
-                                          children: [
-                                            ListTile(
-                                              title: Text(
-                                                tr('Все матчи', 'All matches'),
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontWeight:
-                                                      effectiveLeagueId ==
-                                                          _allLeaguesKey
-                                                      ? FontWeight.w700
-                                                      : FontWeight.w500,
-                                                ),
-                                              ),
-                                              trailing:
-                                                  effectiveLeagueId ==
-                                                      _allLeaguesKey
-                                                  ? const Icon(
-                                                      Icons.check_rounded,
-                                                      color: Colors.white,
-                                                    )
-                                                  : null,
-                                              onTap: () {
-                                                Navigator.of(context).pop(
-                                                  _allLeaguesKey,
-                                                );
-                                              },
-                                            ),
-                                            ...leagues.map(
-                                              (league) => ListTile(
-                                                title: Text(
-                                                  league.name,
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        effectiveLeagueId ==
-                                                            league.id
-                                                        ? FontWeight.w700
-                                                        : FontWeight.w500,
-                                                  ),
-                                                ),
-                                                trailing:
-                                                    effectiveLeagueId ==
-                                                        league.id
-                                                    ? const Icon(
-                                                        Icons.check_rounded,
-                                                        color: Colors.white,
-                                                      )
-                                                    : null,
-                                                onTap: () {
-                                                  Navigator.of(
-                                                    context,
-                                                  ).pop(league.id);
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-
-                        if (selectedLeagueId != null) {
-                          setState(() {
-                            _selectedLeagueId = selectedLeagueId;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                /* if (false && leagues.isNotEmpty) ...[
-                  SizedBox(
-                    height: 40,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _LeagueChip(
-                          label: tr('Все матчи', 'All matches'),
-                          selected: effectiveLeagueId == _allLeaguesKey,
-                          onTap: () {
-                            setState(() {
-                              _selectedLeagueId = _allLeaguesKey;
-                            });
-                          },
-                        ),
-                        ...leagues.map(
-                          (league) => _LeagueChip(
-                            label: league.name,
-                            selected: effectiveLeagueId == league.id,
-                            onTap: () {
-                              setState(() {
-                                _selectedLeagueId = league.id;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ], */
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _clubSearchController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      icon: const Icon(
-                        Icons.search_rounded,
-                        color: Colors.white70,
-                      ),
-                      hintText: tr(
-                        'Поиск по клубу',
-                        'Search by club',
-                      ),
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.54),
-                      ),
-                      suffixIcon: _clubSearchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _clubSearchController.clear();
-                                  _clubSearchQuery = '';
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white70,
-                              ),
-                              tooltip: tr('Очистить', 'Clear'),
                             ),
+                          )
+                          .toList(),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _clubSearchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (_clubSearchQuery.trim().isNotEmpty) ...[
-                  Text(
-                    tr(
-                      'Фильтр по клубу: ${_clubSearchQuery.trim()}',
-                      'Club filter: ${_clubSearchQuery.trim()}',
-                    ),
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.white.withOpacity(0.68),
-                    ),
-                  ),
-                ],
-                if (filteredMatches.isEmpty && filtersActive)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      tr(
-                        'По выбранным фильтрам матчи не найдены, показываем все доступные события.',
-                        'No matches were found for the selected filters, showing all available events.',
-                      ),
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.68),
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox.shrink(),
-                ...visibleMatches.map(
-                  (match) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _LiveMatchCard(
-                      match: match,
-                      onPreview: () => _saveMatch(match),
-                    ),
-                  ),
-                ),
+                  );
+                }),
               ],
             );
           },
@@ -3434,93 +3166,1215 @@ class _MatchesTabLiveState extends State<_MatchesTabLive> {
       ],
     );
   }
+
+  String _matchErrorMessage(Object? error) {
+    if (error is ApiFootballException) {
+      return error.message;
+    }
+    final message = error?.toString();
+    if (message != null && message.isNotEmpty) {
+      return message;
+    }
+    return tr(
+      'Проверьте соединение или повторите обновление позже.',
+      'Check the connection or try refreshing again later.',
+    );
+  }
 }
 
-class _TournamentsTab extends StatelessWidget {
+class _TournamentsTab extends StatefulWidget {
   final void Function({String? draft}) onOpenAssistant;
 
   const _TournamentsTab({required this.onOpenAssistant});
 
   @override
+  State<_TournamentsTab> createState() => _TournamentsTabState();
+}
+
+class _TournamentsTabState extends State<_TournamentsTab> {
+  static const List<String> _alphabet = [
+    'А',
+    'Б',
+    'В',
+    'Г',
+    'Д',
+    'Е',
+    'Ж',
+    'З',
+    'И',
+    'К',
+    'Л',
+    'М',
+    'Н',
+    'О',
+    'П',
+    'Р',
+    'С',
+    'Т',
+    'У',
+    'Ф',
+    'Х',
+    'Ч',
+    'Ш',
+    'Э',
+    'Ю',
+    'Я',
+  ];
+
+  static const List<TournamentItem> _allTournaments = [
+    TournamentItem(
+      id: 'asia-cup',
+      country: 'Азия',
+      flag: '🌏',
+      name: 'Кубок Азии',
+      firstLetter: 'К',
+    ),
+    TournamentItem(
+      id: 'asia-champions-league',
+      country: 'Азия',
+      flag: '🌏',
+      name: 'Лига чемпионов',
+      firstLetter: 'Л',
+    ),
+    TournamentItem(
+      id: 'afc-asian-cup-u17',
+      country: 'Азия',
+      flag: '🌏',
+      name: 'AFC Asian Cup U17',
+      firstLetter: 'А',
+    ),
+    TournamentItem(
+      id: 'epl',
+      country: 'Англия',
+      flag: '🏴',
+      name: 'Премьер-лига',
+      firstLetter: 'П',
+      leagueId: 39,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'bundesliga',
+      country: 'Германия',
+      flag: '🇩🇪',
+      name: 'Бундеслига',
+      firstLetter: 'Б',
+      leagueId: 78,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'euro',
+      country: 'Европа',
+      flag: '🇪🇺',
+      name: 'Евро',
+      firstLetter: 'Е',
+      leagueId: 4,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'ucl',
+      country: 'Европа',
+      flag: '🇪🇺',
+      name: 'Лига чемпионов',
+      firstLetter: 'Л',
+      leagueId: 2,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'uel',
+      country: 'Европа',
+      flag: '🇪🇺',
+      name: 'Лига Европы',
+      firstLetter: 'Л',
+      leagueId: 3,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'conference-league',
+      country: 'Европа',
+      flag: '🇪🇺',
+      name: 'Лига конференций',
+      firstLetter: 'Л',
+    ),
+    TournamentItem(
+      id: 'uefa-nations-league',
+      country: 'Европа',
+      flag: '🇪🇺',
+      name: 'Лига наций УЕФА',
+      firstLetter: 'Л',
+      leagueId: 5,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'la-liga',
+      country: 'Испания',
+      flag: '🇪🇸',
+      name: 'Примера',
+      firstLetter: 'П',
+      leagueId: 140,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'copa-del-rey',
+      country: 'Испания',
+      flag: '🇪🇸',
+      name: 'Кубок Испании',
+      firstLetter: 'К',
+    ),
+    TournamentItem(
+      id: 'serie-a',
+      country: 'Италия',
+      flag: '🇮🇹',
+      name: 'Серия А',
+      firstLetter: 'С',
+      leagueId: 135,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'ligue-1',
+      country: 'Франция',
+      flag: '🇫🇷',
+      name: 'Лига 1',
+      firstLetter: 'Л',
+      leagueId: 61,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'primeira-liga',
+      country: 'Португалия',
+      flag: '🇵🇹',
+      name: 'Примейра',
+      firstLetter: 'П',
+      leagueId: 94,
+      season: 2025,
+    ),
+    TournamentItem(
+      id: 'super-lig',
+      country: 'Турция',
+      flag: '🇹🇷',
+      name: 'Суперлига',
+      firstLetter: 'С',
+      leagueId: 203,
+      season: 2025,
+    ),
+  ];
+  final TextEditingController _searchController = TextEditingController();
+  final Set<String> _favoriteIds = {'epl', 'ucl'};
+  final Map<String, GlobalKey> _letterKeys = {
+    for (final letter in _alphabet) letter: GlobalKey(),
+  };
+  String _query = '';
+
+  List<TournamentItem> get _filteredTournaments {
+    final normalized = _query.trim().toLowerCase();
+    final filtered = normalized.isEmpty
+        ? List<TournamentItem>.from(_allTournaments)
+        : _allTournaments.where((item) {
+            final country = item.country.toLowerCase();
+            final name = item.name.toLowerCase();
+            return country.contains(normalized) || name.contains(normalized);
+          }).toList();
+
+    filtered.sort((a, b) {
+      final letterCompare = a.firstLetter.compareTo(b.firstLetter);
+      if (letterCompare != 0) return letterCompare;
+      final countryCompare = a.country.compareTo(b.country);
+      if (countryCompare != 0) return countryCompare;
+      return a.name.compareTo(b.name);
+    });
+
+    return filtered;
+  }
+
+  List<TournamentItem> get _favoriteTournaments => _allTournaments
+      .where(
+        (item) =>
+            _favoriteIds.contains(item.id) &&
+            _filteredTournaments.any((filtered) => filtered.id == item.id),
+      )
+      .toList();
+
+  void _toggleFavorite(String id) {
+    setState(() {
+      if (_favoriteIds.contains(id)) {
+        _favoriteIds.remove(id);
+      } else {
+        _favoriteIds.add(id);
+      }
+    });
+  }
+
+  void _jumpToLetter(String letter) {
+    final hasMatch = _filteredTournaments.any(
+      (item) => item.firstLetter == letter,
+    );
+    if (!hasMatch) return;
+
+    final keyContext = _letterKeys[letter]?.currentContext;
+    if (keyContext == null) return;
+
+    Scrollable.ensureVisible(
+      keyContext,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: 0.08,
+    );
+  }
+
+  void _openTournament(TournamentItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TournamentDetailsScreen(tournament: item),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final tournaments = [
-      const _TournamentTileData(
-        name: 'Champions League',
-        note: 'Knockout pressure rising',
-        accent: Color(0xFF2563EB),
-      ),
-      const _TournamentTileData(
-        name: 'Europa League',
-        note: 'Unexpected movers in the race',
-        accent: Color(0xFFEA580C),
-      ),
-      const _TournamentTileData(
-        name: 'UEFA Coefficient',
-        note: 'Country battle tightening',
-        accent: Color(0xFF0F766E),
-      ),
+    final filteredTournaments = _filteredTournaments;
+    final favorites = _favoriteTournaments;
+    final groupedLetters = <String>[
+      for (final letter in _alphabet)
+        if (filteredTournaments.any((item) => item.firstLetter == letter))
+          letter,
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        Text(
-          tr('Турнирные разделы', 'Competition hubs'),
-          style: GoogleFonts.spaceGrotesk(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          tr(
-            'Просматривайте ключевые турнирные линии перед переходом к глубокой аналитике.',
-            'Browse the big tournament narratives before opening deeper analysis.',
-          ),
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.white.withOpacity(0.68),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...tournaments.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _TournamentTile(
-              data: item,
-              onTap: () => onOpenAssistant(
-                draft:
-                    'Дай сводку по турниру ${item.name} и ключевым изменениям',
-              ),
-            ),
-          ),
-        ),
-        _SectionPanel(
-          title: 'Race board',
-          subtitle:
-              'Three storylines to keep on top of this week across UEFA competitions.',
-          child: const Column(
+        Padding(
+          padding: const EdgeInsets.only(right: 34),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SignalRow(
-                label: 'Top riser',
-                value: 'Leverkusen coefficient momentum',
-                accent: Color(0xFF34D399),
+              Text(
+                tr('Турниры', 'Tournaments'),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
-              _SignalRow(
-                label: 'Pressure point',
-                value: 'Fourth pot reshuffle risk',
-                accent: Color(0xFFF59E0B),
+              const SizedBox(height: 8),
+              Text(
+                tr(
+                  'Экран соревнований в духе live-score каталога: быстрый поиск, избранное и переход к деталям турнира.',
+                  'A live-score style competitions screen with fast search, favorites and deep links into tournament details.',
+                ),
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.68),
+                  height: 1.45,
+                ),
               ),
-              _SignalRow(
-                label: 'Watch next',
-                value: 'Country ranking swing',
-                accent: Color(0xFF7DD3FC),
+              const SizedBox(height: 16),
+              _TournamentSearchField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value),
               ),
+              const SizedBox(height: 18),
+              _TournamentSectionHeader(
+                title: tr('Избранные соревнования', 'Favorite competitions'),
+                count: favorites.length,
+              ),
+              const SizedBox(height: 10),
+              if (favorites.isEmpty)
+                _TournamentEmptyState(
+                  message: tr(
+                    'Добавьте турниры в избранное через звезду справа.',
+                    'Add tournaments to favorites using the star on the right.',
+                  ),
+                )
+              else
+                ...favorites.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _TournamentListTile(
+                      item: item,
+                      isFavorite: _favoriteIds.contains(item.id),
+                      onToggleFavorite: () => _toggleFavorite(item.id),
+                      onTap: () => _openTournament(item),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 18),
+              _TournamentSectionHeader(
+                title: tr('Все соревнования', 'All competitions'),
+                count: filteredTournaments.length,
+              ),
+              const SizedBox(height: 10),
+              if (filteredTournaments.isEmpty)
+                _TournamentEmptyState(
+                  message: tr(
+                    'По вашему запросу турниры не найдены.',
+                    'No tournaments matched your search.',
+                  ),
+                )
+              else
+                ...groupedLetters.map(
+                  (letter) => Padding(
+                    key: _letterKeys[letter],
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, bottom: 8),
+                          child: Text(
+                            letter,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFFACC15),
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                        ...filteredTournaments
+                            .where((item) => item.firstLetter == letter)
+                            .map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _TournamentListTile(
+                                  item: item,
+                                  isFavorite: _favoriteIds.contains(item.id),
+                                  onToggleFavorite: () =>
+                                      _toggleFavorite(item.id),
+                                  onTap: () => _openTournament(item),
+                                ),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
+        Positioned(
+          top: 8,
+          right: 0,
+          bottom: 0,
+          child: Column(
+            children: _alphabet.map((letter) {
+              final active = groupedLetters.contains(letter);
+              return Expanded(
+                child: GestureDetector(
+                  onTap: active ? () => _jumpToLetter(letter) : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: 26,
+                    child: Center(
+                      child: Text(
+                        letter,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: active
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: active
+                              ? Colors.white.withOpacity(0.82)
+                              : Colors.white.withOpacity(0.22),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _TournamentSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _TournamentSearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: GoogleFonts.inter(color: Colors.white),
+        cursorColor: Colors.white,
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: Colors.white.withOpacity(0.68),
+          ),
+          hintText: tr(
+            'Поиск по стране или турниру',
+            'Search by country or tournament',
+          ),
+          hintStyle: GoogleFonts.inter(
+            color: Colors.white.withOpacity(0.42),
+            fontSize: 14,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TournamentSectionHeader extends StatelessWidget {
+  final String title;
+  final int count;
+
+  const _TournamentSectionHeader({required this.title, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Text(
+            '$count',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.white.withOpacity(0.74),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TournamentListTile extends StatelessWidget {
+  final TournamentItem item;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback onTap;
+
+  const _TournamentListTile({
+    required this.item,
+    required this.isFavorite,
+    required this.onToggleFavorite,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(item.flag, style: const TextStyle(fontSize: 20)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.country,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withOpacity(0.48),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.name,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onToggleFavorite,
+                  splashRadius: 20,
+                  icon: Icon(
+                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isFavorite
+                        ? const Color(0xFFFACC15)
+                        : Colors.white.withOpacity(0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TournamentEmptyState extends StatelessWidget {
+  final String message;
+
+  const _TournamentEmptyState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Text(
+        message,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          color: Colors.white.withOpacity(0.72),
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+}
+
+class TournamentDetailsScreen extends StatelessWidget {
+  final TournamentItem tournament;
+
+  const TournamentDetailsScreen({super.key, required this.tournament});
+
+  List<_TournamentMockMatch> get _matches => [
+    _TournamentMockMatch(
+      stage: '1 тур',
+      kickoff: 'Сегодня • 19:00',
+      homeTeam: '${tournament.name} XI',
+      awayTeam: 'Sportsense FC',
+    ),
+    _TournamentMockMatch(
+      stage: '1 тур',
+      kickoff: 'Сегодня • 21:30',
+      homeTeam: 'North Stars',
+      awayTeam: tournament.country,
+    ),
+    _TournamentMockMatch(
+      stage: '2 тур',
+      kickoff: 'Завтра • 20:00',
+      homeTeam: 'Union Club',
+      awayTeam: 'Blue Horizon',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        body: SpaceBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tournament.country,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.56),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${tournament.flag} ${tournament.name}',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                        ),
+                        child: TabBar(
+                          indicator: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          indicatorPadding: const EdgeInsets.all(6),
+                          labelColor: Colors.white,
+                          unselectedLabelColor: Colors.white.withOpacity(0.58),
+                          labelStyle: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          dividerColor: Colors.transparent,
+                          tabs: const [
+                            Tab(text: 'Матчи'),
+                            Tab(text: 'Таблица'),
+                            Tab(text: 'Новости'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _TournamentMatchesTabContent(
+                        tournament: tournament,
+                        mockMatches: _matches,
+                      ),
+                      ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        children: [
+                          _TournamentInfoPanel(
+                            title: 'Таблица турнира',
+                            child: Column(
+                              children: const [
+                                _TournamentStandingRow(
+                                  rank: '1',
+                                  team: 'Sportsense FC',
+                                  points: '9',
+                                ),
+                                _TournamentStandingRow(
+                                  rank: '2',
+                                  team: 'North Stars',
+                                  points: '6',
+                                ),
+                                _TournamentStandingRow(
+                                  rank: '3',
+                                  team: 'Union Club',
+                                  points: '3',
+                                ),
+                                _TournamentStandingRow(
+                                  rank: '4',
+                                  team: 'Blue Horizon',
+                                  points: '1',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        children: const [
+                          _TournamentInfoPanel(
+                            title: 'Новости турнира',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _TournamentNewsItem(
+                                  title:
+                                      'Фавориты удерживают темп в верхней части таблицы.',
+                                ),
+                                _TournamentNewsItem(
+                                  title:
+                                      'Ключевой матч следующего тура может изменить расстановку лидеров.',
+                                ),
+                                _TournamentNewsItem(
+                                  title:
+                                      'Молодые игроки становятся заметным фактором в текущем розыгрыше.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TournamentMatchesTabContent extends StatefulWidget {
+  final TournamentItem tournament;
+  final List<_TournamentMockMatch> mockMatches;
+
+  const _TournamentMatchesTabContent({
+    required this.tournament,
+    required this.mockMatches,
+  });
+
+  @override
+  State<_TournamentMatchesTabContent> createState() =>
+      _TournamentMatchesTabContentState();
+}
+
+class _TournamentMatchesTabContentState
+    extends State<_TournamentMatchesTabContent> {
+  final MatchesService _matchesService = MatchesService();
+  late Future<List<FootballMatch>>? _matchesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _matchesFuture = widget.tournament.leagueId == null
+        ? null
+        : _matchesService.getMatchesByLeague(
+            leagueId: widget.tournament.leagueId!,
+            season: widget.tournament.season ?? 2025,
+          );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.tournament.leagueId == null) {
+      if (widget.mockMatches.isEmpty) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          children: const [
+            _TournamentInfoPanel(
+              title: 'Матчи турнира',
+              child: Text(
+                'Для этого турнира пока нет подключенного leagueId.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+          ],
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        itemCount: widget.mockMatches.length,
+        itemBuilder: (context, index) {
+          final match = widget.mockMatches[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _TournamentMatchCard(match: match),
+          );
+        },
+      );
+    }
+
+    return FutureBuilder<List<FootballMatch>>(
+      future: _matchesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            children: const [_MatchesLoadingState()],
+          );
+        }
+
+        if (snapshot.hasError) {
+          final message = snapshot.error is ApiFootballException
+              ? (snapshot.error as ApiFootballException).message
+              : 'Не удалось загрузить матчи турнира.';
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            children: [
+              _TournamentInfoPanel(
+                title: 'Матчи турнира',
+                child: Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.78),
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        final matches = snapshot.data ?? const <FootballMatch>[];
+        if (matches.isEmpty) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            children: [
+              _TournamentInfoPanel(
+                title: 'Матчи турнира',
+                child: Text(
+                  'Для сезона ${widget.tournament.season ?? 2025} матчей не найдено.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.78),
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          itemCount: matches.length,
+          itemBuilder: (context, index) {
+            final match = matches[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _TournamentFootballMatchCard(match: match),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TournamentMockMatch {
+  final String stage;
+  final String kickoff;
+  final String homeTeam;
+  final String awayTeam;
+
+  const _TournamentMockMatch({
+    required this.stage,
+    required this.kickoff,
+    required this.homeTeam,
+    required this.awayTeam,
+  });
+}
+
+class _TournamentMatchCard extends StatelessWidget {
+  final _TournamentMockMatch match;
+
+  const _TournamentMatchCard({required this.match});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${match.stage} • ${match.kickoff}',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.56),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _TournamentTeamRow(name: match.homeTeam),
+          Divider(color: Colors.white.withOpacity(0.08), height: 20),
+          _TournamentTeamRow(name: match.awayTeam),
+        ],
+      ),
+    );
+  }
+}
+
+class _TournamentFootballMatchCard extends StatelessWidget {
+  final FootballMatch match;
+
+  const _TournamentFootballMatchCard({required this.match});
+
+  @override
+  Widget build(BuildContext context) {
+    final scoreAvailable = match.homeScore != null && match.awayScore != null;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _formatTournamentMeta(match),
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.56),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _LiveTeamRow(
+            name: match.homeTeam,
+            badgeUrl: match.homeLogo,
+            trailing: scoreAvailable ? '${match.homeScore}' : null,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(color: Colors.white24, height: 1),
+          ),
+          _LiveTeamRow(
+            name: match.awayTeam,
+            badgeUrl: match.awayLogo,
+            trailing: scoreAvailable ? '${match.awayScore}' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTournamentMeta(FootballMatch match) {
+    if (match.isLive) {
+      final elapsed = match.elapsed != null ? "${match.elapsed}'" : 'LIVE';
+      final short = match.statusShort.isNotEmpty ? match.statusShort : 'LIVE';
+      return '$elapsed • $short';
+    }
+    final hour = match.startTime.hour.toString().padLeft(2, '0');
+    final minute = match.startTime.minute.toString().padLeft(2, '0');
+    if (match.statusShort == 'NS' || match.statusShort.isEmpty) {
+      return '${match.country} • $hour:$minute';
+    }
+    return '${match.country} • ${match.statusLong}';
+  }
+}
+
+class _TournamentTeamRow extends StatelessWidget {
+  final String name;
+
+  const _TournamentTeamRow({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            name,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        Text(
+          'vs',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withOpacity(0.42),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TournamentInfoPanel extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _TournamentInfoPanel({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _TournamentStandingRow extends StatelessWidget {
+  final String rank;
+  final String team;
+  final String points;
+
+  const _TournamentStandingRow({
+    required this.rank,
+    required this.team,
+    required this.points,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: Text(
+              rank,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFFACC15),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              team,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Text(
+            points,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.white.withOpacity(0.74),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TournamentNewsItem extends StatelessWidget {
+  final String title;
+
+  const _TournamentNewsItem({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.45,
+            color: Colors.white.withOpacity(0.82),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -3919,20 +4773,54 @@ class _MatchesLoadingState extends StatelessWidget {
   }
 }
 
+class _LeagueMatchesSection extends StatelessWidget {
+  final String title;
+  final String country;
+  final List<Widget> children;
+
+  const _LeagueMatchesSection({
+    required this.title,
+    required this.country,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          country,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: Colors.white.withOpacity(0.56),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+}
+
 class _LiveMatchCard extends StatelessWidget {
-  final MatchItem match;
+  final FootballMatch match;
   final VoidCallback onPreview;
 
   const _LiveMatchCard({required this.match, required this.onPreview});
 
   @override
   Widget build(BuildContext context) {
-    final localKickoff = match.kickoff.toLocal();
-    final scoreAvailable =
-        match.homeScore != null &&
-        match.awayScore != null &&
-        match.homeScore!.isNotEmpty &&
-        match.awayScore!.isNotEmpty;
+    final scoreAvailable = match.homeScore != null && match.awayScore != null;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -3948,7 +4836,7 @@ class _LiveMatchCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  match.competition,
+                  match.country,
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -3957,7 +4845,7 @@ class _LiveMatchCard extends StatelessWidget {
                 ),
               ),
               Text(
-                _formatMatchDateTime(localKickoff),
+                _formatMatchMeta(match),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: Colors.white.withOpacity(0.72),
@@ -3965,11 +4853,21 @@ class _LiveMatchCard extends StatelessWidget {
               ),
             ],
           ),
+          if (match.statusLong.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              match.statusLong,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.white.withOpacity(0.58),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           _LiveTeamRow(
             name: match.homeTeam,
-            badgeUrl: match.homeBadge,
-            trailing: scoreAvailable ? match.homeScore! : null,
+            badgeUrl: match.homeLogo,
+            trailing: scoreAvailable ? '${match.homeScore}' : null,
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
@@ -3977,32 +4875,37 @@ class _LiveMatchCard extends StatelessWidget {
           ),
           _LiveTeamRow(
             name: match.awayTeam,
-            badgeUrl: match.awayBadge,
-            trailing: scoreAvailable ? match.awayScore! : null,
+            badgeUrl: match.awayLogo,
+            trailing: scoreAvailable ? '${match.awayScore}' : null,
           ),
           const SizedBox(height: 14),
-          if (match.venue != null && match.venue!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                '${tr('Стадион', 'Venue')}: ${match.venue!}',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: Colors.white.withOpacity(0.68),
-                ),
-              ),
-            ),
           Align(
             alignment: Alignment.centerLeft,
             child: _GhostButton(
-              label: tr('Сохранить', 'Save'),
-              icon: Icons.bookmark_add_rounded,
+              label: tr('Разбор матча', 'Match briefing'),
+              icon: Icons.arrow_forward_rounded,
               onTap: onPreview,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatMatchMeta(FootballMatch match) {
+    if (match.isLive) {
+      final elapsed = match.elapsed != null ? "${match.elapsed}'" : 'LIVE';
+      final short = match.statusShort.isNotEmpty ? match.statusShort : 'LIVE';
+      return '$elapsed • $short';
+    }
+
+    if (match.statusShort == 'NS' || match.statusShort.isEmpty) {
+      return _formatMatchDateTime(match.startTime);
+    }
+
+    return match.statusLong.isNotEmpty
+        ? match.statusLong
+        : _formatMatchDateTime(match.startTime);
   }
 
   String _formatMatchDateTime(DateTime value) {
@@ -4012,14 +4915,6 @@ class _LiveMatchCard extends StatelessWidget {
     final minute = value.minute.toString().padLeft(2, '0');
     return '$day.$month  $hour:$minute';
   }
-}
-
-String _formatMatchSummaryDateTime(DateTime value) {
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
-  final hour = value.hour.toString().padLeft(2, '0');
-  final minute = value.minute.toString().padLeft(2, '0');
-  return '$day.$month  $hour:$minute';
 }
 
 class _LiveTeamRow extends StatelessWidget {
