@@ -2767,124 +2767,479 @@ class _DockItemContent extends StatelessWidget {
   }
 }
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends StatefulWidget {
   final void Function({String? draft}) onOpenAssistant;
 
   const _OverviewTab({required this.onOpenAssistant});
 
   @override
+  State<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends State<_OverviewTab> {
+  final MatchesService _matchesService = MatchesService();
+  late Future<List<FootballMatch>> _liveMatchesFuture;
+
+  static const List<_HomeNewsItem> _newsItems = [
+    _HomeNewsItem(
+      title: 'Пари Сен-Жермен готовит новый контракт для лидера',
+      time: '15 мин назад',
+      imageUrl:
+          'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=900&q=80',
+    ),
+    _HomeNewsItem(
+      title: 'Манчестер Сити не хочет отпускать игрока до лета',
+      time: '42 мин назад',
+      imageUrl:
+          'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=900&q=80',
+    ),
+    _HomeNewsItem(
+      title: 'Сборная дня: главные европейские матчи вечера',
+      time: '1 ч назад',
+      imageUrl:
+          'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=900&q=80',
+    ),
+  ];
+
+  static const List<_PopularLeagueItem> _popularLeagues = [
+    _PopularLeagueItem(name: 'Премьер-лига', country: 'Англия', accent: '🇬🇧'),
+    _PopularLeagueItem(name: 'Лига чемпионов', country: 'Европа', accent: '🏆'),
+    _PopularLeagueItem(name: 'Бундеслига', country: 'Германия', accent: '🇩🇪'),
+    _PopularLeagueItem(name: 'Ла Лига', country: 'Испания', accent: '🇪🇸'),
+    _PopularLeagueItem(name: 'Серия А', country: 'Италия', accent: '🇮🇹'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _liveMatchesFuture = _matchesService.getLiveMatches();
+  }
+
+  Future<void> _reloadLive() async {
+    setState(() {
+      _liveMatchesFuture = _matchesService.getLiveMatches();
+    });
+    await _liveMatchesFuture;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final quickActions = [
-      _QuickActionData(
-        title: tr('Индекс силы клуба', 'Club Power Index'),
-        subtitle: tr(
-          'Отслеживайте форму, сдвиги рейтинга и сезонный импульс.',
-          'Track form, ranking shifts and season momentum.',
-        ),
-        icon: Icons.stacked_line_chart_rounded,
-        colors: const [Color(0xFF1746A2), Color(0xFF5F9DF7)],
-        onTap: () => onOpenAssistant(
-          draft:
-              'Покажи ключевые изменения в рейтингах UEFA за последний период',
-        ),
-      ),
-      _QuickActionData(
-        title: tr('Сравнение команд', 'Team Comparison'),
-        subtitle: tr(
-          'Сравните два клуба перед важным матчем.',
-          'Compare two clubs before a decisive fixture.',
-        ),
-        icon: Icons.compare_arrows_rounded,
-        colors: const [Color(0xFF0F766E), Color(0xFF34D399)],
-        onTap: () => onOpenAssistant(
-          draft:
-              'Сравни две команды по силе и текущему положению в рейтингах UEFA',
-        ),
-      ),
-      _QuickActionData(
-        title: tr('Радар игрока', 'Player Radar'),
-        subtitle: tr(
-          'Откройте короткий скаутский профиль.',
-          'Open a concise scouting-style briefing.',
-        ),
-        icon: Icons.radar_rounded,
-        colors: const [Color(0xFF9A3412), Color(0xFFF59E0B)],
-        onTap: () => onOpenAssistant(
-          draft:
-              'Сделай краткий аналитический профиль игрока и его сильных сторон',
-        ),
-      ),
-    ];
-
-    final insightCards = [
-      const _InsightCardData(
-        eyebrow: 'Focus',
-        title: 'Pre-match briefings',
-        description:
-            'Short matchday summaries for clubs, players and UEFA context.',
-      ),
-      const _InsightCardData(
-        eyebrow: 'Workflow',
-        title: 'Scenario planning',
-        description:
-            'Use prepared entry points instead of starting from an empty chat.',
-      ),
-      const _InsightCardData(
-        eyebrow: 'Benefit',
-        title: 'Faster decisions',
-        description:
-            'The product now feels closer to a sports intelligence hub than a bot.',
-      ),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          tr('Быстрые сценарии', 'Quick actions'),
-          style: GoogleFonts.spaceGrotesk(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          tr(
-            'Точки входа, которые ощущаются как функции продукта, а не как подсказки для чата.',
-            'Entry points that feel like product features instead of chat prompts.',
-          ),
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.white.withOpacity(0.68),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...quickActions.map(
-          (action) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _QuickActionCard(action: action),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _SectionPanel(
-          title: tr('Внутри Sportsense', 'Inside Sportsense'),
-          subtitle: tr(
-            'Главный экран с продуктовыми секциями, а не с пустым полем запроса.',
-            'A front page with product sections, not a blank prompt field.',
-          ),
-          child: Column(
-            children: insightCards
-                .map(
-                  (card) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _InsightCard(card: card),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Футбол',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
-                )
-                .toList(),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Сегодня • LIVE',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.68),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _reloadLive,
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const _HomeSectionTitle(title: 'LIVE матчи'),
+        const SizedBox(height: 12),
+        FutureBuilder<List<FootballMatch>>(
+          future: _liveMatchesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 176,
+                child: _HomeHorizontalLoading(),
+              );
+            }
+
+            if (snapshot.hasError) {
+              final message = snapshot.error is ApiFootballException
+                  ? (snapshot.error as ApiFootballException).message
+                  : 'Не удалось загрузить LIVE матчи';
+              return _HomeInlineState(message: message);
+            }
+
+            final matches = snapshot.data ?? const <FootballMatch>[];
+            if (matches.isEmpty) {
+              return const _HomeInlineState(message: 'Сейчас live-матчей нет.');
+            }
+
+            return SizedBox(
+              height: 176,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: matches.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final match = matches[index];
+                  return _HomeLiveMatchCard(match: match);
+                },
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        const _HomeSectionTitle(title: 'Новости'),
+        const SizedBox(height: 12),
+        ..._newsItems.map(
+          (item) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _HomeNewsCard(item: item),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const _HomeSectionTitle(title: 'Популярные турниры'),
+        const SizedBox(height: 12),
+        ..._popularLeagues.map(
+          (league) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _PopularLeagueTile(item: league),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HomeSectionTitle extends StatelessWidget {
+  final String title;
+
+  const _HomeSectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: GoogleFonts.spaceGrotesk(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
+    );
+  }
+}
+
+class _HomeLiveMatchCard extends StatelessWidget {
+  final FootballMatch match;
+
+  const _HomeLiveMatchCard({required this.match});
+
+  @override
+  Widget build(BuildContext context) {
+    final scoreAvailable = match.homeScore != null && match.awayScore != null;
+    final elapsed = match.elapsed != null ? "${match.elapsed}'" : 'LIVE';
+
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            match.leagueName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF7DD3FC),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$elapsed • ${match.statusShort}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.65),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _HomeLiveTeamRow(
+            name: match.homeTeam,
+            logo: match.homeLogo,
+            score: scoreAvailable ? '${match.homeScore}' : null,
+          ),
+          const SizedBox(height: 8),
+          _HomeLiveTeamRow(
+            name: match.awayTeam,
+            logo: match.awayLogo,
+            score: scoreAvailable ? '${match.awayScore}' : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeLiveTeamRow extends StatelessWidget {
+  final String name;
+  final String? logo;
+  final String? score;
+
+  const _HomeLiveTeamRow({
+    required this.name,
+    required this.logo,
+    required this.score,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _BadgeAvatar(imageUrl: logo),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        if (score != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              score!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _HomeInlineState extends StatelessWidget {
+  final String message;
+
+  const _HomeInlineState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Text(
+        message,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          color: Colors.white.withOpacity(0.78),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHorizontalLoading extends StatelessWidget {
+  const _HomeHorizontalLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) {
+        return Container(
+          width: 220,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HomeNewsItem {
+  final String title;
+  final String time;
+  final String imageUrl;
+
+  const _HomeNewsItem({
+    required this.title,
+    required this.time,
+    required this.imageUrl,
+  });
+}
+
+class _HomeNewsCard extends StatelessWidget {
+  final _HomeNewsItem item;
+
+  const _HomeNewsCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 112,
+            height: 112,
+            child: Image.network(
+              item.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.white.withOpacity(0.06),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported_rounded,
+                    color: Colors.white70,
+                  ),
+                );
+              },
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.time,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.58),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PopularLeagueItem {
+  final String name;
+  final String country;
+  final String accent;
+
+  const _PopularLeagueItem({
+    required this.name,
+    required this.country,
+    required this.accent,
+  });
+}
+
+class _PopularLeagueTile extends StatelessWidget {
+  final _PopularLeagueItem item;
+
+  const _PopularLeagueTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(item.accent, style: const TextStyle(fontSize: 20)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.country,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.48),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.name,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
