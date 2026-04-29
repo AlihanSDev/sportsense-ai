@@ -301,6 +301,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
 
     return Scaffold(
       extendBody: true,
+      backgroundColor: Colors.transparent,
       body: SpaceBackground(
         child: SafeArea(
           child: SingleChildScrollView(
@@ -1267,6 +1268,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       drawer: _buildDrawer(),
+      backgroundColor: Colors.transparent,
       body: SpaceBackground(
         child: SafeArea(
           child: Column(
@@ -1877,6 +1879,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: Text(tr('Настройки', 'Settings'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
