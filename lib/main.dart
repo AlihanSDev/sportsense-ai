@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/api_football_service.dart';
+import 'services/free_team_service.dart';
 import 'services/qwen_api_service.dart';
 import 'services/uefa_parser.dart';
 
@@ -110,15 +111,29 @@ final teamAnalytics = {
 };
 
 final apiFootballService = ApiFootballService();
+final freeTeamService = FreeTeamService();
 final qwenApiService = QwenApiService();
 final uefaParser = UefaParser();
 
-final newsHeadlines = const [
-  'Фавориты удерживают темп в верхней части таблицы.',
-  'Ключевой матч следующего тура может изменить расстановку лидеров.',
-  'Молодые игроки становятся заметным фактором в текущем розыгрыше.',
-  'Клубы активизируют трансферную кампанию перед концом сезона.',
-  'Аналитики отмечают рост xG у лидеров чемпионата.',
+final newsItems = const [
+  _NewsItem(
+    title: 'Фавориты удерживают темп в верхней части таблицы.',
+    time: '15 мар',
+    imageUrl:
+        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=900&q=80',
+  ),
+  _NewsItem(
+    title: 'Ключевой матч следующего тура может изменить расстановку лидеров.',
+    time: '42 мин',
+    imageUrl:
+        'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=900&q=80',
+  ),
+  _NewsItem(
+    title: 'Молодые игроки становятся заметным фактором в текущем розыгрыше.',
+    time: '1 ч',
+    imageUrl:
+        'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=900&q=80',
+  ),
 ];
 
 // --- ГЛАВНЫЙ ЭКРАН ---
@@ -428,8 +443,21 @@ class GridPainter extends CustomPainter {
 }
 
 // --- 2. ПРОГНОЗЫ ---
-class PredictionsPage extends StatelessWidget {
+class PredictionsPage extends StatefulWidget {
   const PredictionsPage({super.key});
+
+  @override
+  State<PredictionsPage> createState() => _PredictionsPageState();
+}
+
+class _PredictionsPageState extends State<PredictionsPage> {
+  late final Future<List<TeamSummary>> _teamsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _teamsFuture = freeTeamService.getPremierLeagueTeams();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -460,6 +488,76 @@ class PredictionsPage extends StatelessWidget {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Клубы для прогноза',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: Color(0xFF777777),
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 128,
+                  child: FutureBuilder<List<TeamSummary>>(
+                    future: _teamsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: 3,
+                          separatorBuilder: (context, _) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) => Container(
+                            width: 120,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF111111),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final teams = snapshot.data;
+                      if (teams == null || teams.isEmpty) {
+                        return Center(
+                          child: Text(
+                            snapshot.hasError
+                                ? 'Не удалось загрузить клубы'
+                                : 'Клубы не найдены',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF777777),
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: teams.length,
+                        separatorBuilder: (context, _) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final team = teams[index];
+                          return _ClubCard(team: team);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(16),
@@ -687,72 +785,215 @@ class PredictionsPage extends StatelessWidget {
   }
 }
 
+class _ClubCard extends StatelessWidget {
+  final TeamSummary team;
+
+  const _ClubCard({required this.team});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E0E0E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF1C1C1C)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            height: 74,
+            width: double.infinity,
+            child: team.logoUrl != null
+                ? Image.network(
+                    team.logoUrl!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        Icons.shield_outlined,
+                        color: Colors.white30,
+                        size: 32,
+                      ),
+                    ),
+                  )
+                : const Center(
+                    child: Icon(
+                      Icons.shield_outlined,
+                      color: Colors.white30,
+                      size: 32,
+                    ),
+                  ),
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  team.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  team.country ?? 'Международный',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10,
+                    color: Color(0xFF777777),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // --- 3. АНАЛИТИКА ---
 class NewsPage extends StatelessWidget {
   const NewsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        const SizedBox(height: 20),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
-          child: Text(
-            'Новости',
-            style: TextStyle(
-              fontFamily: 'Bebas Neue',
-              fontSize: 26,
-              letterSpacing: 2,
-            ),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: Text(
-            'Свежие футбольные новости и аналитические заметки для быстрого просмотра.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12,
-              color: Color(0xFF777777),
-            ),
-          ),
-        ),
-        for (final headline in newsHeadlines)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: _NewsCard(title: headline),
-          ),
-        const SizedBox(height: 16),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      itemCount: newsItems.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Новости',
+                style: TextStyle(
+                  fontFamily: 'Bebas Neue',
+                  fontSize: 26,
+                  letterSpacing: 2,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Свежие футбольные новости и аналитические заметки для быстрого просмотра.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: Color(0xFF777777),
+                ),
+              ),
+              SizedBox(height: 20),
+            ],
+          );
+        }
+
+        final item = newsItems[index - 1];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _NewsCard(item: item),
+        );
+      },
     );
   }
 }
 
-class _NewsCard extends StatelessWidget {
+class _NewsItem {
   final String title;
+  final String time;
+  final String imageUrl;
 
-  const _NewsCard({required this.title});
+  const _NewsItem({
+    required this.title,
+    required this.time,
+    required this.imageUrl,
+  });
+}
+
+class _NewsCard extends StatelessWidget {
+  final _NewsItem item;
+
+  const _NewsCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF0E0E0E),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF1C1C1C)),
       ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 14,
-          height: 1.5,
-          color: Colors.white,
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: Image.network(
+              item.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: const Color(0xFF151515),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.image_not_supported_rounded,
+                    color: Colors.white54,
+                  ),
+                );
+              },
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.time,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Color(0xFF8A8A8A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Читать дальше',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Colors.greenAccent.shade400,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -992,7 +1233,10 @@ class _MatchesPageState extends State<MatchesPage> {
                 ),
               ),
             ),
-          if (!_isLoading && _matches.isEmpty && _uefaMatches.isEmpty && _error == null)
+          if (!_isLoading &&
+              _matches.isEmpty &&
+              _uefaMatches.isEmpty &&
+              _error == null)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
@@ -1103,7 +1347,9 @@ class _MatchesPageState extends State<MatchesPage> {
                         vertical: 10,
                       ),
                       decoration: const BoxDecoration(
-                        border: Border(top: BorderSide(color: Color(0xFF1C1C1C))),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFF1C1C1C)),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
