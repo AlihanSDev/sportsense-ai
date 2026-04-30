@@ -149,7 +149,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _pages = [
     const HomePage(),
-    const PredictionsPage(),
+    const ClubsPage(),
     const NewsPage(),
     const MatchesPage(),
     const ChatPage(),
@@ -173,9 +173,9 @@ class _MainScreenState extends State<MainScreen> {
               label: 'ГЛАВНАЯ',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.psychology_outlined, size: 22),
-              activeIcon: Icon(Icons.psychology, size: 22),
-              label: 'ПРОГНОЗЫ',
+              icon: Icon(Icons.shield_outlined, size: 22),
+              activeIcon: Icon(Icons.shield, size: 22),
+              label: 'КЛУБЫ',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.article_outlined, size: 22),
@@ -444,20 +444,33 @@ class GridPainter extends CustomPainter {
 }
 
 // --- 2. ПРОГНОЗЫ ---
-class PredictionsPage extends StatefulWidget {
-  const PredictionsPage({super.key});
+class ClubsPage extends StatefulWidget {
+  const ClubsPage({super.key});
 
   @override
-  State<PredictionsPage> createState() => _PredictionsPageState();
+  State<ClubsPage> createState() => _ClubsPageState();
 }
 
-class _PredictionsPageState extends State<PredictionsPage> {
+class _ClubsPageState extends State<ClubsPage> {
   late final Future<List<TeamSummary>> _teamsFuture;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _teamsFuture = freeTeamService.getPremierLeagueTeams();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -470,7 +483,7 @@ class _PredictionsPageState extends State<PredictionsPage> {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
             child: Text(
-              'Прогнозы',
+              'Клубы',
               style: TextStyle(
                 fontFamily: 'Bebas Neue',
                 fontSize: 26,
@@ -481,7 +494,7 @@ class _PredictionsPageState extends State<PredictionsPage> {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Text(
-              'AI-анализ на основе 147 параметров',
+              'Поиск и анализ клубов',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 12,
@@ -489,6 +502,39 @@ class _PredictionsPageState extends State<PredictionsPage> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: Colors.white,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Поиск клубов...',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF777777),
+                ),
+                filled: true,
+                fillColor: const Color(0xFF0E0E0E),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C1C)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C1C)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF2196F3)),
+                ),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF777777)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -506,23 +552,13 @@ class _PredictionsPageState extends State<PredictionsPage> {
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
-                  height: 128,
+                  height: 400,
                   child: FutureBuilder<List<TeamSummary>>(
                     future: _teamsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: 3,
-                          separatorBuilder: (context, _) =>
-                              const SizedBox(width: 12),
-                          itemBuilder: (context, index) => Container(
-                            width: 120,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111111),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
                         );
                       }
 
@@ -542,13 +578,28 @@ class _PredictionsPageState extends State<PredictionsPage> {
                         );
                       }
 
+                      final filteredTeams = teams.where((team) =>
+                          team.name.toLowerCase().contains(_searchQuery)).toList();
+
+                      if (filteredTeams.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'Клубы не найдены',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF777777),
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }
+
                       return ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: teams.length,
+                        itemCount: filteredTeams.length,
                         separatorBuilder: (context, _) =>
-                            const SizedBox(width: 12),
+                            const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          final team = teams[index];
+                          final team = filteredTeams[index];
                           return _ClubCard(team: team);
                         },
                       );
@@ -558,232 +609,11 @@ class _PredictionsPageState extends State<PredictionsPage> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E0E0E),
-              border: Border.all(color: const Color(0xFF1C1C1C)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  predData['league'] as String,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2,
-                    color: Color(0xFF3A3A3A),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: (predData['form1'] as List)
-                                .map(
-                                  (e) => Container(
-                                    width: 4,
-                                    height:
-                                        (e == 3
-                                                ? 20
-                                                : e == 1
-                                                ? 8
-                                                : 4)
-                                            .toDouble(),
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 1,
-                                    ),
-                                    color: e == 3
-                                        ? Colors.white
-                                        : e == 1
-                                        ? const Color(0xFF444444)
-                                        : const Color(0xFF222222),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            predData['team1'] as String,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        'VS',
-                        style: TextStyle(
-                          fontFamily: 'Bebas Neue',
-                          fontSize: 16,
-                          color: Color(0xFF3A3A3A),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: (predData['form2'] as List)
-                                .map(
-                                  (e) => Container(
-                                    width: 4,
-                                    height:
-                                        (e == 3
-                                                ? 20
-                                                : e == 1
-                                                ? 8
-                                                : 4)
-                                            .toDouble(),
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 1,
-                                    ),
-                                    color: e == 3
-                                        ? Colors.white
-                                        : e == 1
-                                        ? const Color(0xFF444444)
-                                        : const Color(0xFF222222),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            predData['team2'] as String,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: SizedBox(
-                    height: 6,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: predData['p1'] as int,
-                          child: Container(color: const Color(0xCCFFFFFF)),
-                        ),
-                        Expanded(
-                          flex: predData['draw'] as int,
-                          child: Container(color: const Color(0x40FFFFFF)),
-                        ),
-                        Expanded(
-                          flex: predData['p2'] as int,
-                          child: Container(color: const Color(0xCCFFFFFF)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${predData['p1']}% П1',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        color: Color(0xFF777777),
-                      ),
-                    ),
-                    Text(
-                      '${predData['draw']}% Х',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        color: Color(0xFF777777),
-                      ),
-                    ),
-                    Text(
-                      '${predData['p2']}% П2',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        color: Color(0xFF777777),
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: 16, bottom: 12),
-                  height: 1,
-                  color: const Color(0xFF1C1C1C),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      color: const Color(0x1400E676),
-                      child: Text(
-                        predData['tip'] as String,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF00E676),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Точность: ${predData['conf']}%',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 11,
-                            color: Color(0xFF777777),
-                          ),
-                        ),
-                        Text(
-                          predData['date'] as String,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10,
-                            color: Color(0xFF3A3A3A),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
+
 }
 
 class _ClubCard extends StatelessWidget {
@@ -794,19 +624,17 @@ class _ClubCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 120,
+      height: 80,
       decoration: BoxDecoration(
         color: const Color(0xFF0E0E0E),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF1C1C1C)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Row(
         children: [
           SizedBox(
-            height: 74,
-            width: double.infinity,
+            width: 60,
             child: team.logoUrl != null
                 ? Image.network(
                     team.logoUrl!,
@@ -815,7 +643,7 @@ class _ClubCard extends StatelessWidget {
                       child: Icon(
                         Icons.shield_outlined,
                         color: Colors.white30,
-                        size: 32,
+                        size: 24,
                       ),
                     ),
                   )
@@ -823,38 +651,41 @@ class _ClubCard extends StatelessWidget {
                     child: Icon(
                       Icons.shield_outlined,
                       color: Colors.white30,
-                      size: 32,
+                      size: 24,
                     ),
                   ),
           ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  team.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    team.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  team.country ?? 'Международный',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    color: Color(0xFF777777),
+                  const SizedBox(height: 4),
+                  Text(
+                    team.country ?? 'Международный',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Color(0xFF777777),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -1135,7 +966,6 @@ class _MatchesPageState extends State<MatchesPage> {
   String? _error;
   List<FootballMatch> _matches = [];
   List<String> _uefaMatches = [];
-  List<MatchItem> _newMatches = [];
 
   @override
   void initState() {
@@ -1149,7 +979,6 @@ class _MatchesPageState extends State<MatchesPage> {
       _error = null;
       _matches = [];
       _uefaMatches = [];
-      _newMatches = [];
     });
 
     try {
@@ -1170,14 +999,6 @@ class _MatchesPageState extends State<MatchesPage> {
       final message = 'UEFA source: ${e.toString()}';
       _error = _error == null ? message : '$_error\n$message';
       _uefaMatches = [];
-    }
-
-    try {
-      _newMatches = await MatchesService().fetchMatches();
-    } catch (e) {
-      final message = 'SportsDB: ${e.toString()}';
-      _error = _error == null ? message : '$_error\n$message';
-      _newMatches = [];
     } finally {
       setState(() {
         _isLoading = false;
@@ -1247,7 +1068,6 @@ class _MatchesPageState extends State<MatchesPage> {
           if (!_isLoading &&
               _matches.isEmpty &&
               _uefaMatches.isEmpty &&
-              _newMatches.isEmpty &&
               _error == null)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1435,130 +1255,9 @@ class _MatchesPageState extends State<MatchesPage> {
                 ),
               ),
           ],
-          if (_newMatches.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Text(
-                'TheSportsDB: актуальные матчи',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            for (final match in _newMatches)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E0E0E),
-                  border: Border.all(color: const Color(0xFF1C1C1C)),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: const BoxDecoration(color: Color(0x142196F3)),
-                      child: Text(
-                        match.competition,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2,
-                          color: Color(0xFF2196F3),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              match.homeTeam,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
-                            style: const TextStyle(
-                              fontFamily: 'Bebas Neue',
-                              fontSize: 28,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              match.awayTeam,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Color(0xFF1C1C1C)),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatKickoff(match.kickoff),
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              color: Color(0xFF777777),
-                            ),
-                          ),
-                          if (match.status != null)
-                            Text(
-                              match.status!,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 11,
-                                color: Color(0xFF777777),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-          const SizedBox(height: 16),
         ],
       ),
     );
-  }
-
-  String _formatKickoff(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$day.$month  $hour:$minute';
   }
 
   void _showVideoModal(BuildContext context, FootballMatch match) {
