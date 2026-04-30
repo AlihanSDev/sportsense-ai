@@ -49,9 +49,9 @@ class _SpaceBackgroundState extends State<SpaceBackground>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0B0B12), // глубокий тёмно-синий
-                Color(0xFF14141F), // мягкий фиолетово-серый
-                Color(0xFF1A1A26), // тёплый тёмно-серый
+                Color(0xFFE5E7EB), // светло-серый
+                Color(0xFFD1D5DB), // средне-серый
+                Color(0xFF9CA3AF), // тёмно-серый
               ],
             ),
           ),
@@ -163,34 +163,34 @@ class CloudPainter extends CustomPainter {
     final paint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
 
-    // Мягкое фиолетовое облако (слева)
+    // Мягкое серое облако (слева)
     final purpleGradient = RadialGradient(
       center: Alignment(
         -0.3 + math.sin(animation * 0.2) * 0.1,
         -0.2 + math.cos(animation * 0.15) * 0.1,
       ),
       radius: 0.9,
-      colors: [const Color(0xFF8B7DD8).withOpacity(0.08), Colors.transparent],
+      colors: [const Color(0xFF9CA3AF).withOpacity(0.08), Colors.transparent],
     );
 
-    // Мягкое синее облако (справа)
+    // Мягкое серое облако (справа)
     final blueGradient = RadialGradient(
       center: Alignment(
         0.4 + math.cos(animation * 0.18) * 0.15,
         0.3 + math.sin(animation * 0.12) * 0.1,
       ),
       radius: 0.8,
-      colors: [const Color(0xFF7A9BCB).withOpacity(0.07), Colors.transparent],
+      colors: [const Color(0xFF6B7280).withOpacity(0.07), Colors.transparent],
     );
 
-    // Тёплое облако (снизу)
+    // Тёплое серое облако (снизу)
     final warmGradient = RadialGradient(
       center: Alignment(
         -0.1 + math.sin(animation * 0.1) * 0.2,
         0.5 + math.cos(animation * 0.1) * 0.2,
       ),
       radius: 1.0,
-      colors: [const Color(0xFFB89E97).withOpacity(0.05), Colors.transparent],
+      colors: [const Color(0xFF4B5563).withOpacity(0.05), Colors.transparent],
     );
 
     // Лёгкое серое облако (центр)
@@ -200,7 +200,7 @@ class CloudPainter extends CustomPainter {
         math.sin(animation * 0.2) * 0.2,
       ),
       radius: 0.7,
-      colors: [const Color(0xFFA0A0B0).withOpacity(0.04), Colors.transparent],
+      colors: [const Color(0xFFD1D5DB).withOpacity(0.04), Colors.transparent],
     );
 
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);

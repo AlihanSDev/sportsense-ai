@@ -41,9 +41,9 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+        border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -55,12 +55,12 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
               return Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1 * _pulseAnimation.value),
+                  color: Colors.grey.withOpacity(0.2 * _pulseAnimation.value),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.search,
-                  color: Colors.white.withOpacity(0.8),
+                  color: const Color(0xFF374151).withOpacity(0.8),
                   size: 20,
                 ),
               );
@@ -90,7 +90,7 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: Colors.white.withOpacity(_pulseAnimation.value),
+                    color: const Color(0xFF374151).withOpacity(_pulseAnimation.value),
                     letterSpacing: 0.2,
                     height: 1.4,
                   ),
@@ -112,7 +112,7 @@ class _UefaSearchIndicatorState extends State<UefaSearchIndicator>
           width: 6,
           height: 6,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(value * 0.4),
+            color: const Color(0xFF374151).withOpacity(value * 0.4),
             shape: BoxShape.circle,
           ),
         );
@@ -138,10 +138,10 @@ class UefaErrorIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A1F1F).withOpacity(0.6),
+        color: const Color(0xFFE5E7EB).withOpacity(0.6),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFF8B4B4B).withOpacity(0.3),
+          color: const Color(0xFFD1D5DB).withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -150,7 +150,7 @@ class UefaErrorIndicator extends StatelessWidget {
         children: [
           Icon(
             Icons.info_outline_rounded,
-            color: const Color(0xFFB37B7B),
+            color: const Color(0xFF6B7280),
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -163,7 +163,7 @@ class UefaErrorIndicator extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFFE0C0C0),
+                    color: Color(0xFF374151),
                     height: 1.5,
                   ),
                 ),
@@ -177,10 +177,10 @@ class UefaErrorIndicator extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.grey.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.grey.withOpacity(0.3),
                           width: 1,
                         ),
                       ),
@@ -189,7 +189,7 @@ class UefaErrorIndicator extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.refresh_rounded,
-                            color: Colors.white.withOpacity(0.7),
+                            color: const Color(0xFF374151).withOpacity(0.7),
                             size: 14,
                           ),
                           const SizedBox(width: 6),
@@ -197,7 +197,7 @@ class UefaErrorIndicator extends StatelessWidget {
                             'Повторить',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.white.withOpacity(0.8),
+                              color: const Color(0xFF374151).withOpacity(0.8),
                               fontWeight: FontWeight.w400,
                             ),
                           ),

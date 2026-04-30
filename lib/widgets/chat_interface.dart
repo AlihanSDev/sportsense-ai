@@ -46,6 +46,13 @@ class _ChatInterfaceState extends State<ChatInterface> {
   late List<String> _displayedTexts;
   late List<bool> _fadedIn;
 
+  final List<String> _quickReplies = [
+    'Расскажи о матче',
+    'Анализ команды',
+    'Статистика игрока',
+    'Новости турнира',
+  ];
+
   @override
   void dispose() {
     _controller.dispose();
@@ -119,6 +126,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
         children: [
           _buildHeader(),
           Expanded(child: _buildMessageList()),
+          _buildQuickReplies(),
           _buildInputField(),
         ],
       ),
@@ -128,18 +136,18 @@ class _ChatInterfaceState extends State<ChatInterface> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.03)),
+      decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1)),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.forum_outlined,
-              color: Colors.white70,
+              color: Color(0xFF374151),
               size: 22,
             ),
           ),
@@ -152,14 +160,14 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white,
+                  color: const Color(0xFF374151),
                 ),
               ),
               Text(
                 'Всегда готов помочь',
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: Colors.white60,
+                  color: const Color(0xFF6B7280),
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -178,23 +186,28 @@ class _ChatInterfaceState extends State<ChatInterface> {
     );
   }
 
-  Widget _buildHeaderAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: Colors.white70, size: 20),
+  Widget _buildQuickReplies() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _quickReplies.map((reply) {
+            return Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: OutlinedButton(
+                onPressed: () => _sendQuickReply(reply),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                  backgroundColor: Colors.grey.withOpacity(0.05),
+                  foregroundColor: const Color(0xFF374151),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                child: Text(reply),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -249,12 +262,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.grey.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.support_agent_outlined,
-                  color: Colors.white70,
+                  color: Color(0xFF374151),
                   size: 18,
                 ),
               ),
@@ -268,13 +281,13 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 ),
                 decoration: BoxDecoration(
                   color: message.isUser
-                      ? const Color(0xFF2B2B2B)
-                      : Colors.white.withOpacity(0.05),
+                      ? const Color(0xFFE5E7EB)
+                      : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: message.isUser
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.white.withOpacity(0.05),
+                        ? Colors.grey.withOpacity(0.3)
+                        : Colors.grey.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -288,9 +301,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         color: message.isUser
-                            ? Colors.white
+                            ? const Color(0xFF374151)
                             : (message.textColor ??
-                                  Colors.white.withOpacity(0.9)),
+                                  const Color(0xFF1F2937)),
                         height: 1.5,
                         fontWeight: FontWeight.w400,
                       ),
@@ -300,7 +313,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       _formatTime(message.timestamp),
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.white38,
+                        color: const Color(0xFF9CA3AF),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -314,12 +327,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.grey.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.person_outline,
-                  color: Colors.white70,
+                  color: Color(0xFF374151),
                   size: 18,
                 ),
               ),
@@ -348,12 +361,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       margin: const EdgeInsets.only(top: 4),
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.support_agent_outlined,
-                        color: Colors.white70,
+                        color: Color(0xFF374151),
                         size: 18,
                       ),
                     ),
@@ -382,12 +395,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
             margin: const EdgeInsets.only(top: 4),
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.support_agent_outlined,
-              color: Colors.white70,
+              color: Color(0xFF374151),
               size: 18,
             ),
           ),
@@ -429,12 +442,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
             margin: const EdgeInsets.only(top: 4),
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.support_agent_outlined,
-              color: Colors.white70,
+              color: Color(0xFF374151),
               size: 18,
             ),
           ),
@@ -490,7 +503,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.transparent, Colors.black.withOpacity(0.2)],
+          colors: [Colors.transparent, Colors.grey.withOpacity(0.1)],
         ),
       ),
       child: Row(
@@ -499,10 +512,10 @@ class _ChatInterfaceState extends State<ChatInterface> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.grey.withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -513,14 +526,14 @@ class _ChatInterfaceState extends State<ChatInterface> {
                       controller: _controller,
                       style: GoogleFonts.inter(
                         fontSize: 15,
-                        color: Colors.white,
+                        color: const Color(0xFF374151),
                         fontWeight: FontWeight.w400,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Написать сообщение...',
                         hintStyle: GoogleFonts.inter(
                           fontSize: 15,
-                          color: Colors.white38,
+                          color: const Color(0xFF9CA3AF),
                           fontWeight: FontWeight.w400,
                         ),
                         border: InputBorder.none,
@@ -538,7 +551,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
                     onPressed: () {},
                     icon: const Icon(
                       Icons.attach_file_outlined,
-                      color: Colors.white38,
+                      color: Color(0xFF9CA3AF),
                     ),
                     iconSize: 20,
                     splashRadius: 20,
@@ -550,12 +563,12 @@ class _ChatInterfaceState extends State<ChatInterface> {
           const SizedBox(width: 12),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: IconButton(
               onPressed: _sendMessage,
-              icon: const Icon(Icons.send_outlined, color: Colors.white70),
+              icon: const Icon(Icons.send_outlined, color: Color(0xFF374151)),
               iconSize: 22,
               padding: const EdgeInsets.all(14),
               splashRadius: 24,
@@ -564,6 +577,11 @@ class _ChatInterfaceState extends State<ChatInterface> {
         ],
       ),
     );
+  }
+
+  void _sendQuickReply(String reply) {
+    widget.onSendMessage(reply);
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
   void _sendMessage() {

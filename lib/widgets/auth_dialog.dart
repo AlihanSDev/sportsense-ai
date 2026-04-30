@@ -23,6 +23,7 @@ class _AuthDialogState extends State<AuthDialog> {
   bool _isLogin = true;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _rememberMe = false;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -72,9 +73,10 @@ class _AuthDialogState extends State<AuthDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: Colors.grey.withOpacity(0.1),
       title: Text(
         _isLogin ? 'Вход' : 'Регистрация',
-        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: const Color(0xFF374151)),
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -86,7 +88,17 @@ class _AuthDialogState extends State<AuthDialog> {
               if (!_isLogin)
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Имя'),
+                  style: const TextStyle(color: Color(0xFF374151)),
+                  decoration: InputDecoration(
+                    labelText: 'Имя',
+                    labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Color(0xFF6B7280)),
+                    ),
+                  ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Введите имя';
@@ -96,7 +108,17 @@ class _AuthDialogState extends State<AuthDialog> {
                 ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                style: const TextStyle(color: Color(0xFF374151)),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF6B7280)),
+                  ),
+                ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -111,7 +133,17 @@ class _AuthDialogState extends State<AuthDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Пароль'),
+                style: const TextStyle(color: Color(0xFF374151)),
+                decoration: InputDecoration(
+                  labelText: 'Пароль',
+                  labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF6B7280)),
+                  ),
+                ),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -130,14 +162,31 @@ class _AuthDialogState extends State<AuthDialog> {
                   style: const TextStyle(color: Colors.redAccent),
                 ),
               ],
+              if (_isLogin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                      activeColor: const Color(0xFF6B7280),
+                    ),
+                    const Text('Запомнить меня', style: TextStyle(color: Color(0xFF374151))),
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
               FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B7280),
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: _isLoading ? null : _submit,
                 child: _isLoading
                     ? const SizedBox(
                         height: 18,
                         width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : Text(_isLogin ? 'Войти' : 'Создать аккаунт'),
               ),

@@ -61,7 +61,7 @@ String tr(String ru, String en) => languageNotifier.isRussian ? ru : en;
 Color onSurface(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
     ? Colors.white
-    : const Color(0xFF1A1A2E);
+    : const Color(0xFF374151);
 
 Color onSurfaceSecondary(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -71,12 +71,12 @@ Color onSurfaceSecondary(BuildContext context) =>
 Color surfaceContainer(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
     ? Colors.white.withOpacity(0.08)
-    : Colors.black.withOpacity(0.04);
+    : Colors.grey.withOpacity(0.1);
 
 Color surfaceBorder(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
     ? Colors.white.withOpacity(0.12)
-    : Colors.black.withOpacity(0.08);
+    : Colors.grey.withOpacity(0.2);
 
 // ======================= MODELS =======================
 class ChatMessage {
@@ -146,13 +146,13 @@ class SpaceApp extends StatelessWidget {
       themeMode: themeNotifier.mode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A90E2),
+          seedColor: const Color(0xFF6B7280),
           brightness: Brightness.light,
-          background: const Color(0xFFF8F9FA),
+          background: const Color(0xFFE5E7EB),
         ),
         textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
         useMaterial3: true,
-      ).copyWith(scaffoldBackgroundColor: Colors.white),
+      ).copyWith(scaffoldBackgroundColor: const Color(0xFFD1D5DB)),
       darkTheme: ThemeData.dark().copyWith(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4A90E2),
@@ -428,28 +428,28 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF102A43),
-                  Color(0xFF1E5F74),
-                  Color(0xFF3BA99C),
+                  Color(0xFF4B5563),
+                  Color(0xFF6B7280),
+                  Color(0xFF9CA3AF),
                 ],
               )
             : const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF4A90E2),
-                  Color(0xFF357ABD),
-                  Color(0xFF3BA99C),
+                  Color(0xFFD1D5DB),
+                  Color(0xFFE5E7EB),
+                  Color(0xFFF3F4F6),
                 ],
               ),
         border: Border.all(
           color: isDark
               ? Colors.white.withOpacity(0.12)
-              : Colors.black.withOpacity(0.06),
+              : Colors.grey.withOpacity(0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3BA99C).withOpacity(isDark ? 0.18 : 0.12),
+            color: const Color(0xFF9CA3AF).withOpacity(isDark ? 0.18 : 0.12),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -463,7 +463,7 @@ class _HomeScreenShellState extends State<_HomeScreenShell> {
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.white.withOpacity(0.14)
-                  : Colors.white.withOpacity(0.25),
+                  : Colors.grey.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -2608,13 +2608,13 @@ class _BottomDock extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.black.withOpacity(0.4)
-                  : Colors.white.withOpacity(0.85),
+                  ? Colors.grey.withOpacity(0.4)
+                  : Colors.grey.withOpacity(0.85),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withOpacity(0.08)
-                    : Colors.black.withOpacity(0.06),
+                    ? Colors.grey.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
               ),
             ),
             child: Row(
@@ -2653,17 +2653,17 @@ class _BottomDock extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isDark
-                          ? Colors.white.withOpacity(0.12)
-                          : Colors.black.withOpacity(0.08),
+                          ? Colors.grey.withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.2),
                       border: Border.all(
                         color: isDark
-                            ? Colors.white.withOpacity(0.15)
-                            : Colors.black.withOpacity(0.12),
+                            ? Colors.grey.withOpacity(0.4)
+                            : Colors.grey.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
                     child: const Icon(
-                      Icons.sports_soccer_rounded,
+                      Icons.chat_bubble_outline_rounded,
                       color: Colors.white54,
                       size: 22,
                     ),
