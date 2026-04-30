@@ -694,6 +694,190 @@ class _ClubCard extends StatelessWidget {
   }
 }
 
+class _MatchCard extends StatelessWidget {
+  final MatchItem match;
+  final VoidCallback onTap;
+
+  const _MatchCard({required this.match, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E0E0E),
+        border: Border.all(color: const Color(0xFF1C1C1C)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
+            decoration: const BoxDecoration(color: Color(0x142196F3)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    match.competition,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2,
+                      color: Color(0xFF2196F3),
+                    ),
+                  ),
+                ),
+                Text(
+                  _formatMatchDateTime(match.kickoff),
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: Color(0xFF777777),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                _BadgeAvatar(imageUrl: match.homeBadge),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    match.homeTeam,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
+                  style: const TextStyle(
+                    fontFamily: 'Bebas Neue',
+                    fontSize: 28,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    match.awayTeam,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                _BadgeAvatar(imageUrl: match.awayBadge),
+              ],
+            ),
+          ),
+          if (match.venue != null && match.venue!.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFF1C1C1C)),
+                ),
+              ),
+              child: Text(
+                'Стадион: ${match.venue}',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  color: Color(0xFF777777),
+                ),
+              ),
+            ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color(0xFF1C1C1C)),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    color: const Color(0xFFFF5252),
+                    child: const Text(
+                      'СМОТРЕТЬ',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatMatchDateTime(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day.$month  $hour:$minute';
+  }
+}
+
+class _BadgeAvatar extends StatelessWidget {
+  final String? imageUrl;
+
+  const _BadgeAvatar({this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1C),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: imageUrl == null || imageUrl!.isEmpty
+          ? const Icon(Icons.shield_rounded, color: Colors.white54, size: 16)
+          : Image.network(
+              imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.shield_rounded, color: Colors.white54, size: 16),
+            ),
+    );
+  }
+}
+
 // --- 3. АНАЛИТИКА ---
 class NewsPage extends StatelessWidget {
   const NewsPage({super.key});
@@ -964,7 +1148,7 @@ class MatchesPage extends StatefulWidget {
 class _MatchesPageState extends State<MatchesPage> {
   bool _isLoading = true;
   String? _error;
-  List<FootballMatch> _matches = [];
+  List<MatchItem> _matches = [];
   List<String> _uefaMatches = [];
 
   @override
@@ -982,14 +1166,9 @@ class _MatchesPageState extends State<MatchesPage> {
     });
 
     try {
-      final liveMatches = await apiFootballService.getLiveMatches();
-      if (liveMatches.isNotEmpty) {
-        _matches = liveMatches;
-      } else {
-        _matches = await apiFootballService.getTodayMatches();
-      }
+      _matches = await MatchesService().fetchMatches();
     } catch (e) {
-      _error = 'API Football: ${e.toString()}';
+      _error = 'TheSportsDB: ${e.toString()}';
       _matches = [];
     }
 
@@ -1098,130 +1277,7 @@ class _MatchesPageState extends State<MatchesPage> {
               ),
             ),
             for (final match in _matches)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E0E0E),
-                  border: Border.all(color: const Color(0xFF1C1C1C)),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: const BoxDecoration(color: Color(0x1400E676)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            match.leagueName,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 2,
-                              color: Color(0xFF00E676),
-                            ),
-                          ),
-                          Text(
-                            match.country,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              color: Color(0xFF777777),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              match.homeTeam,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
-                            style: const TextStyle(
-                              fontFamily: 'Bebas Neue',
-                              fontSize: 28,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              match.awayTeam,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Color(0xFF1C1C1C)),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            match.statusLong.isNotEmpty
-                                ? '${match.statusLong}${match.elapsed != null ? ' · ${match.elapsed}\'' : ''}'
-                                : 'Статус неизвестен',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              color: Color(0xFF777777),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _showVideoModal(context, match),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              color: const Color(0xFFFF5252),
-                              child: const Text(
-                                'СМОТРЕТЬ',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _MatchCard(match: match, onTap: () => _showVideoModal(context, match)),
           ],
           if (_uefaMatches.isNotEmpty) ...[
             const Padding(
@@ -1260,7 +1316,7 @@ class _MatchesPageState extends State<MatchesPage> {
     );
   }
 
-  void _showVideoModal(BuildContext context, FootballMatch match) {
+  void _showVideoModal(BuildContext context, MatchItem match) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black,
@@ -1326,16 +1382,14 @@ class _MatchesPageState extends State<MatchesPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        match.statusLong.isNotEmpty
-                            ? '${match.statusLong}${match.elapsed != null ? ' · ${match.elapsed}\'' : ''}'
-                            : 'Статус неизвестен',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          color: Color(0xFF3A3A3A),
-                        ),
-                      ),
+                          Text(
+                            match.status ?? 'Статус неизвестен',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              color: Color(0xFF777777),
+                            ),
+                          ),
                       const Icon(
                         Icons.fullscreen,
                         size: 18,
