@@ -1,8 +1,27 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+import 'services/api_football_service.dart';
+import 'services/qwen_api_service.dart';
+import 'services/uefa_parser.dart';
+
+bool isSupabaseConfigured = false;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim();
+  final supabaseKey = dotenv.env['SUPABASE_ANON_KEY']?.trim();
+
+  if (supabaseUrl?.isNotEmpty == true && supabaseKey?.isNotEmpty == true) {
+    await Supabase.initialize(url: supabaseUrl!, anonKey: supabaseKey!);
+    isSupabaseConfigured = true;
+  }
+
   runApp(const SportsSenseApp());
 }
 
@@ -90,6 +109,18 @@ final teamAnalytics = {
   'goalsAvg': '1.6',
 };
 
+final apiFootballService = ApiFootballService();
+final qwenApiService = QwenApiService();
+final uefaParser = UefaParser();
+
+final newsHeadlines = const [
+  'Фавориты удерживают темп в верхней части таблицы.',
+  'Ключевой матч следующего тура может изменить расстановку лидеров.',
+  'Молодые игроки становятся заметным фактором в текущем розыгрыше.',
+  'Клубы активизируют трансферную кампанию перед концом сезона.',
+  'Аналитики отмечают рост xG у лидеров чемпионата.',
+];
+
 // --- ГЛАВНЫЙ ЭКРАН ---
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -103,7 +134,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomePage(),
     const PredictionsPage(),
-    const AnalyticsPage(),
+    const NewsPage(),
     const MatchesPage(),
     const ChatPage(),
   ];
@@ -131,9 +162,9 @@ class _MainScreenState extends State<MainScreen> {
               label: 'ПРОГНОЗЫ',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.show_chart_outlined, size: 22),
-              activeIcon: Icon(Icons.show_chart, size: 22),
-              label: 'АНАЛИТИКА',
+              icon: Icon(Icons.article_outlined, size: 22),
+              activeIcon: Icon(Icons.article, size: 22),
+              label: 'НОВОСТИ',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_outlined, size: 22),
@@ -657,167 +688,71 @@ class PredictionsPage extends StatelessWidget {
 }
 
 // --- 3. АНАЛИТИКА ---
-class AnalyticsPage extends StatelessWidget {
-  const AnalyticsPage({super.key});
+class NewsPage extends StatelessWidget {
+  const NewsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final d = teamAnalytics;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
-            child: Text(
-              'Аналитика',
-              style: TextStyle(
-                fontFamily: 'Bebas Neue',
-                fontSize: 26,
-                letterSpacing: 2,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Text(
-              'Глубокая статистика: ${d['name']}',
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                color: Color(0xFF777777),
-              ),
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E0E0E),
-              border: Border.all(color: const Color(0xFF1C1C1C)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text(
-                    'Форма — последние 10 матчей (очки)',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                      color: Color(0xFF777777),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 200,
-                  child: CustomPaint(
-                    painter: FormChartPainter(
-                      d['form'] as List<int>,
-                      d['labels'] as List<String>,
-                    ),
-                    size: Size.infinite,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E0E0E),
-              border: Border.all(color: const Color(0xFF1C1C1C)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text(
-                    'xG — ожидаемые голы vs фактически',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                      color: Color(0xFF777777),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 200,
-                  child: CustomPaint(
-                    painter: XgChartPainter(
-                      d['xg'] as List<double>,
-                      d['goals'] as List<int>,
-                      d['labels'] as List<String>,
-                    ),
-                    size: Size.infinite,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.4,
-            children: [
-              _statCard(d['wins'].toString(), 'ПОБЕДЫ', Colors.white),
-              _statCard(d['draws'].toString(), 'НИЧЬИ', Colors.white),
-              _statCard(
-                d['losses'].toString(),
-                'ПОРАЖЕНИЯ',
-                const Color(0xFFFF5252),
-              ),
-              _statCard(d['cs'].toString(), 'СУХИЕ МАТЧИ', Colors.white),
-              _statCard(d['xgAvg'].toString(), 'xG СРЕДН.', Colors.white),
-              _statCard(d['goalsAvg'].toString(), 'ГОЛЫ СРЕДН.', Colors.white),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard(String val, String label, Color valColor) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E0E0E),
-        border: Border.all(color: const Color(0xFF1C1C1C)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            val,
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        const SizedBox(height: 20),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+          child: Text(
+            'Новости',
             style: TextStyle(
               fontFamily: 'Bebas Neue',
-              fontSize: 32,
-              color: valColor,
+              fontSize: 26,
+              letterSpacing: 2,
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Text(
+            'Свежие футбольные новости и аналитические заметки для быстрого просмотра.',
+            style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 1.5,
-              color: Color(0xFF3A3A3A),
+              fontSize: 12,
+              color: Color(0xFF777777),
             ),
           ),
-        ],
+        ),
+        for (final headline in newsHeadlines)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _NewsCard(title: headline),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _NewsCard extends StatelessWidget {
+  final String title;
+
+  const _NewsCard({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E0E0E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF1C1C1C)),
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          height: 1.5,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -946,15 +881,65 @@ class XgChartPainter extends CustomPainter {
 }
 
 // --- 4. МАТЧИ ---
-class MatchesPage extends StatelessWidget {
+class MatchesPage extends StatefulWidget {
   const MatchesPage({super.key});
 
   @override
+  State<MatchesPage> createState() => _MatchesPageState();
+}
+
+class _MatchesPageState extends State<MatchesPage> {
+  bool _isLoading = true;
+  String? _error;
+  List<FootballMatch> _matches = [];
+  List<String> _uefaMatches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMatches();
+  }
+
+  Future<void> _loadMatches() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _matches = [];
+      _uefaMatches = [];
+    });
+
+    try {
+      final liveMatches = await apiFootballService.getLiveMatches();
+      if (liveMatches.isNotEmpty) {
+        _matches = liveMatches;
+      } else {
+        _matches = await apiFootballService.getTodayMatches();
+      }
+    } catch (e) {
+      _error = 'API Football: ${e.toString()}';
+      _matches = [];
+    }
+
+    try {
+      _uefaMatches = await uefaParser.fetchRecentMatches();
+    } catch (e) {
+      final message = 'UEFA source: ${e.toString()}';
+      _error = _error == null ? message : '$_error\n$message';
+      _uefaMatches = [];
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      onRefresh: _loadMatches,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 20),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -970,7 +955,7 @@ class MatchesPage extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Text(
-              'Смотрите матчи в прямом эфире',
+              'Смотрите матчи в прямом эфире и дополнительные сведения из UEFA.',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 12,
@@ -978,157 +963,227 @@ class MatchesPage extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E0E0E),
-              border: Border.all(color: const Color(0xFF1C1C1C)),
+          if (_isLoading)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E0E0E),
+                border: Border.all(color: const Color(0xFF1C1C1C)),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: const BoxDecoration(color: Color(0x14FF5252)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(0xFFFF5252),
-                            ),
-                          ),
-                          const Text(
-                            'LIVE',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 2,
-                              color: Color(0xFFFF5252),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        matchData['league'] as String,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2,
-                          color: Color(0xFF3A3A3A),
-                        ),
-                      ),
-                    ],
-                  ),
+          if (_error != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E0E0E),
+                border: Border.all(color: const Color(0xFF1C1C1C)),
+              ),
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: Color(0xFFFF5252),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          matchData['team1'] as String,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${matchData['s1']} : ${matchData['s2']}',
-                        style: const TextStyle(
-                          fontFamily: 'Bebas Neue',
-                          fontSize: 28,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          matchData['team2'] as String,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+          if (!_isLoading && _matches.isEmpty && _uefaMatches.isEmpty && _error == null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E0E0E),
+                border: Border.all(color: const Color(0xFF1C1C1C)),
+              ),
+              child: const Text(
+                'Матчи не найдены. Потяните вниз, чтобы обновить.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: Color(0xFF777777),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: Color(0xFF1C1C1C))),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+              ),
+            ),
+          if (_matches.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text(
+                'API Football',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final match in _matches)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E0E0E),
+                  border: Border.all(color: const Color(0xFF1C1C1C)),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: const BoxDecoration(color: Color(0x1400E676)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(
-                            Icons.remove_red_eye_outlined,
-                            size: 14,
-                            color: Color(0xFF3A3A3A),
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            matchData['viewers'] as String,
+                            match.leagueName,
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 11,
-                              color: Color(0xFF3A3A3A),
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2,
+                              color: Color(0xFF00E676),
+                            ),
+                          ),
+                          Text(
+                            match.country,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              color: Color(0xFF777777),
                             ),
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: () => _showVideoModal(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 6,
-                          ),
-                          color: const Color(0xFFFF5252),
-                          child: const Text(
-                            'СМОТРЕТЬ',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1,
-                              color: Colors.white,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              match.homeTeam,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
+                          Text(
+                            '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
+                            style: const TextStyle(
+                              fontFamily: 'Bebas Neue',
+                              fontSize: 28,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              match.awayTeam,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: const BoxDecoration(
+                        border: Border(top: BorderSide(color: Color(0xFF1C1C1C))),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            match.statusLong.isNotEmpty
+                                ? '${match.statusLong}${match.elapsed != null ? ' · ${match.elapsed}\'' : ''}'
+                                : 'Статус неизвестен',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              color: Color(0xFF777777),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showVideoModal(context, match),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              color: const Color(0xFFFF5252),
+                              child: const Text(
+                                'СМОТРЕТЬ',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          if (_uefaMatches.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text(
+                'UEFA: дополнительные матчи',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final summary in _uefaMatches)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E0E0E),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF1C1C1C)),
+                ),
+                child: Text(
+                  summary,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    height: 1.5,
+                    color: Colors.white,
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+          ],
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  void _showVideoModal(BuildContext context) {
+  void _showVideoModal(BuildContext context, FootballMatch match) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black,
@@ -1146,12 +1201,15 @@ class MatchesPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Атлетико vs Севилья',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      '${match.homeTeam} vs ${match.awayTeam}',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
@@ -1176,6 +1234,7 @@ class MatchesPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
                     height: 3,
@@ -1187,18 +1246,20 @@ class MatchesPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '32:15 / 90:00',
-                        style: TextStyle(
+                        match.statusLong.isNotEmpty
+                            ? '${match.statusLong}${match.elapsed != null ? ' · ${match.elapsed}\'' : ''}'
+                            : 'Статус неизвестен',
+                        style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,
                           color: Color(0xFF3A3A3A),
                         ),
                       ),
-                      Icon(
+                      const Icon(
                         Icons.fullscreen,
                         size: 18,
                         color: Color(0xFF777777),
