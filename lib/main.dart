@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/api_football_service.dart';
 import 'services/free_team_service.dart';
+import 'services/matches_service.dart';
 import 'services/qwen_api_service.dart';
 import 'services/uefa_parser.dart';
 
@@ -1134,6 +1135,7 @@ class _MatchesPageState extends State<MatchesPage> {
   String? _error;
   List<FootballMatch> _matches = [];
   List<String> _uefaMatches = [];
+  List<MatchItem> _newMatches = [];
 
   @override
   void initState() {
@@ -1147,6 +1149,7 @@ class _MatchesPageState extends State<MatchesPage> {
       _error = null;
       _matches = [];
       _uefaMatches = [];
+      _newMatches = [];
     });
 
     try {
@@ -1167,6 +1170,14 @@ class _MatchesPageState extends State<MatchesPage> {
       final message = 'UEFA source: ${e.toString()}';
       _error = _error == null ? message : '$_error\n$message';
       _uefaMatches = [];
+    }
+
+    try {
+      _newMatches = await MatchesService().fetchMatches();
+    } catch (e) {
+      final message = 'SportsDB: ${e.toString()}';
+      _error = _error == null ? message : '$_error\n$message';
+      _newMatches = [];
     } finally {
       setState(() {
         _isLoading = false;
@@ -1236,6 +1247,7 @@ class _MatchesPageState extends State<MatchesPage> {
           if (!_isLoading &&
               _matches.isEmpty &&
               _uefaMatches.isEmpty &&
+              _newMatches.isEmpty &&
               _error == null)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1423,10 +1435,130 @@ class _MatchesPageState extends State<MatchesPage> {
                 ),
               ),
           ],
+          if (_newMatches.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text(
+                'TheSportsDB: актуальные матчи',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final match in _newMatches)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E0E0E),
+                  border: Border.all(color: const Color(0xFF1C1C1C)),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: const BoxDecoration(color: Color(0x142196F3)),
+                      child: Text(
+                        match.competition,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
+                          color: Color(0xFF2196F3),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              match.homeTeam,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
+                            style: const TextStyle(
+                              fontFamily: 'Bebas Neue',
+                              fontSize: 28,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              match.awayTeam,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Color(0xFF1C1C1C)),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatKickoff(match.kickoff),
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                              color: Color(0xFF777777),
+                            ),
+                          ),
+                          if (match.status != null)
+                            Text(
+                              match.status!,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11,
+                                color: Color(0xFF777777),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
           const SizedBox(height: 16),
         ],
       ),
     );
+  }
+
+  String _formatKickoff(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day.$month  $hour:$minute';
   }
 
   void _showVideoModal(BuildContext context, FootballMatch match) {
